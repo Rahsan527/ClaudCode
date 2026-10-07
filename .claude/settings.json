@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__mt5__get_status",
+      "mcp__mt5__get_symbol_info",
+      "mcp__mt5__get_rates",
+      "mcp__mt5__get_market_snapshot",
+      "mcp__mt5__get_positions",
+      "mcp__mt5__get_orders",
+      "mcp__mt5__get_history",
+      "mcp__mt5__get_journal"
+    ]
+  }
+}
