@@ -8,7 +8,6 @@ set "PROXY_MASK=255.255.255.255"
 set "PROXY_GW=10.84.159.1"
 set "PROXY_METRIC=1"
 
-set "INET_KEY=HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings"
 set "POL_HKCU=HKCU\Software\Policies\Microsoft\Internet Explorer\Control Panel"
 set "POL_HKLM=HKLM\Software\Policies\Microsoft\Internet Explorer\Control Panel"
 
@@ -37,7 +36,7 @@ if errorlevel 1 (
 )
 echo   + маршрут %PROXY_IP% через %PROXY_GW% добавлен
 
-reg add "%INET_KEY%" /v ProxyEnable /t REG_DWORD /d 1 /f >nul
+call :POLICY proxyon
 echo   + прокси включен
 
 rem Политика "Запретить изменение параметров прокси":
@@ -74,7 +73,7 @@ if defined STILL_LOCKED (
     echo   - изменение настроек прокси разблокировано (компьютер + пользователь)
 )
 
-reg add "%INET_KEY%" /v ProxyEnable /t REG_DWORD /d 0 /f >nul
+call :POLICY proxyoff
 echo   - прокси выключен
 
 call :REFRESH
@@ -83,11 +82,13 @@ goto :END
 
 
 :POLICY
-rem Правка локальных групповых политик (Registry.pol) - встроенный PowerShell-блок в конце файла
+rem Встроенный PowerShell-блок в конце файла:
+rem   add / remove      - локальные групповые политики (Registry.pol)
+rem   proxyon / proxyoff - переключатель "Использовать прокси-сервер"
 set "POL_ACTION=%~1"
 set "POL_SELF=%~f0"
 powershell -NoProfile -ExecutionPolicy Bypass -Command "$t=[IO.File]::ReadAllText($env:POL_SELF); iex $t.Substring($t.LastIndexOf('#'+'PSBEGIN'))"
-if errorlevel 1 echo   [!] Не удалось изменить локальную групповую политику
+if errorlevel 1 echo   [!] Ошибка при выполнении: %~1
 exit /b 0
 
 
@@ -219,6 +220,31 @@ function Update-Gpt([string]$path, [bool]$machine, [bool]$user, [bool]$ensureExt
     }
     $lines = @('[General]') + @($ini.GetEnumerator() | ForEach-Object { "$($_.Key)=$($_.Value)" })
     Save-Bytes $path ([Text.Encoding]::ASCII.GetBytes(($lines -join "`r`n") + "`r`n"))
+}
+
+# Proxy checkbox. Windows reads it from the binary value
+# Connections\DefaultConnectionSettings (byte 8 = flags, 0x02 = proxy on),
+# ProxyEnable is only a legacy copy.
+function Set-ProxyFlag([bool]$on) {
+    $ie = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings'
+    $k  = "$ie\Connections"
+    $done = $false
+    foreach ($n in 'DefaultConnectionSettings', 'SavedLegacySettings') {
+        $b = (Get-ItemProperty -Path $k -Name $n -ErrorAction SilentlyContinue).$n
+        if (-not $b -or $b.Length -lt 12) { continue }
+        $cnt = ([long][BitConverter]::ToUInt32($b, 4) + 1) % 4294967296
+        [BitConverter]::GetBytes([uint32]$cnt).CopyTo($b, 4)  # change counter
+        if ($on) { $b[8] = $b[8] -bor 0x03 } else { $b[8] = ($b[8] -band 0xFD) -bor 0x01 }
+        Set-ItemProperty -Path $k -Name $n -Value ([byte[]]$b)
+        $done = $true
+    }
+    Set-ItemProperty -Path $ie -Name ProxyEnable -Value ([int]$on) -Type DWord
+    if (-not $done) { Write-Host '  [!] DefaultConnectionSettings not found - set the proxy once manually in Settings' }
+}
+
+if ($env:POL_ACTION -like 'proxy*') {
+    try { Set-ProxyFlag ($env:POL_ACTION -eq 'proxyon'); exit 0 }
+    catch { Write-Host "  [!] $($_.Exception.Message)"; exit 1 }
 }
 
 try {
