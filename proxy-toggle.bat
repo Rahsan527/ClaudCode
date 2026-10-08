@@ -222,24 +222,80 @@ function Update-Gpt([string]$path, [bool]$machine, [bool]$user, [bool]$ensureExt
     Save-Bytes $path ([Text.Encoding]::ASCII.GetBytes(($lines -join "`r`n") + "`r`n"))
 }
 
-# Proxy checkbox. Windows reads it from the binary value
-# Connections\DefaultConnectionSettings (byte 8 = flags, 0x02 = proxy on),
-# ProxyEnable is only a legacy copy.
-function Set-ProxyFlag([bool]$on) {
-    $ie = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings'
-    $k  = "$ie\Connections"
-    $done = $false
-    foreach ($n in 'DefaultConnectionSettings', 'SavedLegacySettings') {
-        $b = (Get-ItemProperty -Path $k -Name $n -ErrorAction SilentlyContinue).$n
-        if (-not $b -or $b.Length -lt 12) { continue }
-        $cnt = ([long][BitConverter]::ToUInt32($b, 4) + 1) % 4294967296
-        [BitConverter]::GetBytes([uint32]$cnt).CopyTo($b, 4)  # change counter
-        if ($on) { $b[8] = $b[8] -bor 0x03 } else { $b[8] = ($b[8] -band 0xFD) -bor 0x01 }
-        Set-ItemProperty -Path $k -Name $n -Value ([byte[]]$b)
-        $done = $true
+# Proxy checkbox ("Use a proxy server").
+# Set through the official WinINet API (INTERNET_OPTION_PER_CONNECTION_OPTION):
+# Windows itself writes DefaultConnectionSettings to the right place and
+# notifies all programs. Address/port/exceptions are not touched.
+$wininet = @'
+using System;
+using System.Runtime.InteropServices;
+public static class WinInetProxy {
+    [StructLayout(LayoutKind.Sequential)] public struct Opt { public int dwOption; public IntPtr value; }
+    [StructLayout(LayoutKind.Sequential)] public struct OptList {
+        public int dwSize; public IntPtr pszConnection; public int dwOptionCount; public int dwOptionError; public IntPtr pOptions;
     }
-    Set-ItemProperty -Path $ie -Name ProxyEnable -Value ([int]$on) -Type DWord
-    if (-not $done) { Write-Host '  [!] DefaultConnectionSettings not found - set the proxy once manually in Settings' }
+    [DllImport("wininet.dll", SetLastError = true, EntryPoint = "InternetQueryOptionW")]
+    static extern bool QueryList(IntPtr h, int o, ref OptList b, ref int l);
+    [DllImport("wininet.dll", SetLastError = true, EntryPoint = "InternetSetOptionW")]
+    static extern bool SetList(IntPtr h, int o, ref OptList b, int l);
+    [DllImport("wininet.dll", SetLastError = true, EntryPoint = "InternetSetOptionW")]
+    static extern bool SetPtr(IntPtr h, int o, IntPtr b, int l);
+
+    const int PER_CONNECTION_OPTION = 75, PER_CONN_FLAGS = 1, SETTINGS_CHANGED = 39, REFRESH = 37;
+
+    public static int GetFlags() {
+        Opt opt = new Opt(); opt.dwOption = PER_CONN_FLAGS;
+        IntPtr p = Marshal.AllocHGlobal(Marshal.SizeOf(typeof(Opt)));
+        try {
+            Marshal.StructureToPtr(opt, p, false);
+            OptList l = NewList(p);
+            int len = l.dwSize;
+            if (!QueryList(IntPtr.Zero, PER_CONNECTION_OPTION, ref l, ref len)) throw new System.ComponentModel.Win32Exception();
+            opt = (Opt)Marshal.PtrToStructure(p, typeof(Opt));
+            return (int)(opt.value.ToInt64() & 0xFFFFFFFF);
+        } finally { Marshal.FreeHGlobal(p); }
+    }
+
+    public static int SetProxy(bool on) {
+        int flags = GetFlags();
+        flags = on ? (flags | 0x03) : ((flags & ~0x02) | 0x01);   // 0x01 DIRECT, 0x02 PROXY
+        Opt opt = new Opt(); opt.dwOption = PER_CONN_FLAGS; opt.value = new IntPtr(flags);
+        IntPtr p = Marshal.AllocHGlobal(Marshal.SizeOf(typeof(Opt)));
+        try {
+            Marshal.StructureToPtr(opt, p, false);
+            OptList l = NewList(p);
+            if (!SetList(IntPtr.Zero, PER_CONNECTION_OPTION, ref l, l.dwSize)) throw new System.ComponentModel.Win32Exception();
+        } finally { Marshal.FreeHGlobal(p); }
+        SetPtr(IntPtr.Zero, SETTINGS_CHANGED, IntPtr.Zero, 0);
+        SetPtr(IntPtr.Zero, REFRESH, IntPtr.Zero, 0);
+        return GetFlags();
+    }
+
+    static OptList NewList(IntPtr p) {
+        OptList l = new OptList();
+        l.dwSize = Marshal.SizeOf(typeof(OptList)); l.dwOptionCount = 1; l.pOptions = p;
+        return l;
+    }
+}
+'@
+
+function Set-ProxyFlag([bool]$on) {
+    # The proxy setting is per user: warn if the script runs under another account
+    $me = [Security.Principal.WindowsIdentity]::GetCurrent().Name
+    $logged = (Get-CimInstance Win32_ComputerSystem).UserName
+    if ($logged -and $logged -ne $me) {
+        Write-Host "  [!] Script runs as '$me', but the logged-on user is '$logged'."
+        Write-Host "  [!] Proxy will be switched for '$me' only. Run 'as administrator' under '$logged'."
+    }
+    $perUser = (Get-ItemProperty 'HKLM:\Software\Policies\Microsoft\Windows\CurrentVersion\Internet Settings' -Name ProxySettingsPerUser -ErrorAction SilentlyContinue).ProxySettingsPerUser
+    if ($perUser -eq 0) { Write-Host '  [i] Policy ProxySettingsPerUser=0: proxy settings are per-machine' }
+
+    Add-Type -TypeDefinition $wininet
+    $flags = [WinInetProxy]::SetProxy($on)
+    Set-ItemProperty -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings' -Name ProxyEnable -Value ([int]$on) -Type DWord
+    $state = if ($flags -band 0x02) { 'ON' } else { 'OFF' }
+    Write-Host ('  [i] user {0}: proxy flags = 0x{1:X2} (proxy {2})' -f $me, $flags, $state)
+    if ([bool]($flags -band 0x02) -ne $on) { throw 'Windows did not accept the proxy setting' }
 }
 
 if ($env:POL_ACTION -like 'proxy*') {
