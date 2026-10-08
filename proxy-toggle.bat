@@ -276,53 +276,115 @@ public static class WinInetProxy {
 }
 '@
 
-function Set-ProxyFlag([bool]$on) {
-    # The proxy setting is per user: warn if the script runs under another account
-    $me = [Security.Principal.WindowsIdentity]::GetCurrent().Name
-    $logged = (Get-CimInstance Win32_ComputerSystem).UserName
-    if ($logged -and $logged -ne $me) {
-        Write-Host "  [!] Script runs as '$me', but the logged-on user is '$logged'."
-        Write-Host "  [!] Proxy will be switched for '$me' only. Run 'as administrator' under '$logged'."
+# Users whose proxy we switch: everyone logged on interactively (owners of explorer.exe).
+# Proxy settings live in each user's own hive (HKEY_USERS\<SID>), so when the script
+# is elevated under another admin account, HKCU is the WRONG place.
+function Get-TargetUsers {
+    $res = @{}
+    foreach ($pr in Get-CimInstance Win32_Process -Filter "Name='explorer.exe'" -ErrorAction SilentlyContinue) {
+        try {
+            $o = Invoke-CimMethod -InputObject $pr -MethodName GetOwner
+            if ($o.User) {
+                $name = "$($o.Domain)\$($o.User)"
+                $sid  = (New-Object Security.Principal.NTAccount($name)).Translate([Security.Principal.SecurityIdentifier]).Value
+                $res[$sid] = $name
+            }
+        } catch { }
     }
-    $perUser = (Get-ItemProperty 'HKLM:\Software\Policies\Microsoft\Windows\CurrentVersion\Internet Settings' -Name ProxySettingsPerUser -ErrorAction SilentlyContinue).ProxySettingsPerUser
-    if ($perUser -eq 0) { Write-Host '  [i] Policy ProxySettingsPerUser=0: proxy settings are per-machine' }
+    if ($res.Count -eq 0) {
+        $me = [Security.Principal.WindowsIdentity]::GetCurrent()
+        $res[$me.User.Value] = $me.Name
+    }
+    foreach ($sid in $res.Keys) {
+        if (Test-Path "Registry::HKEY_USERS\$sid") { [pscustomobject]@{ Sid = $sid; Name = $res[$sid] } }
+    }
+}
 
-    Add-Type -TypeDefinition $wininet
-    $flags = [WinInetProxy]::SetProxy($on)
-    Set-ItemProperty -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings' -Name ProxyEnable -Value ([int]$on) -Type DWord
-    $state = if ($flags -band 0x02) { 'ON' } else { 'OFF' }
-    Write-Host ('  [i] user {0}: proxy flags = 0x{1:X2} (proxy {2})' -f $me, $flags, $state)
-    if ([bool]($flags -band 0x02) -ne $on) { throw 'Windows did not accept the proxy setting' }
+$ieRel  = 'Software\Microsoft\Windows\CurrentVersion\Internet Settings'
+$polRel = 'Software\Policies\Microsoft\Internet Explorer\Control Panel'
+
+# Proxy checkbox = flag 0x02 in Connections\DefaultConnectionSettings (byte 8).
+function Set-ProxyFlag([bool]$on) {
+    $me = [Security.Principal.WindowsIdentity]::GetCurrent().User.Value
+    foreach ($t in Get-TargetUsers) {
+        $ie = "Registry::HKEY_USERS\$($t.Sid)\$ieRel"
+        $found = $false
+        foreach ($n in 'DefaultConnectionSettings', 'SavedLegacySettings') {
+            $b = (Get-ItemProperty -Path "$ie\Connections" -Name $n -ErrorAction SilentlyContinue).$n
+            if (-not $b -or $b.Length -lt 12) { continue }
+            $cnt = ([long][BitConverter]::ToUInt32($b, 4) + 1) % 4294967296
+            [BitConverter]::GetBytes([uint32]$cnt).CopyTo($b, 4)
+            if ($on) { $b[8] = $b[8] -bor 0x03 } else { $b[8] = ($b[8] -band 0xFD) -bor 0x01 }
+            Set-ItemProperty -Path "$ie\Connections" -Name $n -Value ([byte[]]$b)
+            if ($n -eq 'DefaultConnectionSettings') { $found = $true }
+        }
+        Set-ItemProperty -Path $ie -Name ProxyEnable -Value ([int]$on) -Type DWord
+        if (-not $found) { Write-Host "  [!] $($t.Name): no DefaultConnectionSettings - set the proxy once manually" }
+        Write-Host "  [i] $($t.Name): proxy $(if ($on) { 'ON' } else { 'OFF' })"
+
+        # Tell the user's programs (Settings, browsers) to re-read the settings
+        if ($t.Sid -eq $me) {
+            Add-Type -TypeDefinition $wininet
+            [void][WinInetProxy]::SetProxy($on)
+        } else {
+            Send-Refresh $t.Name
+        }
+    }
+}
+
+# Run InternetSetOption(SETTINGS_CHANGED/REFRESH) inside the user's session
+# via a one-time scheduled task (no password needed for Interactive logon type).
+function Send-Refresh([string]$user) {
+    $code = '$t=Add-Type -MemberDefinition ''[DllImport("wininet.dll")] public static extern bool InternetSetOption(IntPtr h,int o,IntPtr b,int l);'' -Name W -Namespace I -PassThru; [void]$t::InternetSetOption(0,39,0,0); [void]$t::InternetSetOption(0,37,0,0)'
+    $enc  = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($code))
+    $name = 'ProxyToggleRefresh'
+    try {
+        $act = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument "-NoProfile -WindowStyle Hidden -EncodedCommand $enc"
+        $prn = New-ScheduledTaskPrincipal -UserId $user -LogonType Interactive
+        Register-ScheduledTask -TaskName $name -Action $act -Principal $prn -Force | Out-Null
+        Start-ScheduledTask -TaskName $name
+        for ($i = 0; $i -lt 30 -and (Get-ScheduledTask -TaskName $name).State -eq 'Running'; $i++) { Start-Sleep -Milliseconds 500 }
+    } catch {
+        Write-Host "  [!] Could not notify $user ($($_.Exception.Message)) - reopen Settings/browser"
+    } finally {
+        Unregister-ScheduledTask -TaskName $name -Confirm:$false -ErrorAction SilentlyContinue
+    }
+}
+
+# Lock value directly in each user's hive (takes effect at once, without user's gpupdate)
+function Set-UserLock([bool]$on) {
+    foreach ($t in Get-TargetUsers) {
+        $k = "Registry::HKEY_USERS\$($t.Sid)\$polRel"
+        if ($on) {
+            New-Item -Path $k -Force | Out-Null
+            Set-ItemProperty -Path $k -Name Proxy -Value 1 -Type DWord
+        } else {
+            Remove-ItemProperty -Path $k -Name Proxy -ErrorAction SilentlyContinue
+        }
+    }
 }
 
 # Real state, read straight from the registry
 function Show-Status {
-    $ie   = 'Software\Microsoft\Windows\CurrentVersion\Internet Settings'
     $line = '  ' + ('-' * 60)
     Write-Host "$line`n  $env:POL_TITLE"
     Write-Host "  Script account : $([Security.Principal.WindowsIdentity]::GetCurrent().Name)"
-    Write-Host "  Logged-on user : $((Get-CimInstance Win32_ComputerSystem).UserName)"
     $route = Get-NetRoute -DestinationPrefix "$env:PROXY_IP/32" -ErrorAction SilentlyContinue
     Write-Host "  Route to proxy : $(if ($route) { 'yes, via ' + $route[0].NextHop } else { 'no' })"
-    foreach ($hive in 'HKCU', 'HKLM') {
-        $b = (Get-ItemProperty "${hive}:\$ie\Connections" -Name DefaultConnectionSettings -ErrorAction SilentlyContinue).DefaultConnectionSettings
-        if ($b -and $b.Length -ge 12) {
-            $f = $b[8]
-            $txt = @(); if ($f -band 2) { $txt += 'PROXY' }; if ($f -band 4) { $txt += 'SCRIPT' }; if ($f -band 8) { $txt += 'AUTODETECT' }
-            Write-Host ("  {0} flags      : 0x{1:X2} [{2}]" -f $hive, $f, ($txt -join ','))
-        } else { Write-Host "  $hive flags      : (no DefaultConnectionSettings)" }
-    }
-    $u = Get-ItemProperty "HKCU:\$ie" -ErrorAction SilentlyContinue
-    Write-Host "  ProxyEnable    : $($u.ProxyEnable)   ProxyServer: $($u.ProxyServer)"
-    foreach ($k in 'HKCU:\Software\Policies\Microsoft\Internet Explorer\Control Panel',
-                   'HKLM:\Software\Policies\Microsoft\Internet Explorer\Control Panel',
-                   'HKCU:\Software\Policies\Microsoft\Windows\CurrentVersion\Internet Settings',
-                   'HKLM:\Software\Policies\Microsoft\Windows\CurrentVersion\Internet Settings') {
-        $p = Get-ItemProperty $k -ErrorAction SilentlyContinue
-        if ($p) {
-            $vals = $p.PSObject.Properties | Where-Object { $_.Name -notlike 'PS*' } | ForEach-Object { "$($_.Name)=$($_.Value)" }
-            if ($vals) { Write-Host "  Policy $k : $($vals -join '; ')" }
-        }
+    $lm = (Get-ItemProperty "HKLM:\$polRel" -Name Proxy -ErrorAction SilentlyContinue).Proxy
+    Write-Host "  Lock (computer): $(if ($lm -eq 1) { 'yes' } else { 'no' })"
+    foreach ($t in Get-TargetUsers) {
+        $ie = "Registry::HKEY_USERS\$($t.Sid)\$ieRel"
+        $b  = (Get-ItemProperty "$ie\Connections" -Name DefaultConnectionSettings -ErrorAction SilentlyContinue).DefaultConnectionSettings
+        $fl = if ($b -and $b.Length -ge 12) {
+            $f = $b[8]; $x = @()
+            if ($f -band 2) { $x += 'PROXY' }; if ($f -band 4) { $x += 'SCRIPT' }; if ($f -band 8) { $x += 'AUTODETECT' }
+            '0x{0:X2} [{1}]' -f $f, ($x -join ',')
+        } else { '(no DefaultConnectionSettings)' }
+        $u  = Get-ItemProperty $ie -ErrorAction SilentlyContinue
+        $ul = (Get-ItemProperty "Registry::HKEY_USERS\$($t.Sid)\$polRel" -Name Proxy -ErrorAction SilentlyContinue).Proxy
+        Write-Host "  User $($t.Name):"
+        Write-Host "      flags $fl, ProxyServer=$($u.ProxyServer), lock(user)=$(if ($ul -eq 1) { 'yes' } else { 'no' })"
     }
     Write-Host $line
 }
@@ -339,6 +401,7 @@ try {
     $m = Update-Pol (Join-Path $gpRoot 'Machine\Registry.pol') $add
     $u = Update-Pol (Join-Path $gpRoot 'User\Registry.pol')    $add
     if ($m -or $u) { Update-Gpt (Join-Path $gpRoot 'gpt.ini') $m $u $add }
+    Set-UserLock $add
 
     # Per-user local policies (Administrators / Non-Administrators / specific users)
     if (Test-Path -LiteralPath $gpUsers) {
