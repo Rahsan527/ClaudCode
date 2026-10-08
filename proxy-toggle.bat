@@ -19,15 +19,19 @@ if errorlevel 1 (
     exit /b 1
 )
 
-rem ===== Есть ли маршрут до прокси =====
+rem ===== Режим: on / off / без параметра = переключить =====
+call :POLICY status "BEFORE"
+if /i "%~1"=="on"  goto :ENABLE
+if /i "%~1"=="off" goto :DISABLE
 route print -4 | findstr /r /c:"^ *%PROXY_IP:.=\.% " >nul
 if errorlevel 1 goto :ENABLE
 goto :DISABLE
 
 
 :ENABLE
-echo Маршрут до %PROXY_IP% не найден - ВКЛЮЧАЮ прокси.
+echo ===== ВКЛЮЧАЮ прокси =====
 
+route delete %PROXY_IP% >nul 2>&1
 route -p add %PROXY_IP% mask %PROXY_MASK% %PROXY_GW% metric %PROXY_METRIC% >nul
 if errorlevel 1 (
     echo [ОШИБКА] Не удалось добавить маршрут.
@@ -35,9 +39,6 @@ if errorlevel 1 (
     exit /b 1
 )
 echo   + маршрут %PROXY_IP% через %PROXY_GW% добавлен
-
-call :POLICY proxyon
-echo   + прокси включен
 
 rem Политика "Запретить изменение параметров прокси":
 rem и в конфигурации компьютера, и в конфигурации пользователя
@@ -47,15 +48,15 @@ reg add "%POL_HKLM%" /v Proxy /t REG_DWORD /d 1 /f >nul
 call :GPUPDATE
 echo   + изменение настроек прокси заблокировано (компьютер + пользователь)
 
-call :REFRESH
-echo Готово: прокси ВКЛЮЧЕН.
-goto :END
+rem Переключатель ставится ПОСЛЕ gpupdate, чтобы политики его не перезаписали
+call :POLICY proxyon
+goto :DONE
 
 
 :DISABLE
-echo Маршрут до %PROXY_IP% найден - ВЫКЛЮЧАЮ прокси.
+echo ===== ВЫКЛЮЧАЮ прокси =====
 
-route delete %PROXY_IP% >nul
+route delete %PROXY_IP% >nul 2>&1
 echo   - маршрут %PROXY_IP% удален
 
 rem Снять блокировку во всех местах, где она может быть задана
@@ -74,10 +75,13 @@ if defined STILL_LOCKED (
 )
 
 call :POLICY proxyoff
-echo   - прокси выключен
+goto :DONE
 
-call :REFRESH
-echo Готово: прокси ВЫКЛЮЧЕН.
+
+:DONE
+rem Через 3 секунды перечитать реальное состояние - видно, не сбросил ли его кто-то
+timeout /t 3 /nobreak >nul
+call :POLICY status "AFTER (3 sec later)"
 goto :END
 
 
@@ -85,7 +89,9 @@ goto :END
 rem Встроенный PowerShell-блок в конце файла:
 rem   add / remove      - локальные групповые политики (Registry.pol)
 rem   proxyon / proxyoff - переключатель "Использовать прокси-сервер"
+rem   status             - вывод фактического состояния
 set "POL_ACTION=%~1"
+set "POL_TITLE=%~2"
 set "POL_SELF=%~f0"
 powershell -NoProfile -ExecutionPolicy Bypass -Command "$t=[IO.File]::ReadAllText($env:POL_SELF); iex $t.Substring($t.LastIndexOf('#'+'PSBEGIN'))"
 if errorlevel 1 echo   [!] Ошибка при выполнении: %~1
@@ -95,15 +101,6 @@ exit /b 0
 :GPUPDATE
 echo   ... применение групповых политик (gpupdate)
 echo N | gpupdate /force >nul 2>&1
-exit /b 0
-
-
-:REFRESH
-rem Уведомить WinINet об изменении настроек, чтобы они применились без перезагрузки
-powershell -NoProfile -ExecutionPolicy Bypass -Command ^
-  "$s='[DllImport(\"wininet.dll\")] public static extern bool InternetSetOption(IntPtr h,int o,IntPtr b,int l);';" ^
-  "$t=Add-Type -MemberDefinition $s -Name W -Namespace I -PassThru;" ^
-  "[void]$t::InternetSetOption(0,39,0,0); [void]$t::InternetSetOption(0,37,0,0)" >nul 2>&1
 exit /b 0
 
 
@@ -297,6 +294,40 @@ function Set-ProxyFlag([bool]$on) {
     Write-Host ('  [i] user {0}: proxy flags = 0x{1:X2} (proxy {2})' -f $me, $flags, $state)
     if ([bool]($flags -band 0x02) -ne $on) { throw 'Windows did not accept the proxy setting' }
 }
+
+# Real state, read straight from the registry
+function Show-Status {
+    $ie   = 'Software\Microsoft\Windows\CurrentVersion\Internet Settings'
+    $line = '  ' + ('-' * 60)
+    Write-Host "$line`n  $env:POL_TITLE"
+    Write-Host "  Script account : $([Security.Principal.WindowsIdentity]::GetCurrent().Name)"
+    Write-Host "  Logged-on user : $((Get-CimInstance Win32_ComputerSystem).UserName)"
+    $route = Get-NetRoute -DestinationPrefix "$env:PROXY_IP/32" -ErrorAction SilentlyContinue
+    Write-Host "  Route to proxy : $(if ($route) { 'yes, via ' + $route[0].NextHop } else { 'no' })"
+    foreach ($hive in 'HKCU', 'HKLM') {
+        $b = (Get-ItemProperty "${hive}:\$ie\Connections" -Name DefaultConnectionSettings -ErrorAction SilentlyContinue).DefaultConnectionSettings
+        if ($b -and $b.Length -ge 12) {
+            $f = $b[8]
+            $txt = @(); if ($f -band 2) { $txt += 'PROXY' }; if ($f -band 4) { $txt += 'SCRIPT' }; if ($f -band 8) { $txt += 'AUTODETECT' }
+            Write-Host ("  {0} flags      : 0x{1:X2} [{2}]" -f $hive, $f, ($txt -join ','))
+        } else { Write-Host "  $hive flags      : (no DefaultConnectionSettings)" }
+    }
+    $u = Get-ItemProperty "HKCU:\$ie" -ErrorAction SilentlyContinue
+    Write-Host "  ProxyEnable    : $($u.ProxyEnable)   ProxyServer: $($u.ProxyServer)"
+    foreach ($k in 'HKCU:\Software\Policies\Microsoft\Internet Explorer\Control Panel',
+                   'HKLM:\Software\Policies\Microsoft\Internet Explorer\Control Panel',
+                   'HKCU:\Software\Policies\Microsoft\Windows\CurrentVersion\Internet Settings',
+                   'HKLM:\Software\Policies\Microsoft\Windows\CurrentVersion\Internet Settings') {
+        $p = Get-ItemProperty $k -ErrorAction SilentlyContinue
+        if ($p) {
+            $vals = $p.PSObject.Properties | Where-Object { $_.Name -notlike 'PS*' } | ForEach-Object { "$($_.Name)=$($_.Value)" }
+            if ($vals) { Write-Host "  Policy $k : $($vals -join '; ')" }
+        }
+    }
+    Write-Host $line
+}
+
+if ($env:POL_ACTION -eq 'status') { try { Show-Status } catch { Write-Host "  [!] $($_.Exception.Message)" }; exit 0 }
 
 if ($env:POL_ACTION -like 'proxy*') {
     try { Set-ProxyFlag ($env:POL_ACTION -eq 'proxyon'); exit 0 }
