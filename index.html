@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Three.js — демо загрузки моделей</title>
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <div id="loading">Загрузка модели…</div>
+
+    <div class="panel" id="help">
+      <h1>Демо: модель из Blender в Three.js</h1>
+      <p><b>WASD / стрелки</b> — ходьба, <b>Shift</b> — бег, <b>Пробел</b> — прыжок</p>
+      <p><b>1</b> помахать · <b>2</b> танец · <b>3</b> лайк · <b>4</b> удар</p>
+      <p><b>Мышь</b> — вращать камеру, <b>колесо</b> — зум</p>
+      <p class="hint">Перетащите сюда свой <b>.glb</b> из Blender, чтобы проверить его в сцене</p>
+      <label class="button">Открыть .glb…<input id="file" type="file" accept=".glb,.gltf" hidden /></label>
+    </div>
+
+    <div class="panel" id="info" hidden></div>
+    <div id="drop">Отпустите файл, чтобы загрузить модель</div>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
