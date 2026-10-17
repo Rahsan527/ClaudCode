@@ -10,10 +10,10 @@ const FADE = 0.25; // длительность плавного перехода
 const EMOTES = { Digit1: 'Wave', Digit2: 'Dance', Digit3: 'ThumbsUp', Digit4: 'Punch' };
 
 export class Player {
-  constructor(gltf, camera, bounds) {
+  constructor(gltf, camera, world) {
     this.model = gltf.scene;
     this.camera = camera;
-    this.bounds = bounds;
+    this.world = world; // столкновения со сценой (см. world.js)
     this.keys = new Set();
 
     // AnimationMixer проигрывает клипы (Actions из Blender) на этой модели
@@ -39,7 +39,10 @@ export class Player {
     this.oneShot = null;
     this.play('Idle', 0);
 
-    addEventListener('keydown', (e) => this.onKey(e, true));
+    addEventListener('keydown', (e) => {
+      if (e.target.closest?.('select, input')) return; // не мешаем выбору уровня
+      this.onKey(e, true);
+    });
     addEventListener('keyup', (e) => this.onKey(e, false));
     addEventListener('blur', () => this.keys.clear());
   }
@@ -107,10 +110,7 @@ export class Player {
     if (dir.lengthSq() === 0) return;
 
     const speed = this.isRunning() ? RUN_SPEED : WALK_SPEED;
-    const pos = this.model.position;
-    pos.addScaledVector(dir, speed * dt);
-    pos.x = THREE.MathUtils.clamp(pos.x, -this.bounds, this.bounds);
-    pos.z = THREE.MathUtils.clamp(pos.z, -this.bounds, this.bounds);
+    this.world.move(this.model.position, dir.clone().multiplyScalar(speed * dt));
 
     // Модель смотрит вдоль +Z, поворачиваем её по направлению движения
     const target = new THREE.Quaternion().setFromAxisAngle(

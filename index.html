@@ -14,11 +14,15 @@
       <p><b>WASD / стрелки</b> — ходьба, <b>Shift</b> — бег, <b>Пробел</b> — прыжок</p>
       <p><b>1</b> помахать · <b>2</b> танец · <b>3</b> лайк · <b>4</b> удар</p>
       <p><b>Мышь</b> — вращать камеру, <b>колесо</b> — зум</p>
+      <p class="hint">Уровень:</p>
+      <select id="level"></select>
       <p class="hint">Перетащите сюда свой <b>.glb</b> из Blender, чтобы проверить его в сцене</p>
       <label class="button">Открыть .glb…<input id="file" type="file" accept=".glb,.gltf" hidden /></label>
     </div>
 
     <div class="panel" id="info" hidden></div>
+    <div class="panel" id="stats"></div>
+    <div id="credit"></div>
     <div id="drop">Отпустите файл, чтобы загрузить модель</div>
 
     <script type="module" src="/src/main.js"></script>
