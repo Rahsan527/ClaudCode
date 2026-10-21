@@ -55,7 +55,7 @@ function hb(x, y) {
     f = Math.pow(Math.max(0, 1 - Math.pow(t, 1.7 + 1.5 * k * k)), 0.85);
   } else if (x < -45) {
     const t = Math.min(1, (-45 - x) / (-45 - xs));
-    const transom = 0.6 * smooth(-1, 5, y);
+    const transom = 0.66 * smooth(-1.6, 0.8, y);
     f = transom + (1 - transom) * Math.pow(Math.max(0, 1 - Math.pow(t, 3 + 0.5 * k)), 0.6);
   }
   return midHalf(y) * f;
@@ -131,6 +131,11 @@ function indexedGeometry(pos, index, uv = null) {
   if (uv) g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
   g.setIndex(index);
   g.computeVertexNormals();
+  // Вершины, у которых остались только вырожденные треугольники, получают нормаль по умолчанию
+  const nrm = g.attributes.normal;
+  for (let i = 0; i < nrm.count; i++) {
+    if (Math.hypot(nrm.getX(i), nrm.getY(i), nrm.getZ(i)) < 0.5) nrm.setXYZ(i, 0, 1, 0);
+  }
   return g;
 }
 
@@ -237,9 +242,13 @@ function loftGeometry(stations, seg = 12, zc = 0) {
   return indexedGeometry(pos, index);
 }
 
-// Плоский контур [x, z] → пластина толщиной t (верх на y = 0)
+// Плоский контур [x, z] (может быть невыпуклым) → пластина толщиной t (верх на y = 0)
 function plateGeometry(pts, t) {
-  return prismGeometry(pts, -t, pts, 0);
+  const shape = new THREE.Shape(pts.map(([x, z]) => new THREE.Vector2(x, -z)));
+  const g = new THREE.ExtrudeGeometry(shape, { depth: t, bevelEnabled: false });
+  g.rotateX(-Math.PI / 2); // контур ложится в плоскость XZ, выдавливание идёт вверх
+  g.translate(0, -t, 0);
+  return g;
 }
 
 // Зеркалирование геометрии по Z с исправлением порядка вершин
@@ -479,7 +488,7 @@ const DECK_XS = (() => {
   xs.push(150, 150.8, 151.5, 152.1, 152.6, 153, 153.3, 153.5);
   return xs;
 })();
-const DECK_COLS = 28;
+const DECK_COLS = 40;
 // Контур палубы по кругу: правый борт с кормы в нос, левый обратно, кормовой срез
 const DECK_RING = (() => {
   const r = [];
@@ -496,7 +505,7 @@ const DECK_RING = (() => {
 function skirtHullPoint(x, z) {
   const xT = clamp(x, sternX(TOP) + 0.05, stemX(TOP) - 0.05);
   const over = Math.abs(z) - hb(xT, TOP);
-  const yk = clamp(TOP - Math.max(0, over) * 0.55, 7, TOP);
+  const yk = clamp(TOP - Math.max(0, over) * 0.45, 9.5, TOP);
   const xk = clamp(x, sternX(yk) + 0.05, stemX(yk) - 0.05);
   return [xk, yk, Math.sign(z) * Math.min(Math.abs(z), hb(xk, yk))];
 }
@@ -513,27 +522,27 @@ export function createKuznetsov() {
     return m;
   };
   const M = {
-    hull: std('Hull_Grey', 0x545b60, 0.7, 0.3),
-    boot: std('Boot_Red', 0x8e3523, 0.7, 0.2),
-    under: std('Antifouling_Red', 0x5e2a24, 0.8, 0.15),
+    hull: std('Hull_Grey', 0x5c6368, 0.72, 0.12),
+    boot: std('Boot_Red', 0x9a3a26, 0.7, 0.08),
+    under: std('Antifouling_Red', 0x6a2e26, 0.8, 0.05),
     deck: std('Deck', 0xffffff, 0.85, 0.1, { map: deckTexture() }),
-    hatch: std('Deck_Hatch', 0x6a7074, 0.7, 0.35),
-    island: std('Island_Grey', 0x62696e, 0.7, 0.3),
-    light: std('Light_Grey', 0x9aa1a5, 0.6, 0.3),
-    panel: std('Radar_Panel', 0x868d90, 0.55, 0.35),
+    hatch: std('Deck_Hatch', 0x6c7276, 0.7, 0.15),
+    island: std('Island_Grey', 0x666d72, 0.7, 0.12),
+    light: std('Light_Grey', 0xa3aaae, 0.6, 0.12),
+    panel: std('Radar_Panel', 0x8d9497, 0.55, 0.2),
     radome: std('Radome_White', 0xdadddc, 0.5, 0.05),
-    glass: std('Glass', 0x1a2530, 0.15, 0.7),
-    dark: std('Dark_Metal', 0x2b3034, 0.6, 0.6),
-    weapon: std('Weapon_Grey', 0x6e7579, 0.6, 0.4),
+    glass: std('Glass', 0x24323e, 0.15, 0.5),
+    dark: std('Dark_Metal', 0x33383c, 0.6, 0.4),
+    weapon: std('Weapon_Grey', 0x737a7e, 0.6, 0.2),
     bronze: std('Propeller_Bronze', 0xb38b4d, 0.3, 0.9),
-    rail: std('Railing', 0x8c9296, 0.6, 0.5),
+    rail: std('Railing', 0x9aa0a4, 0.6, 0.2),
     net: std('Nets', 0xffffff, 0.9, 0.1, { map: netTexture(), alphaTest: 0.4, side: THREE.DoubleSide }),
     boat: std('Boat_White', 0xd8dbd8, 0.6, 0.1),
     raft: std('Liferaft_White', 0xe4e4dc, 0.6, 0.05),
     orange: std('Rescue_Orange', 0xd9652a, 0.6, 0.1),
-    su33: std('Su33_Paint', 0x9fb4c9, 0.55, 0.25),
-    mig: std('MiG29K_Paint', 0x76889a, 0.55, 0.25),
-    ka27: std('Ka27_Paint', 0x7b8a96, 0.6, 0.2),
+    su33: std('Su33_Paint', 0x9fb4c9, 0.55, 0.1),
+    mig: std('MiG29K_Paint', 0x76889a, 0.55, 0.1),
+    ka27: std('Ka27_Paint', 0x7b8a96, 0.6, 0.1),
     canopy: std('Canopy', 0x2a3f52, 0.1, 0.8),
     nozzle: std('Aircraft_Dark', 0x3a3d40, 0.5, 0.7),
     tire: std('Tire_Black', 0x161718, 0.9, 0.0),
@@ -563,7 +572,7 @@ export function createKuznetsov() {
 
   // Часть корпуса между рядами высот rows; первый ряд может быть килевой линией (полуширина 0)
   const hullGeometry = (rows) => {
-    const N = 180;
+    const N = 300;
     const C = N + 1;
     const pos = [];
     const index = [];
@@ -608,8 +617,8 @@ export function createKuznetsov() {
   mesh(hullGeometry(rows([1.8, 3, 4.5, 6, 7.5, 9, 10.5, 12, 13.5, 14.5, TOP])), M.hull, 'Hull', hullGroup);
 
   // Бульб с ГАС «Полином»
-  const dome = mesh(new THREE.SphereGeometry(1, 32, 16), M.under, 'SonarDome', hullGroup, [128.5, -6.4, 0]);
-  dome.scale.set(13, 3.4, 3.7);
+  const dome = mesh(new THREE.SphereGeometry(1, 32, 16), M.under, 'SonarDome', hullGroup, [126, -6.3, 0]);
+  dome.scale.set(12, 3.6, 4.1);
 
   // Скуловые кили и дейдвудный скег
   const bilgeKeel = plateGeometry([[-50, 0], [40, 0], [44, 0.9], [-54, 0.9]], 0.25);
@@ -656,8 +665,8 @@ export function createKuznetsov() {
   ]);
   const hawseGeo = new THREE.CylinderGeometry(1.1, 1.1, 0.3, 20).rotateX(Math.PI / 2);
   for (const [s, tag] of [[-1, 'Port'], [1, 'Starboard']]) {
-    const x = 129;
-    const y = 9.2;
+    const x = 136.5;
+    const y = 11;
     // Нормаль борта: градиент поверхности z = s·hb(x, y)
     const dx = hb(x + 0.5, y) - hb(x - 0.5, y);
     const yaw = Math.atan2(-dx, s);
@@ -725,7 +734,7 @@ export function createKuznetsov() {
   [-6, 6].forEach((z, i) => {
     const x = -130;
     const top = hullBottomAt(x, z) + 0.6;
-    const bottom = -8.6;
+    const bottom = -7.8;
     const shape = new THREE.Shape([[2.4, top], [-2.6, top], [-2.4, bottom], [2.0, bottom + 0.3]].map(([a, b]) => new THREE.Vector2(a, b)));
     const g = new THREE.ExtrudeGeometry(shape, { depth: 0.8, bevelEnabled: true, bevelSize: 0.2, bevelThickness: 0.2, bevelSegments: 2 });
     g.translate(0, 0, -0.4);
@@ -856,56 +865,54 @@ export function createKuznetsov() {
   const islandRails = [];
   const railAround = (pts, y) => islandRails.push(railingGeometry(pts.map(([x, z]) => [x, y, z]), true));
 
+  // Ярусы: основание у палубы, второй ярус, ходовой мостик, башня РЛС, верхний пост
   const baseP = chamferRect(-26, 30, 18.6, 31.4, 2.5);
-  ip(baseP, 15.5, 25, M.island, 'Island_Base');
-  const lvl2 = chamferRect(-22, 27, 19.6, 30.8, 2);
-  ip(lvl2, 25, 30.5, M.island, 'Island_Level2', chamferRect(-21.5, 26.5, 19.9, 30.6, 2));
-  railAround(chamferRect(-25.6, 29.6, 19, 31, 2.3), 25);
+  ip(baseP, 15.5, 25.5, M.island, 'Island_Base');
+  ip(chamferRect(-22, 27, 19.6, 30.8, 2), 25.5, 31.5, M.island, 'Island_Level2', chamferRect(-21.5, 26.5, 19.9, 30.6, 2));
+  railAround(chamferRect(-25.6, 29.6, 19, 31, 2.3), 25.5);
   // Пост управления полётами, выступающий к угловой палубе
-  ip(chamferRect(-16, -2, 17.2, 20, 0.8), 25.5, 29.5, M.island, 'Island_FlightControl');
-  ip(chamferRect(-15.8, -2.2, 17.05, 19.4, 0.8), 27.4, 28.9, M.glass, 'Island_FlightControl_Windows');
-  // Ряды иллюминаторов и окон нижних ярусов
-  ip(chamferRect(-21.6, 27.4, 19.5, 30.9, 2), 27.8, 28.5, M.glass, 'Island_Level2_Windows');
-  ip(chamferRect(-25.7, 30.3, 18.5, 31.5, 2.5), 22.3, 22.9, M.glass, 'Island_Base_Windows');
-  // Ходовой мостик
-  const bridge = chamferRect(-6, 24, 20.2, 30.2, 2.5);
-  ip(bridge, 30.5, 35.6, M.island, 'Island_Bridge', chamferRect(-5, 23, 20.7, 29.7, 2.4));
-  ip(chamferRect(-5.6, 24.2, 20.0, 30.4, 2.5), 33.4, 34.8, M.glass, 'Island_Bridge_Windows', chamferRect(-5.4, 24.0, 20.1, 30.3, 2.5));
-  ip(chamferRect(21, 25, 18.4, 31.8, 0.6), 32.9, 33.3, M.island, 'Island_BridgeWings');
-  railAround(chamferRect(-21, 26.6, 20, 30.4, 2), 30.5);
-  // Башня с антеннами «Марс-Пассат»: восьмигранник с большими фасками
-  const tower = chamferRect(0, 18, 21, 29, 3.4);
-  ip(tower, 35.6, 46, M.island, 'Island_Tower', chamferRect(1, 17, 21.7, 28.3, 3.0));
-  ip(chamferRect(-0.5, 18.5, 20.5, 29.5, 3.4), 46, 46.6, M.island, 'Island_TowerTop');
-  railAround(chamferRect(-0.3, 18.3, 20.7, 29.3, 3.3), 46.6);
-  railAround(chamferRect(-4.8, 22.8, 20.8, 29.6, 2.3), 35.6);
-  const marsGeo = merged([
-    [new THREE.CylinderGeometry(3.0, 3.0, 0.45, 8).rotateX(Math.PI / 2).rotateZ(Math.PI / 8)],
-  ]);
-  const marsFace = new THREE.CylinderGeometry(2.6, 2.6, 0.1, 8).rotateX(Math.PI / 2).rotateZ(Math.PI / 8).translate(0, 0, 0.27);
-  [[16.6, 22.4, 45], [16.6, 27.6, -45], [1.4, 22.4, 135], [1.4, 27.6, -135]].forEach(([x, z, a], i) => {
-    // a — азимут нормали от +X; локальная +Z смотрит наружу
+  ip(chamferRect(-16, -2, 17.2, 20, 0.8), 26, 30, M.island, 'Island_FlightControl');
+  ip(chamferRect(-15.8, -2.2, 17.05, 19.4, 0.8), 28.3, 29.3, M.glass, 'Island_FlightControl_Windows');
+  // Ряды окон и иллюминаторов
+  ip(chamferRect(-21.7, 27.3, 19.65, 30.75, 2), 28.6, 29.1, M.glass, 'Island_Level2_Windows');
+  ip(chamferRect(-25.7, 30.3, 18.5, 31.5, 2.5), 22.6, 23.0, M.glass, 'Island_Base_Windows');
+  // Ходовой мостик с крыльями
+  ip(chamferRect(-6, 24, 20.2, 30.2, 2.5), 31.5, 37, M.island, 'Island_Bridge', chamferRect(-5, 23, 20.7, 29.7, 2.4));
+  ip(chamferRect(-5.5, 24.05, 20.1, 30.3, 2.5), 35.0, 35.9, M.glass, 'Island_Bridge_Windows', chamferRect(-5.4, 23.85, 20.2, 30.2, 2.5));
+  ip(chamferRect(21, 25, 18.4, 31.8, 0.6), 34.3, 34.7, M.island, 'Island_BridgeWings');
+  railAround(chamferRect(-21, 26.6, 20, 30.4, 2), 31.5);
+  railAround(chamferRect(21.2, 24.8, 18.6, 31.6, 0.5), 34.7);
+  // Башня РЛС «Марс-Пассат»: восьмигранник с большими фасками под антенные полотна
+  ip(chamferRect(0, 18, 21, 29, 3.4), 37, 50, M.island, 'Island_Tower', chamferRect(1, 17, 21.6, 28.4, 3.0));
+  ip(chamferRect(-0.5, 18.5, 20.5, 29.5, 3.4), 50, 50.6, M.island, 'Island_TowerTop');
+  railAround(chamferRect(-0.3, 18.3, 20.7, 29.3, 3.3), 50.6);
+  railAround(chamferRect(-4.8, 22.8, 20.8, 29.6, 2.3), 37);
+  const marsFrame = new THREE.CylinderGeometry(3.3, 3.3, 0.45, 8).rotateX(Math.PI / 2).rotateZ(Math.PI / 8);
+  const marsFace = new THREE.CylinderGeometry(2.9, 2.9, 0.1, 8).rotateX(Math.PI / 2).rotateZ(Math.PI / 8).translate(0, 0, 0.27);
+  [[16.4, 22.6, 45], [16.4, 27.4, -45], [1.6, 22.6, 135], [1.6, 27.4, -135]].forEach(([x, z, a], i) => {
+    // a — азимут нормали от +X; локальная +Z группы смотрит наружу, полотно отклонено назад на 12°
     const yaw = Math.atan2(Math.cos(a * DEG), -Math.sin(a * DEG));
     const out = [Math.cos(a * DEG), -Math.sin(a * DEG)];
-    const g = group(`Radar_MarsPassat_${i + 1}`, island, [x + out[0] * 1.1, 41, z + out[1] * 1.1]);
+    const g = group(`Radar_MarsPassat_${i + 1}`, island, [x + out[0] * 1.1, 44, z + out[1] * 1.1]);
     g.rotation.set(-12 * DEG, yaw, 0, 'YXZ');
-    mesh(marsGeo, M.island, `Radar_MarsPassat_${i + 1}_Frame`, g);
+    mesh(marsFrame, M.island, `Radar_MarsPassat_${i + 1}_Frame`, g);
     mesh(marsFace, M.panel, `Radar_MarsPassat_${i + 1}_Array`, g);
   });
   // Малые антенные полотна на основных гранях башни
-  const smallPanel = new THREE.BoxGeometry(3.2, 2.2, 0.3);
-  [[18.2, 25, 0], [-0.2, 25, 180], [9, 20.8, 90], [9, 29.2, -90]].forEach(([x, z, a], i) => {
+  const smallPanel = new THREE.BoxGeometry(3.4, 2.4, 0.3);
+  [[18.15, 25, 0], [-0.15, 25, 180], [9, 20.85, 90], [9, 29.15, -90]].forEach(([x, z, a], i) => {
     const yaw = Math.atan2(Math.cos(a * DEG), -Math.sin(a * DEG));
-    mesh(smallPanel, M.panel, `Radar_Panel_Small_${i + 1}`, island, [x, 37.6, z], [0, yaw, 0]);
+    mesh(smallPanel, M.panel, `Radar_Panel_Small_${i + 1}`, island, [x, 39.3, z], [0, yaw, 0]);
   });
-  // Верхний цилиндрический пост и антенна «Фрегат-МА»
-  mesh(new THREE.CylinderGeometry(3.7, 3.9, 4.6, 28), M.light, 'Island_TopCylinder', island, [10, 48.9, 25]);
-  islandRails.push(railingGeometry(Array.from({ length: 24 }, (_, k) => {
-    const a = (k / 24) * Math.PI * 2;
-    return [10 + Math.cos(a) * 3.6, 51.2, 25 + Math.sin(a) * 3.6];
+  // Верхний цилиндрический пост и вращающаяся антенна «Фрегат-МА»
+  mesh(new THREE.CylinderGeometry(4.3, 4.5, 5.4, 32), M.light, 'Island_TopCylinder', island, [10, 53.3, 25]);
+  mesh(new THREE.CylinderGeometry(4.6, 4.6, 0.3, 32), M.island, 'Island_TopCylinder_Deck', island, [10, 56.15, 25]);
+  islandRails.push(railingGeometry(Array.from({ length: 28 }, (_, k) => {
+    const a = (k / 28) * Math.PI * 2;
+    return [10 + Math.cos(a) * 4.45, 56.3, 25 + Math.sin(a) * 4.45];
   }), true, 0.9, 1.2));
-  mesh(new THREE.CylinderGeometry(0.9, 1.1, 1.4, 16), M.dark, 'Radar_Fregat_Pedestal', island, [10, 51.9, 25]);
-  const fregat = group('Radar_Fregat', island, [10, 52.6, 25]);
+  mesh(new THREE.CylinderGeometry(0.9, 1.1, 1.4, 16), M.dark, 'Radar_Fregat_Pedestal', island, [10, 57, 25]);
+  const fregat = group('Radar_Fregat', island, [10, 57.7, 25]);
   const reflector = new THREE.BoxGeometry(7.6, 2.3, 0.22);
   mesh(merged([
     [reflector, [0, 1.25, 0.75], [-20 * DEG, 0, 0]],
@@ -915,55 +922,57 @@ export function createKuznetsov() {
     [new THREE.BoxGeometry(7.6, 0.25, 0.3), [0, 0.1, -1.2]],
     [new THREE.BoxGeometry(5.0, 0.35, 0.3), [0, 2.75, 0]],
   ]), M.panel, 'Radar_Fregat_Antenna', fregat);
-  // Мачта с реями и штыревыми антеннами
-  mesh(new THREE.CylinderGeometry(0.22, 0.35, 14, 8), M.light, 'Island_Mast', island, [3, 53.6, 25]);
+  // Мачта с реями и штыревыми антеннами (за цилиндром, вне круга вращения «Фрегата»)
+  mesh(new THREE.CylinderGeometry(0.22, 0.4, 16, 8), M.light, 'Island_Mast', island, [1.5, 58.6, 25]);
   mesh(merged([
-    [new THREE.BoxGeometry(0.2, 0.2, 7.5), [0, 0, 0]],
-    [new THREE.BoxGeometry(0.15, 0.15, 4.5), [0, 3, 0]],
-    [new THREE.CylinderGeometry(0.05, 0.05, 3, 4), [0, 1.5, 3.6]],
-    [new THREE.CylinderGeometry(0.05, 0.05, 3, 4), [0, 1.5, -3.6]],
-    [new THREE.BoxGeometry(1.4, 0.15, 0.15), [0.6, 4.5, 0]],
-  ]), M.light, 'Island_MastYards', island, [3, 54, 25]);
-  // Радиопрозрачные купола систем связи
-  const radomeGeo = new THREE.SphereGeometry(1.7, 20, 12);
+    [new THREE.BoxGeometry(0.2, 0.2, 8), [0, 0, 0]],
+    [new THREE.BoxGeometry(0.15, 0.15, 5), [0, 3.5, 0]],
+    [new THREE.CylinderGeometry(0.05, 0.05, 3, 4), [0, 1.5, 3.8]],
+    [new THREE.CylinderGeometry(0.05, 0.05, 3, 4), [0, 1.5, -3.8]],
+    [new THREE.BoxGeometry(1.6, 0.15, 0.15), [0.7, 5.5, 0]],
+  ]), M.light, 'Island_MastYards', island, [1.5, 60, 25]);
+  // Радиопрозрачные купола систем связи на площадках по бортам башни
+  const radomeGeo = new THREE.SphereGeometry(1.8, 20, 12);
   const radomeBase = new THREE.CylinderGeometry(1.0, 1.2, 1.2, 12);
-  [[15, 19.6], [4, 19.6], [15, 30.4], [4, 30.4]].forEach(([x, z], i) => {
-    mesh(radomeBase, M.island, `Radome_${i + 1}_Base`, island, [x, 43.2, z]);
-    mesh(radomeGeo, M.radome, `Radome_${i + 1}`, island, [x, 45, z]);
+  [[14.5, 19.4], [5, 19.4], [14.5, 30.6], [5, 30.6]].forEach(([x, z], i) => {
+    mesh(radomeBase, M.island, `Radome_${i + 1}_Base`, island, [x, 47.4, z]);
+    mesh(radomeGeo, M.radome, `Radome_${i + 1}`, island, [x, 49.3, z]);
   });
-  mesh(new THREE.BoxGeometry(5, 0.4, 3.6), M.island, 'Radome_Platform_Port', island, [9.5, 42.4, 19.8]);
-  mesh(new THREE.BoxGeometry(5, 0.4, 3.6), M.island, 'Radome_Platform_Starboard', island, [9.5, 42.4, 30.2]);
+  mesh(new THREE.BoxGeometry(14, 0.4, 3.6), M.island, 'Radome_Platform_Port', island, [9.75, 46.6, 19.6]);
+  mesh(new THREE.BoxGeometry(14, 0.4, 3.6), M.island, 'Radome_Platform_Starboard', island, [9.75, 46.6, 30.4]);
+  railAround([[2.75, 17.8], [16.75, 17.8], [16.75, 21.4], [2.75, 21.4]], 46.8);
+  railAround([[2.75, 28.6], [16.75, 28.6], [16.75, 32.2], [2.75, 32.2]], 46.8);
   // Навигационные РЛС на кронштейнах
   const navGeo = merged([
     [new THREE.BoxGeometry(0.35, 0.35, 4.4), [0, 0.5, 0]],
     [new THREE.BoxGeometry(0.6, 0.4, 0.6), [0, 0.2, 0]],
   ]);
-  mesh(new THREE.BoxGeometry(3, 0.4, 3), M.island, 'Radar_Nav_1_Platform', island, [19.5, 46.4, 25]);
-  const nav1 = group('Radar_Nav_1', island, [19.5, 46.6, 25]);
+  mesh(new THREE.BoxGeometry(3, 0.4, 3), M.island, 'Radar_Nav_1_Platform', island, [19.6, 50.4, 25]);
+  const nav1 = group('Radar_Nav_1', island, [19.6, 50.6, 25]);
   mesh(navGeo, M.dark, 'Radar_Nav_1_Antenna', nav1);
-  // Дымовая труба в корме надстройки, с наклоном назад
-  ip(chamferRect(-24, -6, 21, 30, 2), 30.5, 43, M.island, 'Funnel', chamferRect(-27, -11, 21.8, 29.2, 2));
-  ip(chamferRect(-27.4, -10.6, 21.4, 29.6, 2), 43, 43.8, M.dark, 'Funnel_Cap');
-  const exhaust = new THREE.CylinderGeometry(1.1, 1.1, 2, 12);
-  [[-23.5, 23.6], [-23.5, 27.4], [-19.5, 23.6], [-19.5, 27.4], [-15, 25.5]].forEach(([x, z], i) => {
-    mesh(exhaust, M.dark, `Funnel_Exhaust_${i + 1}`, island, [x, 44.4, z]);
+  // Дымовая труба в корме надстройки, с наклоном назад и газоотводами
+  ip(chamferRect(-24, -6, 21.2, 29.8, 2), 31.5, 41.5, M.island, 'Funnel', chamferRect(-26.5, -10.5, 21.8, 29.2, 2));
+  ip(chamferRect(-26.9, -10.1, 21.4, 29.6, 2), 41.5, 42.1, M.dark, 'Funnel_Cap');
+  const exhaust = new THREE.BoxGeometry(3.2, 0.9, 2.6);
+  [[-23, 23.6], [-23, 27.4], [-18.5, 23.6], [-18.5, 27.4]].forEach(([x, z], i) => {
+    mesh(exhaust, M.dark, `Funnel_Exhaust_${i + 1}`, island, [x, 42.5, z]);
   });
-  // Кормовая мачта с второй РЛС
-  mesh(new THREE.CylinderGeometry(0.25, 0.4, 9, 8), M.light, 'Funnel_Mast', island, [-8, 47, 25.5]);
-  mesh(new THREE.BoxGeometry(2.2, 0.3, 2.2), M.island, 'Radar_Nav_2_Platform', island, [-8, 49, 25.5]);
-  const nav2 = group('Radar_Nav_2', island, [-8, 49.2, 25.5]);
+  // Кормовая мачта со второй РЛС
+  mesh(new THREE.CylinderGeometry(0.25, 0.4, 13, 8), M.light, 'Funnel_Mast', island, [-8, 47.5, 25.5]);
+  mesh(new THREE.BoxGeometry(2.2, 0.3, 2.2), M.island, 'Radar_Nav_2_Platform', island, [-8, 51.5, 25.5]);
+  const nav2 = group('Radar_Nav_2', island, [-8, 51.7, 25.5]);
   mesh(navGeo, M.dark, 'Radar_Nav_2_Antenna', nav2);
-  // Прожекторы и спутниковые антенны
+  // Спутниковые антенны (закрытые тарелки) и прожекторы
   const dish = merged([
-    [new THREE.SphereGeometry(0.9, 14, 6, 0, Math.PI * 2, 0, Math.PI / 3), [0, 0, 0], [Math.PI / 2, 0, 0]],
+    [new THREE.CylinderGeometry(0.95, 0.25, 0.45, 16), [0, 0, 0], [Math.PI / 2, 0, 0]],
     [new THREE.CylinderGeometry(0.12, 0.12, 1.2, 6), [0, -0.6, 0]],
   ]);
-  [[22.8, 36.2, 21.5], [22.8, 36.2, 28.5], [-2, 36.2, 21], [-2, 36.2, 29]].forEach(([x, y, z], i) => {
-    mesh(dish, M.light, `Island_Dish_${i + 1}`, island, [x, y + 0.6, z], [0, i * 1.3, 0]);
+  [[22.8, 37, 21.5], [22.8, 37, 28.5], [-2, 37, 21], [-2, 37, 29]].forEach(([x, y, z], i) => {
+    mesh(dish, M.light, `Island_Dish_${i + 1}`, island, [x, y + 1.2, z], [-0.5, i * 1.3, 0]);
   });
   const lamp = new THREE.CylinderGeometry(0.45, 0.45, 0.7, 12).rotateZ(Math.PI / 2);
   [[23.6, 21.2], [23.6, 28.8], [-25.8, 20], [-25.8, 30]].forEach(([x, z], i) => {
-    mesh(lamp, M.dark, `Island_Searchlight_${i + 1}`, island, [x, x > 0 ? 31.4 : 25.6, z]);
+    mesh(lamp, M.dark, `Island_Searchlight_${i + 1}`, island, [x, x > 0 ? 32.4 : 26.1, z]);
   });
   mesh(mergeGeometries(islandRails), M.rail, 'Railings_Island', island);
 
@@ -1017,7 +1026,7 @@ export function createKuznetsov() {
     const top = [[x0, zin], [x1, zin], [x1, zout - 1.5], [x1 - 1.5, zout], [x0 + 1.5, zout], [x0, zout - 1.5]];
     const bot = top.map(([x, z]) => [x, zin + (z - zin) * 0.12]);
     const flip = (pts) => pts.map(([x, z]) => [x, s * z]);
-    mesh(prismGeometry(flip(bot), yP - 6, flip(top), yP), M.hull, name, arms);
+    mesh(prismGeometry(flip(bot), yP - 4.5, flip(top), yP), M.hull, name, arms);
     sponsonRails.push(railingGeometry(flip([[x0, zEdge - 0.5], [x0, zout - 1.5], [x0 + 1.5, zout], [x1 - 1.5, zout], [x1, zout - 1.5], [x1, zEdge - 0.5]])
       .map(([x, z]) => [x, yP, z])));
     return { y: yP, z: s * (zout - 2.3) };
@@ -1028,7 +1037,7 @@ export function createKuznetsov() {
     mesh(darkGeo, M.dark, `${name}_Guns`, g);
   };
   let k = 1;
-  for (const [x0, x1] of [[110, 124], [-136, -120]]) {
+  for (const [x0, x1] of [[110, 124], [-128, -114]]) {
     for (const s of [-1, 1]) {
       const sp = sponson(`Sponson_Kashtan_${s < 0 ? 'Port' : 'Starboard'}_${x0 > 0 ? 'Fwd' : 'Aft'}`, x0, x1, s, 5);
       const face = x0 > 0 ? -s * 60 * DEG : -s * 120 * DEG;
@@ -1037,14 +1046,14 @@ export function createKuznetsov() {
     }
   }
   k = 1;
-  for (const [x, s] of [[72, -1], [-18, -1], [-100, -1], [84, 1], [-68, 1], [-108, 1]]) {
+  for (const [x, s] of [[72, -1], [-18, -1], [-100, -1], [84, 1], [-68, 1], [-100, 1]]) {
     const sp = sponson(`Sponson_AK630_${k}`, x - 3, x + 3, s, 3.2);
     ciws(`AK630_${k}`, ak630Body, ak630Gun, [x, sp.y, s * (Math.abs(sp.z) + 0.6)], -s * 90 * DEG);
     k++;
   }
   [-1, 1].forEach((s, i) => {
-    const sp = sponson(`Sponson_RBU_${i + 1}`, -150, -142, s, 3);
-    mesh(rbuGeo, M.weapon, `RBU12000_${i + 1}`, arms, [-146, sp.y, sp.z], [0, s * 150 * DEG, 0]);
+    const sp = sponson(`Sponson_RBU_${i + 1}`, -142, -135, s, 3);
+    mesh(rbuGeo, M.weapon, `RBU12000_${i + 1}`, arms, [-138.5, sp.y, sp.z], [0, s * 150 * DEG, 0]);
   });
   mesh(mergeGeometries(sponsonRails), M.rail, 'Railings_Sponsons', arms);
 
@@ -1151,7 +1160,8 @@ export function createKuznetsov() {
     for (let i = 0; i <= steps; i++) {
       const t = (DURATION * i) / steps;
       times.push(t);
-      q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), ((2 * Math.PI * t) / period) % (2 * Math.PI));
+      // Угол без взятия по модулю: соседние ключи не меняют знак кватерниона
+      q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), (2 * Math.PI * t) / period);
       values.push(q.x, q.y, q.z, q.w);
     }
     return new THREE.QuaternionKeyframeTrack(`${node.name}.quaternion`, times, values);
@@ -1174,9 +1184,9 @@ function jetType({ len, canards, paint, fin }, M) {
   const sc = (pts) => pts.map((p) => p.map((v) => v * S));
   const fus = loftGeometry(sc([[10.6, 0.03, 0.03, 2.1], [9.8, 0.35, 0.35, 2.15], [8.5, 0.6, 0.62, 2.22], [6.8, 0.82, 0.85, 2.32],
     [5, 1.0, 0.95, 2.4], [3, 1.5, 0.85, 2.35], [0, 2.3, 0.65, 2.3], [-4, 2.3, 0.6, 2.3], [-7, 1.9, 0.55, 2.35],
-    [-9, 1.4, 0.48, 2.4], [-10.4, 0.5, 0.3, 2.45]]), 12);
+    [-9, 1.4, 0.48, 2.4], [-10.4, 0.5, 0.3, 2.45]]), 18);
   const nac = (s) => loftGeometry(sc([[3.6, 0.62, 0.55, 1.62], [2.5, 0.72, 0.68, 1.62], [-4, 0.75, 0.72, 1.7], [-8.5, 0.68, 0.66, 1.85],
-    [-10.3, 0.58, 0.56, 1.92]]), 10, s * 1.25 * S);
+    [-10.3, 0.58, 0.56, 1.92]]), 14, s * 1.25 * S);
   const body = merged([[fus], [nac(1)], [nac(-1)]]);
   const plate = (pts, t) => plateGeometry(sc(pts), t * S);
   const innerWing = plate([[7.5, 0.9], [2, 2.2], [0.66, 3.7], [-5.77, 3.7], [-6.6, 2.0], [-6.6, 0.9]], 0.2);
@@ -1233,7 +1243,7 @@ function jetType({ len, canards, paint, fin }, M) {
 // Ка-27: фюзеляж, капот двигателей, соосные трёхлопастные винты, двухкилевое оперение, шасси
 function helicopterType(M) {
   const fus = loftGeometry([[5.7, 0.2, 0.5, 1.9], [5.1, 1.1, 1.05, 1.95], [3.6, 1.6, 1.35, 2.15], [0, 1.75, 1.45, 2.25],
-    [-2.6, 1.6, 1.35, 2.35], [-3.6, 0.9, 0.85, 2.65], [-5.6, 0.38, 0.4, 2.75], [-6.0, 0.08, 0.1, 2.75]], 14);
+    [-2.6, 1.6, 1.35, 2.35], [-3.6, 0.9, 0.85, 2.65], [-5.6, 0.38, 0.4, 2.75], [-6.0, 0.08, 0.1, 2.75]], 20);
   const body = merged([
     [fus],
     [new THREE.BoxGeometry(4.6, 1.0, 2.2), [0.3, 3.9, 0]],

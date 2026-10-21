@@ -180,8 +180,7 @@ button { font: inherit; color: inherit; }
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
 }
-@media (min-width: 560px) { .catalog { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
-@media (min-width: 1240px) { .catalog { grid-template-columns: repeat(6, minmax(0, 1fr)); } }
+@media (min-width: 560px) { .catalog { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 .card {
   width: 100%;
   height: 100%;
@@ -293,7 +292,7 @@ button { font: inherit; color: inherit; }
   <header class="masthead">
     <p class="eyebrow">three.js r170 · WebGL</p>
     <h1>Мастерская Three.js</h1>
-    <p class="lede">Шесть моделей, собранных кодом, и у каждой свой приём: примитивы, деформация вершин, тела вращения, текстура на canvas, иерархия с анимацией, своя геометрия. Каждая модель — функция, которая возвращает <code>THREE.Group</code>, её можно сразу добавить в сцену.</p>
+    <p class="lede">Восемь моделей, собранных кодом: шесть учебных, у каждой свой приём, и два корабля в реальном масштабе, готовые к доработке в Blender. Каждая модель — функция, которая возвращает <code>THREE.Group</code>, её можно сразу добавить в сцену.</p>
   </header>
 
   <main class="workspace">
@@ -420,6 +419,26 @@ const MODELS = [
     technique: 'Своя BufferGeometry',
     tags: ['BufferGeometry', 'setIndex', 'vertexColors'],
     text: 'Геометрия создана с нуля: сетка вершин, массив индексов и функция рельефа из синусоид с горой в центре. Цвет каждой грани зависит от высоты: дно, песок, трава, лес, скалы, снег. Деревья — та же модель из tree.js с разными seed.',
+  },
+  {
+    id: 'kuznetsov',
+    file: 'kuznetsov.js',
+    exportName: 'createKuznetsov',
+    zoom: 0.7,
+    title: 'Адмирал Кузнецов',
+    technique: 'Авианосец, 305 м',
+    tags: ['лофт корпуса', 'AnimationClip', 'glb для Blender'],
+    text: 'Корпус построен по 300 поперечным сечениям вместе с подводной частью: бульб, четыре вала с винтами, рули. Угловая палуба, трамплин 12°, остров с Марс-Пассатом, «Кинжалы», «Каштаны», авиагруппа из Су-33, МиГ-29К и Ка-27. Номер 063 и название нарисованы кодом. Радары вращаются, клип RadarRotation есть и в glb.',
+  },
+  {
+    id: 'orlan',
+    file: 'orlan.js',
+    exportName: 'createOrlan',
+    zoom: 0.7,
+    title: 'Пётр Великий',
+    technique: 'Крейсер проекта 1144, 249 м',
+    tags: ['лофт корпуса', 'FIT_PETR_VELIKY', 'AnimationClip'],
+    text: 'Корпус по 260 сечениям с подводной частью, красная палуба и номер 099 как на фото. 20 шахт «Гранит», «Форт», «Кинжал», «Кортики», АК-130, «Удав». Вооружение задаётся объектом FIT_PETR_VELIKY, поэтому другой корабль серии — это новый конфиг. Радары «Восход» и «Фрегат-М» вращаются.',
   },
 ];
 
@@ -635,6 +654,7 @@ function createViewer(THREE, OrbitControls) {
       height: size.y,
       radius: box.getBoundingSphere(new THREE.Sphere()).radius,
       floorRadius: Math.hypot(size.x, size.z) / 2 + 0.3,
+      zoom: model.zoom ?? 1,
     };
   }
 
@@ -649,10 +669,11 @@ function createViewer(THREE, OrbitControls) {
 
   function frame() {
     if (!active) return;
-    const { radius, height, floorRadius } = active;
+    const { radius, height, floorRadius, zoom } = active;
     const vFov = THREE.MathUtils.degToRad(camera.fov);
     const hFov = 2 * Math.atan(Math.tan(vFov / 2) * camera.aspect);
-    const distance = (radius / Math.sin(Math.min(vFov, hFov) / 2)) * 1.02;
+    // у длинных моделей (корабли) описанная сфера велика, поэтому подходим ближе
+    const distance = (radius / Math.sin(Math.min(vFov, hFov) / 2)) * 1.02 * zoom;
     const target = new THREE.Vector3(0, height * 0.45, 0);
     camera.position.copy(target).addScaledVector(new THREE.Vector3(1, 0.5, 1.35).normalize(), distance);
     camera.near = distance / 50;
@@ -671,6 +692,7 @@ function createViewer(THREE, OrbitControls) {
     shadowCam.near = 0.1;
     shadowCam.far = radius * 8;
     shadowCam.updateProjectionMatrix();
+    sun.shadow.normalBias = Math.max(0.02, radius * 0.004);
     floor.scale.set(floorRadius, 1, floorRadius);
   }
 

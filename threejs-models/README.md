@@ -1,6 +1,6 @@
 # Модели для Three.js
 
-Шесть процедурных моделей, каждая показывает свой приём моделирования кодом.
+Шесть учебных процедурных моделей, каждая показывает свой приём моделирования кодом, и два корабля в реальном масштабе.
 
 | Модель | Файл | Приём |
 | --- | --- | --- |
@@ -10,6 +10,18 @@
 | Ваза | `models/vase.js` | `SplineCurve` + `LatheGeometry`, роспись через `CanvasTexture` |
 | Робот | `models/robot.js` | иерархия шарниров и анимация, `RoundedBoxGeometry` |
 | Остров | `models/island.js` | своя `BufferGeometry`: вершины, индексы, цвета граней |
+| Адмирал Кузнецов | `models/kuznetsov.js` | авианосец 305 м: корпус по сечениям, подводная часть, авиагруппа |
+| Пётр Великий | `models/orlan.js` | крейсер проекта 1144, 249 м; вооружение задаётся объектом `FIT_PETR_VELIKY` |
+
+## Корабли
+
+Масштаб реальный, в метрах: ось Y вверх, ватерлиния на `y = 0`, нос в сторону +X.
+Каждая деталь — отдельный именованный объект (`Hull`, `Hull_Underwater`, `Radar_FregatM`, `Propeller_1`…),
+материалы тоже названы. Радары вращаются через `userData.update(time)`, а та же анимация лежит
+клипом в `group.animations` и в `.glb` (`RadarRotation` у «Кузнецова», `Radars_Rotate` у «Петра Великого»).
+
+Чтобы открыть корабль в Blender: File → Import → glTF 2.0 (.glb/.gltf), файл из `glb/`.
+Blender сам переведёт оси в Z-up. Анимация появится как Action.
 
 Готовые файлы в формате glTF лежат в `glb/`. Их можно открыть в Blender или загрузить через `GLTFLoader`.
 
@@ -45,7 +57,7 @@ renderer.setAnimationLoop(() => {
 ```
 
 У некоторых функций есть параметры: `createTree({ seed, height })`, `createRocket({ fins })`,
-`createIsland({ seed, size, segments })`.
+`createIsland({ seed, size, segments })`, `createOrlan({ fit })`.
 
 Загрузка готового `.glb`:
 
