@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { mergeGeometries, mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
 
 // Атомная подводная лодка специального назначения К-329 «Белгород», проект 09853
 // (удлинённый «Антей» пр. 949А). Только внешний вид, масштаб 1:1 в метрах.
@@ -145,7 +145,8 @@ function ensureOutward(g) {
     c.fromBufferAttribute(p, idx ? idx.getX(i + 2) : i + 2);
     vol += a.dot(b.clone().cross(c));
   }
-  if (vol < 0) {
+  const flip = vol < 0;
+  if (flip) {
     if (idx) {
       for (let i = 0; i < cnt; i += 3) {
         const t = idx.getX(i + 1);
@@ -165,7 +166,11 @@ function ensureOutward(g) {
       }
     }
   }
-  g.computeVertexNormals();
+  if (!g.attributes.normal || (flip && idx)) g.computeVertexNormals();
+  else if (flip) {
+    const n = g.attributes.normal;
+    for (let i = 0; i < n.count; i++) n.setXYZ(i, -n.getX(i), -n.getY(i), -n.getZ(i));
+  }
   return g;
 }
 
@@ -235,19 +240,40 @@ function foilGeometry({ span, rootLE, rootTE, tipLE, tipTE, rootT, tipT, segs = 
       idx.push(a, b, b + M, a, b + M, a + M);
     }
   }
-  // Торцы: веер из центра хорды
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setIndex(idx);
+  g.computeVertexNormals();
+  // Торцы: веер из центра хорды, со своими вершинами (резкая кромка)
+  const caps = [];
   for (const r of [0, rows]) {
     const s = r / rows;
     const le = rootLE + (tipLE - rootLE) * s;
     const te = rootTE + (tipTE - rootTE) * s;
-    const ci = pos.length / 3;
-    pos.push((le + te) / 2, s * span, 0);
-    for (let k = 0; k < M; k++) idx.push(ci, r * M + k, r * M + ((k + 1) % M));
+    const cp = [];
+    const c = new THREE.Vector3((le + te) / 2, s * span, 0);
+    for (let k = 0; k < M; k++) {
+      const a = r * M + k;
+      const b = r * M + ((k + 1) % M);
+      cp.push(c.x, c.y, c.z, pos[a * 3], pos[a * 3 + 1], pos[a * 3 + 2], pos[b * 3], pos[b * 3 + 1], pos[b * 3 + 2]);
+    }
+    const cg = new THREE.BufferGeometry();
+    cg.setAttribute('position', new THREE.Float32BufferAttribute(cp, 3));
+    cg.computeVertexNormals();
+    if (cg.attributes.normal.getY(0) * (r === 0 ? -1 : 1) < 0) {
+      const pa = cg.attributes.position.array;
+      for (let i = 0; i < pa.length; i += 9) for (let k = 0; k < 3; k++) [pa[i + 3 + k], pa[i + 6 + k]] = [pa[i + 6 + k], pa[i + 3 + k]];
+      cg.computeVertexNormals();
+    }
+    caps.push(cg);
   }
-  const g = new THREE.BufferGeometry();
-  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-  g.setIndex(idx);
-  return ensureOutward(g.toNonIndexed());
+  // Боковины: нормаль на передней кромке должна смотреть вперёд (+X)
+  if (g.attributes.normal.getX(segs) < 0) {
+    for (let i = 0; i < idx.length; i += 3) [idx[i + 1], idx[i + 2]] = [idx[i + 2], idx[i + 1]];
+    g.setIndex(idx);
+    g.computeVertexNormals();
+  }
+  return merge([g, ...caps]);
 }
 
 // Тонкий брус между двумя точками
@@ -310,7 +336,7 @@ export function createBelgorod() {
         c.fillRect((i * w) / nx, (j * h) / ny, w / nx, h / ny);
       }
     }
-    c.strokeStyle = 'rgb(54,57,61)';
+    c.strokeStyle = 'rgb(48,51,55)';
     c.lineWidth = 3;
     for (let i = 0; i <= nx; i++) {
       c.beginPath(); c.moveTo((i * w) / nx, 0); c.lineTo((i * w) / nx, h); c.stroke();
@@ -756,12 +782,12 @@ export function createBelgorod() {
   const propellers = [];
   {
     const bladeShape = new THREE.Shape();
-    bladeShape.moveTo(-0.6, 0.6);
-    bladeShape.bezierCurveTo(-1.35, 1.5, -0.9, 2.6, 0.45, 2.95);
-    bladeShape.bezierCurveTo(1.0, 2.3, 1.05, 1.3, 0.6, 0.6);
-    bladeShape.lineTo(-0.6, 0.6);
+    bladeShape.moveTo(-0.55, 0.6);
+    bladeShape.bezierCurveTo(-1.2, 1.5, -0.8, 2.6, 0.45, 2.95);
+    bladeShape.bezierCurveTo(0.9, 2.3, 0.95, 1.3, 0.55, 0.6);
+    bladeShape.lineTo(-0.55, 0.6);
     const makeBlades = (hand) => {
-      const blade = new THREE.ExtrudeGeometry(bladeShape, { depth: 0.1, bevelEnabled: false, curveSegments: 10 });
+      const blade = new THREE.ExtrudeGeometry(bladeShape, { depth: 0.1, bevelEnabled: false, curveSegments: 16 });
       blade.translate(0, 0, -0.05);
       const p = blade.attributes.position;
       const v = new THREE.Vector3();
@@ -774,9 +800,12 @@ export function createBelgorod() {
         v.set(chord * Math.sin(pitch) + thick * Math.cos(pitch), v.y, hand * (chord * Math.cos(pitch) - thick * Math.sin(pitch)));
         p.setXYZ(i, v.x, v.y, v.z);
       }
+      blade.deleteAttribute('normal');
+      blade.deleteAttribute('uv');
+      const smoothBlade = ensureOutward(mergeVertices(blade, 1e-4));
       const list = [];
-      for (let b = 0; b < 7; b++) list.push(blade.clone().rotateX((b / 7) * Math.PI * 2));
-      return ensureOutward(merge(list));
+      for (let b = 0; b < 7; b++) list.push(smoothBlade.clone().rotateX((b / 7) * Math.PI * 2));
+      return merge(list);
     };
     const bladesR = makeBlades(1);
     bladesR.name = 'Propeller_Blades_Right';
@@ -889,7 +918,7 @@ export function createBelgorod() {
     const lidHinge = group('Klavesin_Hangar_Lid_Hinge', hangar, (x0 + x1) / 2, yT + 0.33, 1.7);
     const lid = mesh(boxUV(new THREE.BoxGeometry(x1 - x0, 0.22, 3.3).translate(0, 0.11, -1.65)), M.hull, 'Klavesin_Hangar_Lid', lidHinge);
     void lid;
-    lidHinge.rotation.x = -2.2;
+    lidHinge.rotation.x = 2.2;
   }
   const dsrvSeat = group('DSRV_Seat', hullGroup);
   const DSRV_X = -22;

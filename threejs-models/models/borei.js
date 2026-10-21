@@ -28,7 +28,8 @@ const HULL = {
 const HUMP = {
   xF: 17, // плоская крыша: от xA до xF
   xA: -19,
-  xFe: 27, // передний скат уходит в корпус
+  xFe: 31, // передний скат уходит в рубку
+  xFw: 25, // к этому сечению ширина сводится к ширине рубки
   xAe: -38, // кормовой скат
   top: 6.0, // отметка крыши
   endTop: 1.2,
@@ -49,7 +50,7 @@ const SAIL = {
   w: 2.85, // полуширина внизу
   wTop: 2.5, // полуширина у крыши
   Lf: 5.0, // длина носового и кормового скругления в плане
-  La: 6.5,
+  La: 3.4,
   filletY: 5.8, // высота начала «наплыва» передней кромки
   filletL: 9.0,
   filletW: 0.9,
@@ -115,12 +116,13 @@ function hullSurface(x, y, side) {
 }
 
 function humpTop(x) {
-  if (x > HUMP.xF) return HUMP.top - (HUMP.top - HUMP.endTop) * smooth((x - HUMP.xF) / (HUMP.xFe - HUMP.xF));
+  // спереди «горб» сужается и плавно уходит в рубку
+  if (x > HUMP.xF) return HUMP.top - (HUMP.top - 3.0) * smooth((x - HUMP.xF) / (HUMP.xFe - HUMP.xF)) ** 1.5;
   if (x < HUMP.xA) return HUMP.top - (HUMP.top - HUMP.endTop) * smooth((HUMP.xA - x) / (HUMP.xA - HUMP.xAe));
   return HUMP.top;
 }
 function humpHalfWidth(x) {
-  if (x > HUMP.xF) return HUMP.a - (HUMP.a - HUMP.aEnd) * smooth((x - HUMP.xF) / (HUMP.xFe - HUMP.xF));
+  if (x > HUMP.xF) return HUMP.a - (HUMP.a - 2.3) * smooth((x - HUMP.xF) / (HUMP.xFw - HUMP.xF));
   if (x < HUMP.xA) return HUMP.a - (HUMP.a - HUMP.aEnd) * smooth((HUMP.xA - x) / (HUMP.xA - HUMP.xAe));
   return HUMP.a;
 }
@@ -340,18 +342,18 @@ function tileTexture() {
   const c = canvas.getContext('2d');
   let seed = 9551;
   const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
-  c.fillStyle = '#0d0e0f';
+  c.fillStyle = '#101112';
   c.fillRect(0, 0, N, N);
   const n = 8;
   const s = N / n;
   for (let i = 0; i < n; i++) {
     for (let j = 0; j < n; j++) {
-      const l = 30 + Math.floor(rnd() * 9);
-      c.fillStyle = `rgb(${l},${l + 1},${l + 3})`;
+      const l = 21 + Math.floor(rnd() * 5);
+      c.fillStyle = `rgb(${l},${l},${l + 2})`;
       c.fillRect(i * s + 2, j * s + 2, s - 4, s - 4);
       // мелкая неоднородность резины
       for (let k = 0; k < 40; k++) {
-        const d = Math.floor(rnd() * 6) - 3;
+        const d = Math.floor(rnd() * 3) - 1;
         c.fillStyle = `rgba(${l + d},${l + d},${l + d + 2},0.6)`;
         c.fillRect(i * s + 3 + rnd() * (s - 12), j * s + 3 + rnd() * (s - 12), 2 + rnd() * 8, 2 + rnd() * 8);
       }
@@ -380,7 +382,7 @@ export function createBorei() {
   const tiles = tileTexture();
   const M = {
     hull: std('Hull_Anechoic_Black', 0xffffff, 0.82, 0.05, { map: tiles }),
-    sonar: std('Sonar_Window', 0x26282b, 0.5, 0.05),
+    sonar: std('Sonar_Window', 0x1f2124, 0.62, 0.05),
     dark: std('Outline_Dark', 0x0b0c0d, 0.75, 0.1),
     hole: std('Flood_Opening_Black', 0x020202, 1.0, 0.0),
     silo: std('Silo_Interior', 0x101112, 0.85, 0.2),
@@ -493,7 +495,7 @@ export function createBorei() {
   }
 
   // Шпигаты (лимберы) на верхней части корпуса: нос и корма за «горбом»
-  const slot = roundedRect(0.9, 0.28, 0.12, 3);
+  const slot = roundedRect(0.75, 0.24, 0.1, 3);
   {
     for (const side of [1, -1]) {
       const parts = [];
@@ -843,10 +845,10 @@ export function createBorei() {
 
     // Обтекатель буксируемой антенны на вершине верхнего киля
     const prof = [];
-    const L = 10.5;
+    const L = 9.0;
     for (let k = 0; k <= 24; k++) {
       const t = k / 24;
-      const r = t < 0.25 ? 0.62 * Math.sin((t / 0.25) * Math.PI / 2) ** 0.7 : 0.62 - 0.12 * ((t - 0.25) / 0.75) ** 2;
+      const r = t < 0.25 ? 0.5 * Math.sin((t / 0.25) * Math.PI / 2) ** 0.7 : 0.5 - 0.1 * ((t - 0.25) / 0.75) ** 2;
       prof.push([-t * L, Math.max(r, 0.0)]);
     }
     prof.push([-L - 0.01, 0]);

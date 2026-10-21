@@ -724,7 +724,7 @@ export function createBoreiA() {
     const opts = { root: [-55, -72.6], tip: [-63.2, -71.4], span: 10.1, tc: 0.1, tipTc: 0.085, nSpan: 10 };
     mesh(finGeometry('Fin_Upper', { ...opts, to: 0.7 }), M.hull, 'Rudder_Upper_Fin', g);
     movable('Rudder_Upper_Flap', g, opts, 0.7);
-    const pod = revolveX('TowedArray_Pod', [[-60.2, 0.001], [-60.4, 0.22], [-61.0, 0.4], [-62.0, 0.48], [-70.5, 0.48], [-71.8, 0.38], [-72.8, 0.12], [-73.0, 0.001]], 24);
+    const pod = revolveX('TowedArray_Pod', [[-61.4, 0.001], [-61.6, 0.18], [-62.2, 0.32], [-63.2, 0.38], [-70.2, 0.38], [-71.4, 0.3], [-72.2, 0.1], [-72.4, 0.001]], 24);
     mesh(pod, M.hull, 'TowedArray_Pod', g, 0, 10.1, 0);
   }
   // Нижний вертикальный стабилизатор
@@ -738,9 +738,9 @@ export function createBoreiA() {
   // Горизонтальные стабилизаторы с кормовыми рулями и наклонными концевыми шайбами
   {
     const sp = group('SternPlanes', stern);
-    const opts = { root: [-59.5, -72.6], tip: [-65.5, -72.6], span: 7.6, tc: 0.1, tipTc: 0.08, nSpan: 10 };
+    const opts = { root: [-59.5, -72.6], tip: [-66.0, -72.6], span: 8.4, tc: 0.1, tipTc: 0.08, nSpan: 10 };
     const fixedG = finGeometry('Stabilizer', { ...opts, to: 0.7 });
-    const endG = finGeometry('Stabilizer_Endfin', { root: [-68.0, -72.8], tip: [-66.6, -71.8], span: 4.2, tc: 0.1, tipTc: 0.07, nSpan: 6 });
+    const endG = finGeometry('Stabilizer_Endfin', { root: [-68.0, -72.8], tip: [-66.9, -71.9], span: 3.6, tc: 0.1, tipTc: 0.07, nSpan: 6 });
     [1, -1].forEach((side) => {
       const nm = side > 0 ? 'Starboard' : 'Port';
       const g = group(`Stabilizer_${nm}`, sp, 0, yc, 0);
@@ -752,7 +752,7 @@ export function createBoreiA() {
       const cant = THREE.MathUtils.degToRad(24);
       e.rotation.x = -side * cant;
       const up = new THREE.Vector3(0, Math.cos(cant), -side * Math.sin(cant));
-      e.position.set(0, yc, side * 7.45).addScaledVector(up, -3.0);
+      e.position.set(0, yc, side * 8.25).addScaledVector(up, -2.5);
       mesh(endG, M.hull, `Stabilizer_Endfin_${nm}_Blade`, e);
     });
   }
@@ -765,7 +765,7 @@ export function createBoreiA() {
     const duct = [];
     const N = 22;
     const ductR = (t) => 3.3 - 0.35 * t;
-    const ductTh = (t) => naca(t) * 0.075 * 7.0;
+    const ductTh = (t) => naca(t) * 0.06 * 7.0;
     for (let k = 0; k <= N; k++) {
       const t = 0.5 - 0.5 * Math.cos((Math.PI * k) / N);
       duct.push([-73.6 - 7.0 * t, ductR(t) + Math.max(0.015, ductTh(t))]);
