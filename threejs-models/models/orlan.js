@@ -837,7 +837,6 @@ export function createOrlan({ fit = FIT_PETR_VELIKY } = {}) {
 
   // =========================================================================
   // РАДИОЭЛЕКТРОНИКА
-  const sensors = group('Sensors');
 
   // MP-800 «Восход» (Top Pair): две антенны спина к спине на общем поворотном основании
   function buildVoskhod(parent, x, y) {
