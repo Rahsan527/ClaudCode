@@ -291,6 +291,7 @@ function strip(g) {
   if (!out.attributes.normal) out.computeVertexNormals();
   if (!out.attributes.uv) out.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(out.attributes.position.count * 2), 2));
   for (const k of Object.keys(out.attributes)) if (!['position', 'normal', 'uv'].includes(k)) out.deleteAttribute(k);
+  out.normalizeNormals(); // после scale() нормали не единичные
   out.clearGroups();
   return out;
 }
