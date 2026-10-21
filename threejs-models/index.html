@@ -1,0 +1,718 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Мастерская Three.js</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Unbounded:wght@500;700&display=swap">
+<style>
+/* Layout: шапка, под ней сетка «вьюпорт и каталог | карточка модели с кодом»; на узком экране одна колонка */
+:root {
+  --bg: #edf1ef;
+  --surface: #f9fbfa;
+  --ink: #16201d;
+  --muted: #56635f;
+  --line: #d2dbd7;
+  --accent: #0e7a6a;
+  --accent-soft: #d6ede8;
+  --code-bg: #e6ece9;
+  --scene-bg: #e2e8e5;
+  --scene-floor: #c9d4cf;
+  --font-display: "Unbounded", "Arial Black", system-ui, sans-serif;
+  --font-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #111715;
+    --surface: #18201e;
+    --ink: #e3ebe8;
+    --muted: #93a29d;
+    --line: #2a3532;
+    --accent: #4fd0b7;
+    --accent-soft: #173832;
+    --code-bg: #0d1311;
+    --scene-bg: #1a2321;
+    --scene-floor: #2c3835;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #111715;
+  --surface: #18201e;
+  --ink: #e3ebe8;
+  --muted: #93a29d;
+  --line: #2a3532;
+  --accent: #4fd0b7;
+  --accent-soft: #173832;
+  --code-bg: #0d1311;
+  --scene-bg: #1a2321;
+  --scene-floor: #2c3835;
+  color-scheme: dark;
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.55;
+}
+.page {
+  max-width: 1440px;
+  margin: 0 auto;
+  padding-block: 28px 56px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: grid;
+  gap: 28px;
+}
+@media (min-width: 900px) {
+  .page {
+    padding-block: 40px 64px;
+    padding-left: max(32px, env(safe-area-inset-left, 0px));
+    padding-right: max(32px, env(safe-area-inset-right, 0px));
+  }
+}
+
+[hidden] { display: none !important; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+code { font-family: var(--font-mono); font-size: 0.92em; }
+
+/* Шапка */
+.masthead { display: grid; gap: 10px; }
+.eyebrow {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+h1 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(28px, 4.2vw, 46px);
+  line-height: 1.08;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+.lede { margin: 0; max-width: 68ch; color: var(--muted); font-size: 16px; }
+.lede code { color: var(--ink); }
+
+/* Рабочая область */
+.workspace { display: grid; gap: 20px; align-items: start; }
+@media (min-width: 980px) {
+  .workspace { grid-template-columns: minmax(0, 1fr) minmax(320px, 410px); gap: 24px; }
+}
+.stage { display: grid; gap: 14px; min-width: 0; }
+
+.viewer {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  overflow: hidden;
+  background: var(--surface);
+}
+.viewport {
+  position: relative;
+  height: clamp(300px, 58vh, 620px);
+  background: var(--scene-bg);
+}
+.viewport canvas { display: block; width: 100%; height: 100%; touch-action: none; cursor: grab; }
+.viewport canvas:active { cursor: grabbing; }
+.viewport-status {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  margin: 0;
+  padding: 24px;
+  text-align: center;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-top: 1px solid var(--line);
+}
+.hint { margin-left: auto; color: var(--muted); font-size: 12.5px; }
+@media (max-width: 640px) { .hint { margin-left: 0; flex-basis: 100%; } }
+
+button { font: inherit; color: inherit; }
+.tool, .toggle {
+  font-size: 13px;
+  font-weight: 500;
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+  cursor: pointer;
+}
+.tool:hover, .toggle:hover { border-color: var(--accent); }
+.toggle { display: inline-flex; align-items: center; gap: 7px; }
+.toggle::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 1.5px solid var(--muted);
+}
+.toggle[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); }
+.toggle[aria-pressed="true"]::before { background: var(--accent); border-color: var(--accent); }
+
+/* Каталог моделей */
+.catalog {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+@media (min-width: 560px) { .catalog { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (min-width: 1240px) { .catalog { grid-template-columns: repeat(6, minmax(0, 1fr)); } }
+.card {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  align-content: start;
+  gap: 4px;
+  text-align: left;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  cursor: pointer;
+}
+.card:hover { border-color: var(--accent); }
+.card[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); box-shadow: inset 0 0 0 1px var(--accent); }
+.card-title { font-family: var(--font-display); font-weight: 500; font-size: 14px; }
+.card-tech { font-size: 12.5px; color: var(--muted); line-height: 1.35; }
+.card-tris { font-family: var(--font-mono); font-size: 11.5px; color: var(--muted); font-variant-numeric: tabular-nums; margin-top: 4px; }
+
+/* Карточка выбранной модели */
+.sheet {
+  min-width: 0;
+  display: grid;
+  gap: 16px;
+  padding: 22px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+}
+.sheet-technique {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.sheet h2 {
+  margin: -8px 0 0;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 26px;
+  letter-spacing: -0.01em;
+}
+.sheet-text { margin: 0; }
+.chips { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.chips li {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: var(--code-bg);
+}
+.stats {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border-block: 1px solid var(--line);
+}
+.stats div { padding: 12px 0; display: grid; gap: 2px; }
+.stats div + div { padding-left: 14px; border-left: 1px solid var(--line); }
+.stats dt { font-size: 12px; color: var(--muted); }
+.stats dd { margin: 0; font-family: var(--font-mono); font-size: 20px; font-weight: 500; font-variant-numeric: tabular-nums; }
+
+.code { display: grid; gap: 8px; min-width: 0; }
+.code-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.code-file { font-family: var(--font-mono); font-size: 12.5px; color: var(--muted); overflow-wrap: anywhere; }
+.code pre {
+  margin: 0;
+  max-height: 460px;
+  overflow: auto;
+  padding: 14px 16px;
+  border-radius: 10px;
+  background: var(--code-bg);
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  line-height: 1.6;
+  tab-size: 2;
+}
+.code pre code { font-size: inherit; }
+.code .c { color: var(--muted); font-style: italic; }
+
+/* Как подключить */
+.usage {
+  display: grid;
+  gap: 12px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+}
+@media (min-width: 980px) { .usage { grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); gap: 32px; } }
+.usage h2 { margin: 0 0 6px; font-family: var(--font-display); font-weight: 500; font-size: 18px; }
+.usage p { margin: 0; color: var(--muted); max-width: 60ch; }
+.usage p + p { margin-top: 8px; }
+.usage pre {
+  margin: 0;
+  overflow-x: auto;
+  padding: 14px 16px;
+  border-radius: 10px;
+  background: var(--code-bg);
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  line-height: 1.6;
+}
+.usage pre code { font-size: inherit; }
+</style>
+</head>
+<body>
+<div class="page">
+  <header class="masthead">
+    <p class="eyebrow">three.js r170 · WebGL</p>
+    <h1>Мастерская Three.js</h1>
+    <p class="lede">Шесть моделей, собранных кодом, и у каждой свой приём: примитивы, деформация вершин, тела вращения, текстура на canvas, иерархия с анимацией, своя геометрия. Каждая модель — функция, которая возвращает <code>THREE.Group</code>, её можно сразу добавить в сцену.</p>
+  </header>
+
+  <main class="workspace">
+    <section class="stage" aria-label="Просмотр модели">
+      <div class="viewer">
+        <div class="viewport">
+          <canvas id="scene" aria-label="Выбранная 3D-модель, её можно вращать мышью или пальцем"></canvas>
+          <p class="viewport-status" id="status">Загружаю three.js…</p>
+        </div>
+        <div class="toolbar" role="toolbar" aria-label="Настройки просмотра">
+          <button type="button" class="toggle" id="toggle-wire" aria-pressed="false">Каркас</button>
+          <button type="button" class="toggle" id="toggle-spin" aria-pressed="true">Вращение</button>
+          <button type="button" class="toggle" id="toggle-anim" aria-pressed="true">Анимация</button>
+          <button type="button" class="tool" id="reset-view">Сбросить вид</button>
+          <button type="button" class="tool" id="download-glb" hidden>Скачать .glb</button>
+          <span class="hint">Тяните, чтобы вращать · колесо или щипок меняют масштаб</span>
+        </div>
+      </div>
+      <ul class="catalog" id="catalog" aria-label="Модели"></ul>
+    </section>
+
+    <aside class="sheet" aria-live="polite">
+      <p class="sheet-technique" id="sheet-technique"></p>
+      <h2 id="sheet-title"></h2>
+      <p class="sheet-text" id="sheet-text"></p>
+      <ul class="chips" id="sheet-tags" aria-label="Классы и приёмы"></ul>
+      <dl class="stats">
+        <div><dt>Треугольники</dt><dd id="stat-tris">—</dd></div>
+        <div><dt>Меши</dt><dd id="stat-meshes">—</dd></div>
+        <div><dt>Материалы</dt><dd id="stat-materials">—</dd></div>
+      </dl>
+      <div class="code">
+        <div class="code-head">
+          <span class="code-file" id="code-file"></span>
+          <button type="button" class="tool" id="copy-code">Копировать</button>
+        </div>
+        <pre><code id="code-body">Загружаю исходный код…</code></pre>
+      </div>
+    </aside>
+  </main>
+
+  <section class="usage" aria-label="Как подключить модель">
+    <div>
+      <h2>Как подключить в свой проект</h2>
+      <p>Скопируйте папку <code>models</code> к себе, импортируйте нужную функцию и добавьте результат в сцену. У анимированных моделей в <code>userData.update</code> лежит функция, которую нужно вызывать каждый кадр.</p>
+      <p>Те же модели в формате glTF лежат в репозитории в папке <code>threejs-models/glb</code>. Их открывает Blender, а в коде загружает <code>GLTFLoader</code>.</p>
+    </div>
+    <pre><code>import * as THREE from 'three';
+import { createRobot } from './models/robot.js';
+
+const robot = createRobot();
+scene.add(robot);
+
+const clock = new THREE.Clock();
+renderer.setAnimationLoop(() => {
+  robot.userData.update?.(clock.getElapsedTime());
+  renderer.render(scene, camera);
+});</code></pre>
+  </section>
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+  }
+}
+</script>
+<script type="module">
+document.documentElement.lang = 'ru';
+
+const MODELS = [
+  {
+    id: 'house',
+    file: 'house.js',
+    exportName: 'createHouse',
+    title: 'Домик',
+    technique: 'Примитивы и Group',
+    tags: ['BoxGeometry', 'ExtrudeGeometry', 'Group'],
+    text: 'Стены, окна, дверь и скаты крыши собраны из BoxGeometry. Треугольный фронтон — контур Shape, вытянутый через ExtrudeGeometry. Все детали лежат в одной Group, поэтому дом двигается и масштабируется как один объект.',
+  },
+  {
+    id: 'tree',
+    file: 'tree.js',
+    exportName: 'createTree',
+    title: 'Дерево',
+    technique: 'Деформация вершин',
+    tags: ['IcosahedronGeometry', 'flatShading', 'seed'],
+    text: 'Ствол — шестигранный цилиндр, крона — четыре икосаэдра. Код сдвигает каждую вершину кроны на случайный вектор, а flatShading делает грани плоскими, отсюда low-poly вид. Другой seed даёт другое дерево. Крона качается на ветру.',
+  },
+  {
+    id: 'rocket',
+    file: 'rocket.js',
+    exportName: 'createRocket',
+    title: 'Ракета',
+    technique: 'Тела вращения',
+    tags: ['LatheGeometry', 'ExtrudeGeometry', 'MeshBasicMaterial'],
+    text: 'Корпус, обтекатель и сопло построены LatheGeometry: половина силуэта задана точками, и Three.js вращает её вокруг оси Y. Стабилизаторы — плоский контур с фаской через ExtrudeGeometry. Пламя — два конуса, которые мерцают за счёт масштаба.',
+  },
+  {
+    id: 'vase',
+    file: 'vase.js',
+    exportName: 'createVase',
+    title: 'Ваза',
+    technique: 'Текстура на canvas',
+    tags: ['SplineCurve', 'LatheGeometry', 'CanvasTexture'],
+    text: 'Силуэт сглажен сплайном и разбит на отрезки равной длины, чтобы роспись не растягивалась. Меандр, волны и лучи нарисованы кодом на canvas и наложены как CanvasTexture, без загрузки картинок. Внутренняя стенка — отдельный меш с BackSide.',
+  },
+  {
+    id: 'robot',
+    file: 'robot.js',
+    exportName: 'createRobot',
+    title: 'Робот',
+    technique: 'Иерархия и анимация',
+    tags: ['Group', 'RoundedBoxGeometry', 'userData.update'],
+    text: 'Руки, ноги и голова висят на группах-шарнирах в точках плеч, бёдер и шеи. Каждый кадр анимация поворачивает только шарниры, а детали двигаются вместе с ними. Скругления корпуса даёт RoundedBoxGeometry из addons.',
+  },
+  {
+    id: 'island',
+    file: 'island.js',
+    exportName: 'createIsland',
+    title: 'Остров',
+    technique: 'Своя BufferGeometry',
+    tags: ['BufferGeometry', 'setIndex', 'vertexColors'],
+    text: 'Геометрия создана с нуля: сетка вершин, массив индексов и функция рельефа из синусоид с горой в центре. Цвет каждой грани зависит от высоты: дно, песок, трава, лес, скалы, снег. Деревья — та же модель из tree.js с разными seed.',
+  },
+];
+
+const $ = (id) => document.getElementById(id);
+const numbers = new Intl.NumberFormat('ru-RU');
+const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const state = { current: null, wire: false, spin: !reducedMotion, anim: !reducedMotion };
+let viewer = null;
+
+// Каталог
+for (const model of MODELS) {
+  const item = document.createElement('li');
+  item.innerHTML = `<button type="button" class="card" data-id="${model.id}" aria-pressed="false">
+      <span class="card-title">${model.title}</span>
+      <span class="card-tech">${model.technique}</span>
+      <span class="card-tris" data-tris>…</span>
+    </button>`;
+  $('catalog').append(item);
+}
+$('catalog').addEventListener('click', (event) => {
+  const card = event.target.closest('.card');
+  if (card) select(card.dataset.id);
+});
+
+function select(id) {
+  const model = MODELS.find((m) => m.id === id) ?? MODELS[0];
+  state.current = model;
+  for (const card of document.querySelectorAll('.card')) {
+    card.setAttribute('aria-pressed', String(card.dataset.id === model.id));
+  }
+  $('sheet-technique').textContent = model.technique;
+  $('sheet-title').textContent = model.title;
+  $('sheet-text').textContent = model.text;
+  $('sheet-tags').replaceChildren(...model.tags.map((tag) => Object.assign(document.createElement('li'), { textContent: tag })));
+  showStats(model);
+  showSource(model);
+  try { history.replaceState(null, '', `#${model.id}`); } catch {}
+  viewer?.show(model);
+}
+
+function showStats(model) {
+  const s = model.stats;
+  $('stat-tris').textContent = s ? numbers.format(s.triangles) : '—';
+  $('stat-meshes').textContent = s ? numbers.format(s.meshes) : '—';
+  $('stat-materials').textContent = s ? numbers.format(s.materials) : '—';
+}
+
+// Исходный код модели берём прямо из файла, который подключает страница
+const sources = new Map();
+async function showSource(model) {
+  $('code-file').textContent = `models/${model.file}`;
+  if (!sources.has(model.id)) {
+    sources.set(model.id, fetch(`./models/${model.file}`).then((r) => {
+      if (!r.ok) throw new Error(String(r.status));
+      return r.text();
+    }));
+  }
+  try {
+    const text = await sources.get(model.id);
+    if (state.current === model) $('code-body').innerHTML = highlight(text);
+  } catch {
+    sources.delete(model.id);
+    if (state.current === model) {
+      $('code-body').textContent = 'Код не загрузился. Если страница открыта как файл, запустите локальный сервер (см. README).';
+    }
+  }
+}
+function highlight(source) {
+  const escape = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  return source.split('\n').map((line) => {
+    const i = line.indexOf('//');
+    if (i === -1 || (i > 0 && !/\s/.test(line[i - 1]))) return escape(line);
+    return `${escape(line.slice(0, i))}<span class="c">${escape(line.slice(i))}</span>`;
+  }).join('\n');
+}
+
+$('copy-code').addEventListener('click', async () => {
+  const button = $('copy-code');
+  const code = $('code-body');
+  try {
+    await navigator.clipboard.writeText(code.textContent);
+    button.textContent = 'Скопировано';
+  } catch {
+    const range = document.createRange();
+    range.selectNodeContents(code);
+    const selection = getSelection();
+    selection.removeAllRanges();
+    selection.addRange(range);
+    button.textContent = 'Выделено, нажмите Ctrl+C';
+  }
+  setTimeout(() => { button.textContent = 'Копировать'; }, 1800);
+});
+
+// Переключатели
+const toggles = { wire: $('toggle-wire'), spin: $('toggle-spin'), anim: $('toggle-anim') };
+for (const [key, button] of Object.entries(toggles)) {
+  button.setAttribute('aria-pressed', String(state[key]));
+  button.addEventListener('click', () => {
+    state[key] = !state[key];
+    button.setAttribute('aria-pressed', String(state[key]));
+    viewer?.sync();
+  });
+}
+$('reset-view').addEventListener('click', () => viewer?.frame());
+
+const initial = location.hash.slice(1);
+select(MODELS.some((m) => m.id === initial) ? initial : MODELS[0].id);
+
+// 3D-часть стартует, когда загрузится three.js
+try {
+  const [THREE, { OrbitControls }, ...modules] = await Promise.all([
+    import('three'),
+    import('three/addons/controls/OrbitControls.js'),
+    ...MODELS.map((m) => import(`./models/${m.file}`)),
+  ]);
+  viewer = createViewer(THREE, OrbitControls);
+  MODELS.forEach((model, i) => {
+    viewer.prepare(model, modules[i][model.exportName]);
+    document.querySelector(`.card[data-id="${model.id}"] [data-tris]`).textContent =
+      `${numbers.format(model.stats.triangles)} треуг.`;
+  });
+  showStats(state.current);
+  viewer.show(state.current);
+  $('status').hidden = true;
+  setupDownload(THREE);
+} catch (error) {
+  console.error(error);
+  $('status').textContent = 'Не получилось загрузить three.js или модели. Проверьте доступ к cdn.jsdelivr.net и обновите страницу.';
+}
+
+function createViewer(THREE, OrbitControls) {
+  const canvas = $('scene');
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(38, 1, 0.05, 200);
+  const controls = new OrbitControls(camera, canvas);
+  controls.enableDamping = true;
+  controls.autoRotateSpeed = 1.1;
+
+  const hemi = new THREE.HemisphereLight(0xffffff, 0x8a8f86, 1.6);
+  const sun = new THREE.DirectionalLight(0xfff1dc, 2.6);
+  sun.castShadow = true;
+  sun.shadow.mapSize.set(2048, 2048);
+  sun.shadow.bias = -0.0004;
+  sun.shadow.normalBias = 0.02;
+  scene.add(hemi, sun, sun.target);
+
+  // Поворотный столик под моделью, его верх на y = 0
+  const floor = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 0.06, 96), new THREE.MeshStandardMaterial({ roughness: 1 }));
+  floor.position.y = -0.03;
+  floor.receiveShadow = true;
+  scene.add(floor);
+
+  const stage = new THREE.Group();
+  scene.add(stage);
+
+  // Цвета сцены берём из CSS-токенов, чтобы она следовала светлой и тёмной теме
+  const applyTheme = () => {
+    const css = getComputedStyle(document.documentElement);
+    scene.background = new THREE.Color(css.getPropertyValue('--scene-bg').trim());
+    floor.material.color.set(css.getPropertyValue('--scene-floor').trim());
+  };
+  applyTheme();
+  matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyTheme);
+  new MutationObserver(applyTheme).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+
+  const resize = () => {
+    const { clientWidth: w, clientHeight: h } = canvas.parentElement;
+    if (!w || !h) return;
+    renderer.setSize(w, h, false);
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+  };
+  new ResizeObserver(resize).observe(canvas.parentElement);
+  resize();
+
+  let active = null;
+  let time = 0;
+  const clock = new THREE.Clock();
+
+  function prepare(model, create) {
+    const object = create();
+    const materials = new Set();
+    let triangles = 0;
+    let meshes = 0;
+    object.traverse((node) => {
+      if (!node.isMesh) return;
+      meshes++;
+      const list = Array.isArray(node.material) ? node.material : [node.material];
+      list.forEach((m) => materials.add(m));
+      const g = node.geometry;
+      triangles += (g.index ? g.index.count : g.attributes.position.count) / 3;
+      node.castShadow = !list.some((m) => m.isMeshBasicMaterial || m.transparent);
+      node.receiveShadow = true;
+    });
+    model.stats = { triangles, meshes, materials: materials.size };
+
+    // Ставим модель на столик и центрируем, не меняя сам объект
+    const box = new THREE.Box3().setFromObject(object);
+    const size = box.getSize(new THREE.Vector3());
+    const center = box.getCenter(new THREE.Vector3());
+    const holder = new THREE.Group();
+    holder.add(object);
+    holder.position.set(-center.x, -box.min.y, -center.z);
+    model.view = {
+      object,
+      holder,
+      materials: [...materials],
+      height: size.y,
+      radius: box.getBoundingSphere(new THREE.Sphere()).radius,
+      floorRadius: Math.hypot(size.x, size.z) / 2 + 0.3,
+    };
+  }
+
+  function show(model) {
+    if (!model.view) return;
+    active = model.view;
+    stage.clear();
+    stage.add(active.holder);
+    frame();
+    sync();
+  }
+
+  function frame() {
+    if (!active) return;
+    const { radius, height, floorRadius } = active;
+    const vFov = THREE.MathUtils.degToRad(camera.fov);
+    const hFov = 2 * Math.atan(Math.tan(vFov / 2) * camera.aspect);
+    const distance = (radius / Math.sin(Math.min(vFov, hFov) / 2)) * 1.02;
+    const target = new THREE.Vector3(0, height * 0.45, 0);
+    camera.position.copy(target).addScaledVector(new THREE.Vector3(1, 0.5, 1.35).normalize(), distance);
+    camera.near = distance / 50;
+    camera.far = distance * 20;
+    camera.updateProjectionMatrix();
+    controls.target.copy(target);
+    controls.minDistance = radius * 0.8;
+    controls.maxDistance = distance * 3;
+    controls.update();
+
+    // Свет и тень подгоняем под размер модели
+    sun.position.set(radius * 1.4, radius * 3, radius * 1.8);
+    const shadowCam = sun.shadow.camera;
+    shadowCam.left = shadowCam.bottom = -radius * 1.6;
+    shadowCam.right = shadowCam.top = radius * 1.6;
+    shadowCam.near = 0.1;
+    shadowCam.far = radius * 8;
+    shadowCam.updateProjectionMatrix();
+    floor.scale.set(floorRadius, 1, floorRadius);
+  }
+
+  function sync() {
+    controls.autoRotate = state.spin;
+    if (active) for (const m of active.materials) m.wireframe = state.wire;
+  }
+
+  renderer.setAnimationLoop(() => {
+    const dt = Math.min(clock.getDelta(), 0.1);
+    if (state.anim) time += dt;
+    active?.object.userData.update?.(time);
+    controls.update();
+    renderer.render(scene, camera);
+  });
+
+  return { prepare, show, frame, sync };
+}
+
+// Кнопка экспорта в .glb работает, когда страница открыта напрямую, а не во встроенном окне
+function setupDownload(THREE) {
+  const button = $('download-glb');
+  let embedded = true;
+  try { embedded = window.self !== window.top; } catch {}
+  if (embedded) return;
+  button.hidden = false;
+  button.addEventListener('click', async () => {
+    const model = state.current;
+    const { GLTFExporter } = await import('three/addons/exporters/GLTFExporter.js');
+    const wire = state.wire;
+    model.view.materials.forEach((m) => { m.wireframe = false; });
+    try {
+      const glb = await new GLTFExporter().parseAsync(model.view.object, { binary: true });
+      const url = URL.createObjectURL(new Blob([glb], { type: 'model/gltf-binary' }));
+      const link = Object.assign(document.createElement('a'), { href: url, download: `${model.id}.glb` });
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
+    } finally {
+      model.view.materials.forEach((m) => { m.wireframe = wire; });
+    }
+  });
+}
+</script>
+</body>
+</html>
