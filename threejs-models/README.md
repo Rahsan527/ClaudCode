@@ -20,8 +20,16 @@
 материалы тоже названы. Радары вращаются через `userData.update(time)`, а та же анимация лежит
 клипом в `group.animations` и в `.glb` (`RadarRotation` у «Кузнецова», `Radars_Rotate` у «Петра Великого»).
 
-Чтобы открыть корабль в Blender: File → Import → glTF 2.0 (.glb/.gltf), файл из `glb/`.
-Blender сам переведёт оси в Z-up. Анимация появится как Action.
+Готовые файлы Blender лежат в `blend/` (сохранены в Blender 5.2, текстуры упакованы внутрь).
+Можно и импортировать `.glb` вручную: File → Import → glTF 2.0. Blender сам переведёт оси в Z-up,
+анимация появится как Action.
+
+`tools/glb2blend.py` конвертирует любой `.glb` в `.blend` без интерфейса Blender:
+
+```bash
+pip install bpy   # Blender как Python-модуль
+python tools/glb2blend.py glb/orlan.glb blend/orlan.blend
+```
 
 Готовые файлы в формате glTF лежат в `glb/`. Их можно открыть в Blender или загрузить через `GLTFLoader`.
 
