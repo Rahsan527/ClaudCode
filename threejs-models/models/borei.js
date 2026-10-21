@@ -222,7 +222,15 @@ function revolveX(profile, segs = 48, closed = false) {
     rows.push(prof.map(([x, r]) => new THREE.Vector3(x, r * Math.cos(a), r * Math.sin(a))));
   }
   // rows[m][p]: m — по углу, p — вдоль профиля (от носа к корме — нормали наружу)
-  return gridGeometry(rows);
+  const g = gridGeometry(rows);
+  // Полюса на оси (r = 0): нормаль вдоль оси, иначе она нулевая
+  const n = g.attributes.normal;
+  const P = prof.length;
+  for (let i = 0; i < n.count; i++) {
+    const p = i % P;
+    if (prof[p][1] < 1e-6) n.setXYZ(i, p === 0 ? 1 : -1, 0, 0);
+  }
+  return g;
 }
 
 // Симметричный профиль NACA 00xx, лофт вдоль +Y (размах), хорда вдоль −X от передней кромки.

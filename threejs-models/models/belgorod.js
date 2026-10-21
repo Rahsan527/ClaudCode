@@ -521,6 +521,9 @@ export function createBelgorod() {
   {
     const hatch = geo('Deck_Hatch', () => new THREE.CylinderGeometry(0.65, 0.7, 0.12, 24));
     [70, 62, 52, -6, -40, -47].forEach((x, i) => mesh(hatch, M.black, `Deck_Hatch_${i + 1}`, hullGroup, x, casingTop(x) + 0.05, 0));
+    // Всплывающие спасательные буи (светлые круги на палубе)
+    const buoy = geo('Rescue_Buoy', () => new THREE.CylinderGeometry(0.9, 1.0, 0.16, 28));
+    [[58, 1.6], [-50, -1.4]].forEach(([x, z], i) => mesh(buoy, M.sonar, `Rescue_Buoy_${i + 1}`, hullGroup, x, casingTop(x) + 0.06, z));
   }
 
   // Шпигаты (отверстия для заполнения цистерн) — ряды щелей по бортам
@@ -862,34 +865,105 @@ export function createBelgorod() {
         kDir = mDir.clone().cross(nrm);
       }
       const major = R / cosA;
-      const ellipse = (rx, rz, h, seg = 36) => {
-        const shape = new THREE.Shape();
-        shape.absellipse(0, 0, rx, rz, 0, Math.PI * 2, false, 0);
-        const g = new THREE.ExtrudeGeometry(shape, { depth: h, bevelEnabled: true, bevelThickness: 0.05, bevelSize: 0.05, bevelSegments: 1, curveSegments: seg });
-        g.rotateX(-Math.PI / 2); // форма в плоскости XZ, толщина вдоль +Y
-        return g;
-      };
       const basis = new THREE.Matrix4().makeBasis(mDir, nrm, kDir);
       const q = new THREE.Quaternion().setFromRotationMatrix(basis);
-      // Темнота в трубе и ободок
-      const bore = ellipse(major * 0.98, R * 0.98, 0.02);
-      bore.translate(0, 0.0, 0);
+      // Эллиптическая «заплата», прижатая к обшивке: точки эллипса проецируются на корпус по нормали
+      const onHull = (Q) => {
+        let t0 = -2.5;
+        let t1 = 2.5;
+        for (let it = 0; it < 40; it++) {
+          const tm = (t0 + t1) / 2;
+          if (hullF(Q.x + nrm.x * tm, Q.y + nrm.y * tm, Q.z + nrm.z * tm) < 1) t0 = tm;
+          else t1 = tm;
+        }
+        return Q.clone().addScaledVector(nrm, t0);
+      };
+      const conform = (ra, rb, offTop, offBot, origin, closed) => {
+        const qi = q.clone().invert();
+        const nr = 5;
+        const na = 40;
+        const ringPts = (off) => {
+          const rows = [];
+          for (let j = 0; j <= nr; j++) {
+            const row = [];
+            const rho = j / nr;
+            for (let i = 0; i < (j === 0 ? 1 : na); i++) {
+              const an = (2 * Math.PI * i) / na;
+              const Q = P.clone().addScaledVector(mDir, ra * rho * Math.cos(an)).addScaledVector(kDir, rb * rho * Math.sin(an));
+              row.push(onHull(Q).addScaledVector(nrm, off).sub(origin).applyQuaternion(qi));
+            }
+            rows.push(row);
+          }
+          return rows;
+        };
+        // Часть сетки с проверкой направления: want(p) — желаемая нормаль в точке
+        const part = (tris, want) => {
+          const pos = [];
+          for (const t of tris) for (const v of t) pos.push(v.x, v.y, v.z);
+          const g = new THREE.BufferGeometry();
+          g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+          const merged = mergeVertices(g, 1e-5);
+          merged.computeVertexNormals();
+          const pa = merged.attributes.position;
+          const na2 = merged.attributes.normal;
+          let dot = 0;
+          const v = new THREE.Vector3();
+          for (let i = 0; i < pa.count; i++) dot += want(v.fromBufferAttribute(pa, i)).dot(new THREE.Vector3().fromBufferAttribute(na2, i));
+          if (dot < 0) {
+            const ix = merged.index;
+            for (let i = 0; i < ix.count; i += 3) {
+              const t = ix.getX(i + 1);
+              ix.setX(i + 1, ix.getX(i + 2));
+              ix.setX(i + 2, t);
+            }
+            merged.computeVertexNormals();
+          }
+          return merged;
+        };
+        const surf = (rows) => {
+          const tris = [];
+          for (let i = 0; i < na; i++) tris.push([rows[0][0], rows[1][i], rows[1][(i + 1) % na]]);
+          for (let j = 1; j < nr; j++) {
+            for (let i = 0; i < na; i++) {
+              const i2 = (i + 1) % na;
+              tris.push([rows[j][i], rows[j + 1][i], rows[j + 1][i2]], [rows[j][i], rows[j + 1][i2], rows[j][i2]]);
+            }
+          }
+          return tris;
+        };
+        const top = ringPts(offTop);
+        const up = new THREE.Vector3(0, 1, 0);
+        const parts = [part(surf(top), () => up)];
+        if (closed) {
+          const bot = ringPts(offBot);
+          parts.push(part(surf(bot), () => up.clone().negate()));
+          const side = [];
+          for (let i = 0; i < na; i++) {
+            const i2 = (i + 1) % na;
+            side.push([top[nr][i], bot[nr][i], bot[nr][i2]], [top[nr][i], bot[nr][i2], top[nr][i2]]);
+          }
+          const c = top[0][0];
+          parts.push(part(side, (p) => new THREE.Vector3(p.x - c.x, 0, p.z - c.z).normalize()));
+        }
+        return merge(parts);
+      };
+      // Темнота в трубе
+      const bore = conform(major * 0.98, R * 0.98, 0.025, 0, P, false);
       const boreMesh = mesh(bore, M.dark, `Tube_${n}_Bore`, tubes, P.x, P.y, P.z);
       boreMesh.quaternion.copy(q);
-      boreMesh.position.addScaledVector(nrm, 0.01);
-      // Шарнирная группа на кромке, крышка смещена на R внутрь от шарнира
-      const hingePos = P.clone().addScaledVector(kDir, -R * 1.02).addScaledVector(nrm, 0.06);
+      // Шарнирная группа на кромке; крышка повторяет кривизну обшивки
+      const hingePos = P.clone().addScaledVector(kDir, -R * 1.04).addScaledVector(nrm, 0.08);
       const hinge = group(`TubeDoor_${n}_Hinge`, tubes, hingePos.x, hingePos.y, hingePos.z);
       hinge.quaternion.copy(q);
       const pivot = group(`TubeDoor_${n}_Pivot`, hinge);
-      const door = ellipse(major * 1.04, R * 1.04, 0.12);
+      const door = conform(major * 1.06, R * 1.06, 0.14, 0.04, hingePos, true);
       boxUV(door);
-      mesh(door, M.hull, `TubeDoor_${n}`, pivot, 0, 0, R * 1.02);
+      mesh(door, M.hull, `TubeDoor_${n}`, pivot);
       mesh(geo('Door_Hinge_Pin', () => new THREE.CylinderGeometry(0.1, 0.1, 1.0, 10).rotateZ(Math.PI / 2)), M.metal, `TubeDoor_${n}_HingePin`, hinge, 0, 0.08, 0);
       doorHinges.push(pivot);
     });
   }
-  const DOOR_OPEN = -1.75; // угол открытой крышки (рад), поворот вокруг оси шарнира
+  const DOOR_OPEN = -1.8; // угол открытой крышки (рад), поворот вокруг оси шарнира
   const setTubeDoors = (amount) => {
     const t = clamp01(amount);
     for (const p of doorHinges) p.rotation.x = DOOR_OPEN * t;
