@@ -150,7 +150,7 @@ function sailHalfWidth(x, p) {
 
 // Индексированная сетка из рядов точек rows[m][p] (Vector3), m и p — по двум направлениям.
 // Порядок (a, b, c), (a, c, d) даёт нормаль наружу, если p×m смотрит наружу.
-function gridGeometry(rows, { closedP = false, skip = null, uv = null } = {}) {
+function gridGeometry(rows, { closedP = false, skip = null, uv = null, flip = false } = {}) {
   const pos = [];
   const uvs = [];
   const idx = [];
@@ -168,7 +168,8 @@ function gridGeometry(rows, { closedP = false, skip = null, uv = null } = {}) {
       const b = m * cols + p1;
       const c = (m + 1) * cols + p1;
       const d = (m + 1) * cols + p;
-      idx.push(a, b, c, a, c, d);
+      if (flip) idx.push(a, c, b, a, d, c);
+      else idx.push(a, b, c, a, c, d);
     }
   }
   const g = new THREE.BufferGeometry();
@@ -218,10 +219,8 @@ function revolveX(profile, segs = 48, closed = false) {
     const a = (m / segs) * Math.PI * 2;
     rows.push(prof.map(([x, r]) => new THREE.Vector3(x, r * Math.cos(a), r * Math.sin(a))));
   }
-  // rows[m][p]: p — вдоль профиля, m — по углу; транспонируем, чтобы порядок граней был наружу
-  const t = prof.map((_, p) => rows.map((row) => row[p]));
-  const g = gridGeometry(t);
-  return g;
+  // rows[m][p]: m — по углу, p — вдоль профиля (от носа к корме — нормали наружу)
+  return gridGeometry(rows);
 }
 
 // Симметричный профиль NACA 00xx, лофт вдоль +Y (размах), хорда вдоль −X от передней кромки.
@@ -578,6 +577,7 @@ export function createBorei() {
       return a;
     });
     const casing = gridGeometry(rows, {
+      flip: true,
       skip: (m, p) => inFlat(m) && p >= topStart && p + 1 <= topEnd,
       uv: (m, p, v) => [v.x / TILE, arcs[m][p] / TILE],
     });
@@ -856,7 +856,7 @@ export function createBorei() {
 
   // =========================================================================
   // ВОДОМЁТНЫЙ ДВИЖИТЕЛЬ: насадка, спрямляющий аппарат, ротор
-  const prop = group('Propulsor');
+  const prop = group('Propulsor', sub, 0, HULL.yc, 0);
   let rotor;
   {
     const x0 = -77;
@@ -885,17 +885,13 @@ export function createBorei() {
     mesh(boxUV(merge(vanes)), M.metal, 'Propulsor_Stator', prop);
 
     // Ротор: ступица с обтекателем и 7 саблевидных лопастей
-    rotor = group('Propulsor_Rotor', prop, 0, yc, 0);
-    prop.position.y = 0;
+    rotor = group('Propulsor_Rotor', prop);
     const hub = revolveX([[-79.2, 1.9], [-80.5, 1.88], [-83.0, 1.82], [-84.2, 1.6], [-85.2, 1.05], [-85.9, 0.45], [-86.3, 0.1], [-86.35, 0]], 40);
     const blade = foilGeometry({ root: 1.9, tip: 1.3, span: 1.32, thick: 0.08, sweep: -0.45, nc: 10, ns: 5 });
     blade.translate(0.95, 0, 0).rotateY(THREE.MathUtils.degToRad(48));
     const blades = [];
     for (let k = 0; k < 7; k++) blades.push(blade.clone().translate(-81.4, 1.72, 0).rotateX((k / 7) * Math.PI * 2));
     mesh(mergeGroups([[hub, 0], [merge(blades), 1]]), [M.metal, M.bronze], 'Propulsor_Rotor_Mesh', rotor);
-    // Насадка и статор — на оси корпуса
-    for (const c of prop.children) if (c !== rotor) c.position.y = yc;
-    rotor.position.y = yc;
   }
 
   // =========================================================================

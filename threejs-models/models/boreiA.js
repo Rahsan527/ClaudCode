@@ -337,14 +337,14 @@ export function createBoreiA() {
   const tileTex = canvasTexture(512, 512, (c, w, h) => {
     const n = 8;
     const s = w / n;
-    c.fillStyle = '#141517';
+    c.fillStyle = '#16171a';
     c.fillRect(0, 0, w, h);
     for (let r = 0; r < n; r++) {
       for (let k = -1; k < n; k++) {
         const x = k * s + (r % 2 ? s / 2 : 0);
-        const v = 40 + Math.round(rnd() * 7);
-        c.fillStyle = `rgb(${v},${v + 2},${v + 5})`;
-        c.fillRect(x + 1.5, r * s + 1.5, s - 3, s - 3);
+        const v = 27 + Math.round(rnd() * 4);
+        c.fillStyle = `rgb(${v},${v + 1},${v + 3})`;
+        c.fillRect(x + 1, r * s + 1, s - 2, s - 2);
       }
     }
   });
@@ -356,11 +356,11 @@ export function createBoreiA() {
   };
   const M = {
     hull: std('Hull_Anechoic_Black', 0xffffff, 0.82, 0.0, { map: tileTex }),
-    sonar: std('Sonar_Bow_Black', 0x2b2e32, 0.7, 0.0),
+    sonar: std('Sonar_Bow_Black', 0xd4d6d8, 0.7, 0.0, { map: tileTex }),
     stripe: std('Marking_Light_Grey', 0x8f969c, 0.75, 0.0),
     hole: std('Flood_Openings_Black', 0x060607, 0.95, 0.0),
     silo: std('Silo_Interior_Black', 0x0a0b0c, 0.9, 0.0),
-    membrane: std('Silo_Membrane', 0x4d5249, 0.85, 0.0),
+    membrane: std('Silo_Membrane', 0x34382f, 0.85, 0.0),
     coaming: std('Hatch_Seam_Dark', 0x101113, 0.9, 0.0),
     metal: std('Mast_Metal_Dark', 0x3a3f45, 0.5, 0.55),
     glass: std('Glass_Window', 0x0f1822, 0.15, 0.7),
@@ -444,7 +444,7 @@ export function createBoreiA() {
   for (const side of [1, -1]) {
     const m = new Mesher();
     let prevRow = null;
-    for (let x = 83.5; x >= -73; x -= x > 70 || x < -60 ? 0.4 : 1.0) {
+    for (let x = 83.5; x >= -63; x -= x > 70 ? 0.4 : 1.0) {
       const th0 = thetaAtY(x, stripeY(x));
       const th = side > 0 ? th0 : Math.PI - th0;
       const dth = 0.12 / hullDTheta(x, th).length();
@@ -479,8 +479,11 @@ export function createBoreiA() {
       [[76.0, 1.2], [73.8, 2.5], [76.2, 3.3]].forEach(([x, y], k) => {
         const m = new Mesher();
         const t = thetaAtY(x, y);
-        hullEllipse(m, x, side > 0 ? t : Math.PI - t, 0.62, 0.55, 0.03, 20);
-        mesh(m.build('TT_Shutter', { orient: false }), M.coaming, `TorpedoTube_Shutter_${side > 0 ? 'S' : 'P'}${k + 1}`, ta);
+        hullEllipse(m, x, side > 0 ? t : Math.PI - t, 0.62, 0.55, 0.02, 24);
+        mesh(m.build('TT_Shutter_Seam', { orient: false }), M.coaming, `TorpedoTube_Shutter_${side > 0 ? 'S' : 'P'}${k + 1}_Seam`, ta);
+        const lid = new Mesher();
+        hullEllipse(lid, x, side > 0 ? t : Math.PI - t, 0.56, 0.49, 0.035, 24);
+        mesh(lid.build('TT_Shutter', { orient: false }), M.sonar, `TorpedoTube_Shutter_${side > 0 ? 'S' : 'P'}${k + 1}`, ta);
       });
     });
   }
@@ -500,8 +503,8 @@ export function createBoreiA() {
     le -= round(3.2); // большое скругление передней кромки сверху
     te += round(1.2);
     w -= round(0.7);
-    const f = 1 - smooth((y - SAIL.deck + 0.3) / 1.8); // галтель у палубы
-    return { le: le + 2.2 * f, te: te - 2.0 * f, w: w + 1.1 * f };
+    const f = 1 - smooth((y - SAIL.deck + 0.4) / 1.4); // галтель у палубы
+    return { le: le + 1.3 * f, te: te - 0.9 * f, w: w + 0.55 * f };
   };
   const sailHalf = (t) => {
     if (t < 0.24) return Math.sqrt(1 - ((0.24 - t) / 0.24) ** 2);
@@ -616,19 +619,24 @@ export function createBoreiA() {
       const c = m.v(p, ...uv(p));
       for (let j = 0; j < seg; j++) m.tri(c, ring[j], ring[(j + 1) % seg]);
     };
+    const fanUp = (dy, ring) => {
+      const p = P(0, 0, dy);
+      const c = m.v(p, ...uv(p));
+      for (let j = 0; j < seg; j++) m.tri(c, ring[(j + 1) % seg], ring[j]);
+    };
     // верх
     const topRings = rr.slice(1).map((r) => ringIds(r, 0.07 + 0.03 * (1 - r)));
-    fanCenter(0.1, topRings[0]);
-    for (let i = 0; i < topRings.length - 1; i++) m.strip(topRings[i], topRings[i + 1]);
+    fanUp(0.1, topRings[0]);
+    for (let i = 0; i < topRings.length - 1; i++) m.strip(topRings[i + 1], topRings[i]);
     // юбка (свои вершины — острая кромка) и низ
     const edgeTop = ringIds(1, 0.07);
     const edgeBot = ringIds(1, -0.12);
-    m.strip(edgeTop, edgeBot);
+    m.strip(edgeBot, edgeTop);
     const bot = ringIds(1, -0.12);
     fanCenter(-0.1, bot);
     const lid = m.build(`Hatch_Lid_${side > 0 ? 'S' : 'P'}`);
     // проушины шарнира
-    const knuckles = [-0.55, 0.55].map((x) => new THREE.CylinderGeometry(0.11, 0.11, 0.42, 12).rotateZ(Math.PI / 2).translate(x, 0, 0));
+    const knuckles = [-0.55, 0.55].map((x) => new THREE.CylinderGeometry(0.08, 0.08, 0.36, 12).rotateZ(Math.PI / 2).translate(x, -0.04, 0));
     const lidFull = merge([lid, ...knuckles]);
     lidFull.name = lid.name;
     // Проём шахты: тёмное кольцо, светлая мембрана, шов вокруг крышки
@@ -732,7 +740,7 @@ export function createBoreiA() {
     const sp = group('SternPlanes', stern);
     const opts = { root: [-59.5, -72.6], tip: [-65.5, -72.6], span: 7.6, tc: 0.1, tipTc: 0.08, nSpan: 10 };
     const fixedG = finGeometry('Stabilizer', { ...opts, to: 0.7 });
-    const endG = finGeometry('Stabilizer_Endfin', { root: [-67.4, -72.9], tip: [-65.6, -71.6], span: 5.0, tc: 0.1, tipTc: 0.07, nSpan: 6 });
+    const endG = finGeometry('Stabilizer_Endfin', { root: [-68.0, -72.8], tip: [-66.6, -71.8], span: 4.2, tc: 0.1, tipTc: 0.07, nSpan: 6 });
     [1, -1].forEach((side) => {
       const nm = side > 0 ? 'Starboard' : 'Port';
       const g = group(`Stabilizer_${nm}`, sp, 0, yc, 0);
@@ -744,7 +752,7 @@ export function createBoreiA() {
       const cant = THREE.MathUtils.degToRad(24);
       e.rotation.x = -side * cant;
       const up = new THREE.Vector3(0, Math.cos(cant), -side * Math.sin(cant));
-      e.position.set(0, yc, side * 7.45).addScaledVector(up, -3.6);
+      e.position.set(0, yc, side * 7.45).addScaledVector(up, -3.0);
       mesh(endG, M.hull, `Stabilizer_Endfin_${nm}_Blade`, e);
     });
   }

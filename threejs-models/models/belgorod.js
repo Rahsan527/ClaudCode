@@ -19,7 +19,7 @@ const HULL = {
   keel: -9.2, // киль (осадка в надводном положении ~9.2 м)
   stations: 240,
   ring: 96, // точек по обводу шпангоута (чётное)
-  sonarRow: 31, // ряд по обводу, по которому проходит граница обтекателя ГАС
+  sonarRow: 28, // ряд по обводу, по которому проходит граница обтекателя ГАС
 };
 const TEX_SPAN = 4.8; // метров на один повтор текстуры резиновых плиток
 
@@ -379,8 +379,8 @@ export function createBelgorod() {
     const thDefault = (kS / half) * Math.PI;
     // Граница обтекателя ГАС: в носу чуть ниже середины, к корме сходит к килю
     const thBound = (x) => {
-      if (x >= 66) return thDefault + (0.97 * Math.PI - thDefault) * (1 - smooth((x - 66) / 14));
-      return thDefault + (0.97 * Math.PI - thDefault) * smooth((x - 52) / 14);
+      if (x >= 64) return thDefault + (0.97 * Math.PI - thDefault) * (1 - smooth((x - 64) / 7));
+      return thDefault + (0.97 * Math.PI - thDefault) * smooth((x - 52) / 12);
     };
     const thAt = (k, x) => {
       const tb = thBound(x);
@@ -411,7 +411,7 @@ export function createBelgorod() {
     const hullIdx = [];
     const sonarIdx = [];
     for (let i = 0; i < nS; i++) {
-      const sonar = (xs[i] + xs[i + 1]) / 2 > 66;
+      const sonar = (xs[i] + xs[i + 1]) / 2 > 64;
       for (let k = 0; k < K; k++) {
         const a = i * R + k;
         const b = a + R;
@@ -580,7 +580,7 @@ export function createBelgorod() {
 
   // =========================================================================
   // РУБКА: длинная, низкая, со скруглёнными торцами
-  const SAIL = { xf: 47.5, xrBase: 17.5, xrTop: 24.5, yBase: 3.2, yDeck: 5.6, yTop: 13.2, wBase: 3.3, wTop: 3.0, fillet: 0.7 };
+  const SAIL = { xf: 47.5, xrBase: 17.5, xrTop: 24.5, yBase: 3.2, yDeck: 5.6, yTop: 13.9, wBase: 3.3, wTop: 3.0, fillet: 0.7 };
   const sailFront = (y) => SAIL.xf - 0.35 * clamp01((y - SAIL.yDeck) / (SAIL.yTop - SAIL.yDeck)) ** 2;
   const sailRear = (y) => {
     const t = clamp01((y - SAIL.yDeck) / (SAIL.yTop - SAIL.yDeck));
@@ -740,13 +740,13 @@ export function createBelgorod() {
 
     const stern = group('SternPlanes');
     const stab = geo('Stern_Stabilizer', () => boxUV(foilGeometry({ span: 12.4, rootLE: -50, rootTE: -84, tipLE: -69.5, tipTE: -80.5, rootT: 1.3, tipT: 0.6, rows: 8, segs: 16 })));
-    const endFin = geo('Stern_Endplate', () => boxUV(foilGeometry({ span: 8.2, rootLE: -68.5, rootTE: -81, tipLE: -71.5, tipTE: -80.5, rootT: 0.65, tipT: 0.4, rows: 4 })));
+    const endFin = geo('Stern_Endplate', () => boxUV(foilGeometry({ span: 6.4, rootLE: -69, rootTE: -81, tipLE: -71.5, tipTE: -80.5, rootT: 0.6, tipT: 0.4, rows: 4 })));
     for (const side of [1, -1]) {
       const sn = side > 0 ? 'Starboard' : 'Port';
       const s = mesh(stab, M.hull, `Stabilizer_${sn}`, stern, 0, yAxis, 0);
       s.rotation.x = side > 0 ? Math.PI / 2 : -Math.PI / 2;
       // концевая шайба: больше вниз, чем вверх
-      mesh(endFin, M.hull, `Stabilizer_Endplate_${sn}`, stern, 0, yAxis - 5.6, side * 12.3);
+      mesh(endFin, M.hull, `Stabilizer_Endplate_${sn}`, stern, 0, yAxis - 4.6, side * 12.3);
     }
   }
 
@@ -756,10 +756,10 @@ export function createBelgorod() {
   const propellers = [];
   {
     const bladeShape = new THREE.Shape();
-    bladeShape.moveTo(-0.5, 0.6);
-    bladeShape.bezierCurveTo(-0.95, 1.5, -0.55, 2.5, 0.35, 2.92);
-    bladeShape.bezierCurveTo(0.75, 2.5, 0.85, 1.4, 0.5, 0.6);
-    bladeShape.lineTo(-0.5, 0.6);
+    bladeShape.moveTo(-0.6, 0.6);
+    bladeShape.bezierCurveTo(-1.35, 1.5, -0.9, 2.6, 0.45, 2.95);
+    bladeShape.bezierCurveTo(1.0, 2.3, 1.05, 1.3, 0.6, 0.6);
+    bladeShape.lineTo(-0.6, 0.6);
     const makeBlades = (hand) => {
       const blade = new THREE.ExtrudeGeometry(bladeShape, { depth: 0.1, bevelEnabled: false, curveSegments: 10 });
       blade.translate(0, 0, -0.05);
@@ -770,7 +770,7 @@ export function createBelgorod() {
         const r = Math.max(0.5, v.y);
         const pitch = Math.atan(6.0 / (2 * Math.PI * r));
         const chord = v.x;
-        const thick = v.z * (1.4 - 0.35 * r);
+        const thick = v.z * (1.6 - 0.4 * r);
         v.set(chord * Math.sin(pitch) + thick * Math.cos(pitch), v.y, hand * (chord * Math.cos(pitch) - thick * Math.sin(pitch)));
         p.setXYZ(i, v.x, v.y, v.z);
       }
