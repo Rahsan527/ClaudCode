@@ -890,7 +890,7 @@ function paintAtlas() {
       const T = arcTable(c, 300);
       const total = T.arc.at(-1);
       let k = 0;
-      for (let py = rowOf(0.995); py <= rowOf(0.505); py++) {
+      for (let py = rowOf(0.505); py >= rowOf(0.995); py--) {
         const v = 1 - (py + 0.5) / S;
         const arc = ((v - 0.505) / 0.49) * GIRTH;
         if (arc > total + 0.05) continue;
