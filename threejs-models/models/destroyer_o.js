@@ -13,8 +13,8 @@ import { mergeGeometries, mergeVertices } from 'three/addons/utils/BufferGeometr
 // Подвижные части — отдельные Group с нулевым поворотом в покое, начало — на оси движения.
 
 export const WL = 3.8; // ватерлиния над килем
-const XS = -51.0; // корма (номинальное сечение на уровне палубы)
-const XF = 51.4; // форштевень на уровне палубы полубака
+const XS = -52.2; // корма (номинальное сечение на уровне палубы)
+const XF = 52.3; // форштевень на уровне палубы полубака
 const XB = -5.0; // срез полубака
 const BEAM = 5.35; // полуширина
 const MID_A = -16.0;
@@ -53,8 +53,8 @@ function sec(xn) {
     flare = 1.6 + 0.6 * s;
   } else if (xn < MID_A) {
     s = clamp01((MID_A - xn) / (MID_A - XS));
-    W = BEAM * Math.max(0, 1 - s ** 2.6) ** 0.55;
-    wd = BEAM * Math.max(0, 1 - s ** 3.0) ** 0.42;
+    W = BEAM * Math.max(0, 1 - s ** 3.2) ** 0.5;
+    wd = BEAM * Math.max(0, 1 - s ** 5) ** 0.5;
     yk = 3.55 * smooth(s / 0.6);
     yw = Math.max(4.3 + 0.6 * s * s, yk + 0.6);
     nb = 3.0 + 0.8 * s;
@@ -700,7 +700,7 @@ function paintAtlas() {
     ctx.lineTo(x1, y1);
     ctx.stroke();
   };
-  const GREY = '#79828a';
+  const GREY = '#6c757b';
 
   // ---- БОРТ (v 0.5…1)
   const hullBot = py(0.5);
@@ -766,12 +766,11 @@ function paintAtlas() {
     draw(Hc, hFill, stroke ? ['rgb(160,160,160)', stroke[1]] : null);
   };
   // иллюминаторы: в полубаке и в корме
-  for (let x = 6; x < 41; x += 1.5) {
-    if (Math.abs(x - 22) < 0.8) continue;
-    hullMark(x, fcDeckY(x) - 1.15, 0.32, 0.32, '#15181a', 'rgb(50,50,50)', ['rgba(170,175,178,0.9)', 2], 0.5);
-    if (x < 30) hullMark(x + 0.75, fcDeckY(x) - 3.3, 0.3, 0.3, '#15181a', 'rgb(50,50,50)', ['rgba(170,175,178,0.9)', 2], 0.5);
+  for (let x = 4; x < 40; x += 2.1) {
+    if (Math.abs(x - 22) < 1.0) continue;
+    hullMark(x, fcDeckY(x) - 1.2, 0.32, 0.32, '#15181a', 'rgb(50,50,50)', ['rgba(170,175,178,0.9)', 2], 0.5);
   }
-  for (let x = -46; x < -24; x += 1.6) hullMark(x, mainDeckY(x) - 1.0, 0.32, 0.32, '#15181a', 'rgb(50,50,50)', ['rgba(170,175,178,0.9)', 2], 0.5);
+  for (let x = -47; x < -26; x += 2.2) hullMark(x, mainDeckY(x) - 1.0, 0.32, 0.32, '#15181a', 'rgb(50,50,50)', ['rgba(170,175,178,0.9)', 2], 0.5);
   // шпигаты у кромки палубы
   for (let x = XS + 3; x < XF - 4; x += 3.1) {
     const y = (x >= XB ? fcDeckY(x) : mainDeckY(x)) - 0.12;
@@ -900,8 +899,8 @@ function paintAtlas() {
     C.fillStyle = g;
     C.fillRect(f0, py(V_FUN(FUN.h - 0.9)), f1 - f0, py(V_FUN(FUN.h - 3.0)) - py(V_FUN(FUN.h - 0.9)));
   }
-  C.fillStyle = '#16181a'; // чёрный колпак
-  C.fillRect(f0, py(0.25), f1 - f0, py(V_FUN(FUN.h - 0.9)) - py(0.25));
+  C.fillStyle = '#2a2e31'; // тёмная кромка и внутренняя стенка
+  C.fillRect(f0, py(0.25), f1 - f0, py(V_FUN(FUN.h - 0.32)) - py(0.25));
   [1.4, 3.0, 4.6].forEach((h) => {
     line(C, f0, py(V_FUN(h)), f1, py(V_FUN(h)), 2, 'rgba(20,24,26,0.25)');
     line(Hc, f0, py(V_FUN(h)), f1, py(V_FUN(h)), 3, 'rgb(150,150,150)');
@@ -1171,14 +1170,14 @@ export function createDestroyerO() {
 
   // ---- ключевые размеры
   const GA = { x: 34.0 }; // орудие A на баке
-  const SH = { x0: 12.2, x1: 28.6, hw: 3.0 }; // надстройка под орудием B и мостиком
+  const SH = { x0: 12.2, x1: 27.3, hw: 3.0 }; // надстройка под орудием B и мостиком
   const ySh = fcY(SH.x1) + 2.2; // крыша надстройки (палуба орудия B)
   const GB = { x: 25.0 };
   const WH = { x0: 13.4, x1: 20.6, hw: 2.8 }; // рулевая рубка
   const yPlat = ySh + 2.35; // палуба компасного мостика
   const L271 = { x: 10.9, y: yPlat + 0.75 }; // фонарь РЛС 271
   const FMAST = { x: 7.9 };
-  const FUNNEL = { x: 0.6, a: 2.55, b: 1.5, rake: Math.tan((5 * Math.PI) / 180) };
+  const FUNNEL = { x: 0.6, a: 2.8, b: 1.6, rake: Math.tan((5 * Math.PI) / 180) };
   const yFun0 = fcY(FUNNEL.x) + 0.9;
   const TT = { x: -11.2 };
   const yTT = mainDeckY(TT.x) + CAMBER + 0.45;
@@ -1190,7 +1189,7 @@ export function createDestroyerO() {
   const GY = { x: -39.6 };
   const MMAST = { x: -24.2 };
   const PROP = { x: -40.8, y: 1.85, z: 2.55, r: 1.45 };
-  const RUD = { x: -46.6, y0: 0.62, y1: 3.45 };
+  const RUD = { x: -46.35, y0: 1.15, y1: 3.45 };
   const BOAT = { x: -0.6, L: 7.6, B: 2.05, D: 0.85, z: 4.55 };
   BOAT.y = fcY(BOAT.x) + 2.05;
 
@@ -1243,9 +1242,9 @@ export function createDestroyerO() {
     {
       const lo = [], hi = [];
       for (let i = 0; i <= 14; i++) {
-        const x = lerp(-15, -45.6, i / 14);
+        const x = lerp(-15, -45.75, i / 14);
         const yk = sec(x).yk;
-        const yb = Math.min(yk - 0.02, 0.02 + 0.55 * ((i / 14) ** 1.6));
+        const yb = Math.min(yk - 0.02, 0.02 + 1.2 * ((i / 14) ** 2.2));
         lo.push([x, yb]);
         hi.push([x, Math.max(yk + 0.45, yb + 0.5)]);
       }
@@ -1445,7 +1444,7 @@ export function createDestroyerO() {
       [-34.2, -1.4, 1.0, 0.2, 0],
     ].forEach(([x, z, h, r, yaw]) => parts.push(atDeck(cowl(h, r, yaw), x, z)));
     // кормовые бомбосбрасыватели (рельсы)
-    const DC = { x0: -44.8, x1: -50.6 };
+    const DC = { x0: -45.6, x1: -51.5 };
     [1, -1].forEach((sd) => {
       const z = sd * 1.7;
       [-0.32, 0.32].forEach((dz) => {
@@ -1579,8 +1578,8 @@ export function createDestroyerO() {
     // ходовые огни
     [1, -1].forEach((sd) => parts.push(box(0.4, 0.45, 0.25, 18.6, yPlat + 0.75, sd * 4.82)));
     // флагштоки
-    parts.push(lathe([[0.05, fcDeckY(50.6) - 0.05], [0.03, fcDeckY(50.6) + 3.2], [0.05, fcDeckY(50.6) + 3.25], [0, fcDeckY(50.6) + 3.3]], 8).translate(50.6, 0, 0));
-    parts.push(lathe([[0.06, mainDeckY(-50.2) - 0.05], [0.035, mainDeckY(-50.2) + 4.2], [0.06, mainDeckY(-50.2) + 4.25], [0, mainDeckY(-50.2) + 4.3]], 8).translate(-50.2, 0, 0));
+    parts.push(lathe([[0.05, fcDeckY(51.5) - 0.05], [0.03, fcDeckY(51.5) + 3.2], [0.05, fcDeckY(51.5) + 3.25], [0, fcDeckY(51.5) + 3.3]], 8).translate(51.5, 0, 0));
+    parts.push(lathe([[0.06, mainDeckY(-51.4) - 0.05], [0.035, mainDeckY(-51.4) + 4.2], [0.06, mainDeckY(-51.4) + 4.25], [0, mainDeckY(-51.4) + 4.3]], 8).translate(-51.4, 0, 0));
     // РЛС 285 на КДП: две группы по три «рыбьи кости» (яги)
     {
       const yD = yPlat + 0.9 + 1.45;
@@ -1626,7 +1625,7 @@ export function createDestroyerO() {
     [1, -1].forEach((sd) => {
       for (let i = 0; i < 6; i++) {
         const t = (i + 0.4) / 6.5;
-        const x = lerp(-44.8, -50.6, t);
+        const x = lerp(-45.6, -51.5, t);
         const z = sd * 1.7;
         dk.push(dcharge().translate(x, deckY(x, z) + 0.62 - 0.14 * t + 0.27, z));
       }

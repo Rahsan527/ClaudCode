@@ -53,9 +53,9 @@ function sec(xn) {
     flare = 1.6 + 0.9 * s;
   } else if (xn < MID_A) {
     s = clamp01((MID_A - xn) / (MID_A - XS));
-    W = BEAM * Math.max(0, 1 - s ** 3.6) ** 0.5;
-    wd = BEAM * Math.max(0, 1 - s ** 5.0) ** 0.42;
-    yk = 3.35 * s ** 1.25;
+    W = BEAM * Math.max(0, 1 - s ** 4.5) ** 0.45;
+    wd = BEAM * Math.max(0, 1 - s ** 6.5) ** 0.36;
+    yk = 3.4 * s ** 1.05;
     yw = 3.5 + 0.95 * s * s;
     nb = 2.7 + 0.9 * s;
     rake = 0.55 * s ** 2;
@@ -806,7 +806,7 @@ function paintAtlas() {
 
   // ---- ПАЛУБЫ (v 0.25…0.5)
   const d0 = py(0.5), d1 = py(0.25);
-  C.fillStyle = '#5c5550'; // корабельный линолеум (кортицен)
+  C.fillStyle = '#4b4744'; // корабельный линолеум (кортицен)
   C.fillRect(0, d0, S, d1 - d0);
   for (let i = 0; i < 900; i++) {
     C.fillStyle = rnd() < 0.5 ? 'rgba(255,255,255,0.012)' : 'rgba(0,0,0,0.02)';
@@ -816,12 +816,12 @@ function paintAtlas() {
   }
   for (let z = -ZD + 0.35; z < ZD; z += 1.5) {
     const y = py(V_DECK(z));
-    line(C, 0, y, S, y, 1.5, 'rgba(25,28,30,0.35)');
+    line(C, 0, y, S, y, 1.2, 'rgba(25,28,30,0.18)');
     line(Hc, 0, y, S, y, 2, 'rgb(96,96,96)');
   }
   for (let x = XS; x < XF; x += 1.83) {
     const X = px(U(x));
-    line(C, X, d0, X, d1, 2, 'rgba(150,130,90,0.45)'); // латунные планки линолеума
+    line(C, X, d0, X, d1, 1.5, 'rgba(140,125,95,0.16)'); // латунные планки линолеума
     line(Hc, X, d0, X, d1, 2, 'rgb(98,98,98)');
   }
   // протёртые дорожки по палубе
@@ -1051,7 +1051,6 @@ function buildHull() {
   return { hull, bulkhead };
 }
 
-// Фальшборт бака: от x0 вдоль кромки палубы полубака вокруг форштевня
 
 // ---------------------------------------------------------------------------
 // ВООРУЖЕНИЕ: 4,7-дюймовое орудие Mk IX на станке CP XIV со щитом. Начало — центр погона, ось поворота Y.
@@ -1188,13 +1187,13 @@ export function createDestroyerD() {
   {
     let yb = Infinity;
     for (let dx = -0.6; dx <= 0.6; dx += 0.2)
-      for (let dz = -PROP.r; dz <= PROP.r; dz += 0.1) {
+      for (let dz = -PROP.r; dz <= PROP.r + 1e-6; dz += 0.05) {
         const b = bottomY(PROP.x + dx, PROP.z + dz);
-        if (b != null) yb = Math.min(yb, b);
+        if (b != null) yb = Math.min(yb, b - Math.sqrt(Math.max(0, PROP.r ** 2 - dz * dz)));
       }
-    PROP.y = yb - PROP.r - 0.12;
+    PROP.y = yb - 0.15;
   }
-  const RUD = { x: -45.6, y0: 0.95, y1: 2.82 };
+  const RUD = { x: -45.6, y0: 1.45, y1: 2.82 };
   {
     const parts = [];
     [1, -1].forEach((sd) => {
@@ -1244,8 +1243,8 @@ export function createDestroyerD() {
       for (let i = 0; i <= 14; i++) {
         const x = lerp(-15, -44.6, i / 14);
         const yk = sec(x).yk;
-        const t = clamp01((-37 - x) / 7.6);
-        lo.push([x, lerp(0, 1.15, t * t)]);
+        const t = clamp01((-21 - x) / 23.6);
+        lo.push([x, lerp(0, 1.75, t ** 1.4)]);
         hi.push([x, yk + 0.55]);
       }
       parts.push(prism([...lo, ...hi.reverse()], 0.34));
@@ -1286,10 +1285,10 @@ export function createDestroyerD() {
     addHouse(roundRect(BH.x0, BH.x1, -BH.hw, BH.hw, 0.9), dY(GB.x), BH.h, { band: 0, onDeck: true });
     // мостик: нижний ярус, рулевая рубка, открытый мостик с крыльями и фальшбортом
     const whPoly = roundRect(BR.wx0, BR.wx1, -BR.whw, BR.whw, 0.7);
-    addHouse(roundRect(BR.x0, BR.x1, -BR.hw, BR.hw, 0.9), yBr, BR.h1, { band: 0, onDeck: true, holes: [whPoly] });
+    addHouse(roundRect(BR.x0, BR.x1, -BR.hw, BR.hw, 0.9), yBr, BR.h1, { band: 0, onDeck: true });
     addHouse(whPoly, yBr + BR.h1, BR.h2 - 0.18, { band: 1, roof: false });
     const platPoly = roundRect(19.3, 26.1, -4.3, 4.3, 1.0, 4);
-    plate(platPoly, yPlat, 0.18, [whPoly]);
+    plate(platPoly, yPlat, 0.18);
     bulwark(roundRect(19.35, 26.05, -4.25, 4.25, 0.95, 4), yPlat, 1.1);
     // пост управления огнём (директор) на кормовой части мостика
     addHouse(roundRect(19.7, 21.3, -0.85, 0.85, 0.25), yPlat, 1.35, { band: 1 });
@@ -1758,7 +1757,7 @@ export function createDestroyerD() {
       w.push(rod([FM.x, 21.0, sd * 2.9], [FM.x, 23.5, sd * 0.05], 0.01, 3)); // фалы
     });
     w.push(rod([FM.x, 23.8, 0], [MM.x, 17.9, 0], r, 4)); // триатик-штаг
-    w.push(rod([MM.x, 16.5, 0], at(-44.0, 0), r, 4)); // ахтерштаг
+    [1, -1].forEach((sd) => w.push(rod([MM.x, 16.5, sd * 0.1], at(-34.5, sd * (edgeZ(-34.5, mainDeckY(-34.5)) - 0.3)), r, 4))); // ахтерштаги
     w.push(rod([lerp(FM.x, MM.x, 0.18), lerp(24.6, 17.4, 0.18), 1.2], [BR.x0 - 0.2, yPlat + 1.0, 1.2], 0.012, 3)); // ввод антенны
     mesh(merge(w), M.wire, 'Rigging', mastG);
   }
