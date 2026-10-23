@@ -5,11 +5,13 @@
 ```bash
 pip install bpy                                    # Blender 5 как Python-модуль, один раз
 # 1. генератор three.js -> source.glb (GLTFExporter, binary, animations)
-python tools/finalize_model.py source.glb out/ Cargo_Truck   # 2. сборка: .blend + .glb -> Cargo_Truck.zip
-python tools/check_model.py out/Cargo_Truck.zip              # 3. проверка (сборка запускает её сама)
+python tools/finalize_model.py source.glb out/ Cargo_Truck --zip-name="Грузовик КамАЗ-5320"  # 2. сборка
+python tools/check_model.py "out/Грузовик КамАЗ-5320.zip"   # 3. проверка (сборка запускает её сама)
 ```
 
-Сдаётся `out/<имя>.zip`, только если проверка пишет «Готово к сдаче: ни ошибок, ни предупреждений».
+Архив называется точно как лодка или корабль в задании, русские слова по-русски (правило в начале ТЗ):
+`--zip-name="Тип Л «Ленинец», серия II (СССР)"`. Файлы внутри — по латинскому корню.
+Сдаётся архив, только если проверка пишет «Готово к сдаче: ни ошибок, ни предупреждений».
 
 ## Что делает сборка (`tools/finalize_model.py`)
 

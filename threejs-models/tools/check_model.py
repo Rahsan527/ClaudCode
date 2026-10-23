@@ -56,7 +56,11 @@ def short_list(items, limit=8):
 # --- архив и .blend -------------------------------------------------------------------------------
 
 def check_zip(path, rep, limits):
-    stem = path.stem
+    """Архив называется как лодка или корабль в задании (можно по-русски, см. MODEL_SPEC.md),
+    а два файла внутри — как латинский корень модели: <Root>.glb и <Root>.blend."""
+    bad_chars = sorted(set(path.stem) & set('/\\:*?"<>|'))
+    if bad_chars or path.stem != path.stem.strip():
+        rep.error(9, f'имя архива {path.name!r}: недопустимые символы {bad_chars} или пробелы по краям')
     if path.stat().st_size > 200 * MB:
         rep.error(9, f'архив {path.stat().st_size / MB:.1f} МБ, предел 200 МБ')
     with zipfile.ZipFile(path) as z:
@@ -64,10 +68,14 @@ def check_zip(path, rep, limits):
         names = [i.filename for i in infos]
         if any(i.is_dir() or '/' in i.filename for i in infos):
             rep.error(9, f'в архиве есть папки: {short_list(names)} — оба файла должны лежать в корне')
-        want = {f'{stem}.glb', f'{stem}.blend'}
         files = {i.filename for i in infos if not i.is_dir()}
+        glbs = sorted(f for f in files if f.lower().endswith('.glb'))
+        stem = Path(glbs[0]).stem if len(glbs) == 1 else path.stem
+        want = {f'{stem}.glb', f'{stem}.blend'}
         if files != want:
             rep.error(9, f'в архиве должны быть ровно {sorted(want)}, а лежат: {short_list(sorted(files))}')
+        if not GOOD_NAME.match(stem):
+            rep.error(9, f'файлы внутри архива называются {stem!r} — нужно латинское имя корня модели')
         for i in infos:
             if i.flag_bits & 0x1:
                 rep.error(9, f'{i.filename} зашифрован паролем')
@@ -75,6 +83,7 @@ def check_zip(path, rep, limits):
                 rep.error(9, f'{i.filename} сжат нестандартным методом ({i.compress_type}), нужен обычный ZIP')
         glb = z.read(f'{stem}.glb') if f'{stem}.glb' in files else None
         blend = z.read(f'{stem}.blend') if f'{stem}.blend' in files else None
+    rep.fact(f'архив: {path.name} → {stem}.glb + {stem}.blend')
     if blend is not None:
         check_blend(blend, rep, limits)
     return stem, glb
@@ -238,7 +247,7 @@ def check_glb(data, stem, rep, limits):
     if len(roots) != 1:
         rep.error(5, f'у сцены должен быть один корневой узел, а их {len(roots)}')
     elif nodes[roots[0]].get('name') != stem:
-        rep.warn(5, f'корень называется {nodes[roots[0]].get("name")!r}, а модель (архив) — {stem!r}')
+        rep.warn(5, f'корень называется {nodes[roots[0]].get("name")!r}, а файлы модели — {stem!r}')
     parent = {}
     for i, n in enumerate(nodes):
         for c in n.get('children', []):

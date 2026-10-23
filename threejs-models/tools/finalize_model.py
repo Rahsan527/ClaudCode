@@ -1,6 +1,8 @@
 """Сборка модели по ТЗ (MODEL_SPEC.md, п. 10) в Blender 5: .glb из three.js -> <имя>.blend + <имя>.glb -> <имя>.zip.
 
-    python tools/finalize_model.py source.glb out_dir Cargo_Truck
+    python tools/finalize_model.py source.glb out_dir Cargo_Truck --zip-name="Грузовик КамАЗ-5320"
+
+Архив называется как модель в задании (--zip-name, можно по-русски), файлы внутри — по латинскому корню.
 
 Нужен Blender как Python-модуль (pip install bpy, Blender 5.x). Что делает:
   1. импортирует .glb, ставит один корень с именем модели;
@@ -201,7 +203,7 @@ def unrequire_extensions(glb):
     print(f'  extensionsRequired: убраны {sorted(set(required) - set(rest))}')
 
 
-def export(out_dir, name):
+def export(out_dir, name, zip_name):
     bpy.ops.file.pack_all()
     blend = out_dir / f'{name}.blend'
     glb = out_dir / f'{name}.glb'
@@ -222,7 +224,7 @@ def export(out_dir, name):
     assert not miss, f'нет параметров экспорта {miss} — это не Blender 5.x?'
     bpy.ops.export_scene.gltf(**want)
     unrequire_extensions(glb)
-    zip_path = out_dir / f'{name}.zip'
+    zip_path = out_dir / f'{zip_name or name}.zip'
     with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as z:
         z.write(glb, glb.name)
         z.write(blend, blend.name)
@@ -234,11 +236,14 @@ def export(out_dir, name):
 def main():
     args = [a for a in sys.argv[1:] if not a.startswith('--')]
     smooth_angle = 30.0
+    zip_name = None
     for a in sys.argv[1:]:
+        if a.startswith('--zip-name='):
+            zip_name = a.split('=', 1)[1].removesuffix('.zip')
         if a.startswith('--smooth-angle='):
             smooth_angle = float(a.split('=', 1)[1])
     if len(args) != 3:
-        fail('использование: python tools/finalize_model.py source.glb out_dir Model_Name [--smooth-angle=30]')
+        fail('использование: python tools/finalize_model.py source.glb out_dir Model_Name [--zip-name="Тип VIIB (Германия)"] [--smooth-angle=30]')
     source, out_dir, name = Path(args[0]), Path(args[1]), args[2]
     out_dir.mkdir(parents=True, exist_ok=True)
 
@@ -261,7 +266,7 @@ def main():
     ends = [int(a.frame_range[1]) for a in bpy.data.actions]
     if ends:
         bpy.context.scene.frame_start, bpy.context.scene.frame_end = 1, max(ends)
-    zip_path = export(out_dir, name)
+    zip_path = export(out_dir, name, zip_name)
     print(f'Готово: {zip_path}\n')
     checker = Path(__file__).with_name('check_model.py')
     sys.exit(subprocess.call([sys.executable, str(checker), str(zip_path)]))

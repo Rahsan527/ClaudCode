@@ -497,7 +497,7 @@ function paintAtlas() {
 
   // ---- КОРПУС (v 0.5…1 → py 0…1024)
   const hullTop = 0, hullBot = S / 2;
-  C.fillStyle = '#7b8185';
+  C.fillStyle = '#6c7276';
   C.fillRect(0, hullTop, S, hullBot);
   // подводная часть
   C.fillStyle = '#33373a';
@@ -624,12 +624,12 @@ function paintAtlas() {
 
   // ---- РУБКА (v 0…0.25 → py 1536…2048)
   const t0 = py(0.25);
-  C.fillStyle = '#82888b';
+  C.fillStyle = '#72787b';
   C.fillRect(0, t0, S, S - t0);
-  C.fillStyle = '#74797c';
+  C.fillStyle = '#676c6f';
   C.fillRect(0, py(0.246), S, py(0.212) - py(0.246));
   for (let i = 0; i < 300; i++) {
-    C.fillStyle = rnd() < 0.5 ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.035)';
+    C.fillStyle = rnd() < 0.5 ? 'rgba(255,255,255,0.012)' : 'rgba(0,0,0,0.015)';
     C.beginPath();
     C.ellipse(rnd() * S, py(0.205) + rnd() * (py(0.005) - py(0.205)), 10 + rnd() * 30, 6 + rnd() * 18, 0, 0, Math.PI * 2);
     C.fill();
@@ -787,13 +787,19 @@ function buildTower() {
     [-0.07, TW.yTop],
     [-0.07, TW.yF],
   ];
+  // привальный брус по периметру рубки
+  const fl = towerOutline(6.68, 96);
+  const fender = sweepLoop(fl, [[-0.03, 6.6], [0.05, 6.62], [0.06, 6.68], [0.05, 6.74], [-0.03, 6.76]], (per, pr) => [
+    0.005 + (0.99 * per) / (TOWER_PER * 1.1),
+    V_TOWER(pr[1]),
+  ]);
   const BP = loopPerimeter(bl);
   const bulwark = sweepLoop(bl, prof, (per, pr, k) => {
     const u = 0.005 + (0.99 * per) / Math.max(TOWER_PER, BP * 1.02);
     if (k <= 2 && !(k === 2 && pr[0] < 0)) return [u, V_TOWER(pr[1])];
     return [u, V_INNER(pr[1])];
   });
-  return { body, bulwark, platformLoop: ring.filter(([x]) => x < TW.xw - 0.05) };
+  return { body, bulwark, fender, platformLoop: ring.filter(([x]) => x < TW.xw - 0.05) };
 }
 
 // ---------------------------------------------------------------------------
@@ -835,7 +841,7 @@ export function createType9B() {
   const hullG = group('Hull', boat);
   mesh(buildHull(), M.hull, 'Hull_Outer', hullG);
   const tower = buildTower();
-  mesh(merge([tower.body, tower.bulwark]), M.hull, 'Conning_Tower', hullG);
+  mesh(merge([tower.body, tower.bulwark, tower.fender]), M.hull, 'Conning_Tower', hullG);
 
   // Подводные выступы: валы, кронштейны, стабилизаторы, ограждения винтов (тёмная сталь)
   const PROP = { x: -34.4, y: 2.05, z: 1.62, r: 0.95 };
@@ -991,6 +997,22 @@ export function createType9B() {
         const q = railPts[i - 1];
         [TW.yF + 0.55, TW.yF + 1.05].forEach((y) => parts.push(rod([q[0], y, q[1]], [p[0], y, p[1]], 0.022, 6)));
       }
+    });
+    // скобы-трапы на бортах рубки (две колонки на борт)
+    [1, -1].forEach((sd) => {
+      [-1.6, 0.2].forEach((xr) => {
+        for (let y = 6.0; y < TW.yTop - 0.1; y += 0.36) {
+          const ring = towerOutline(Math.min(y, TW.yF));
+          let best = ring[0];
+          ring.forEach((p) => {
+            if (Math.sign(p[1]) === sd && Math.abs(p[0] - xr) < Math.abs(best[0] - xr)) best = p;
+          });
+          const zz = best[1] + sd * (y > TW.yF ? 0.03 + 0.17 * Math.max(0, (y - (TW.yTop - 0.38)) / 0.32) : 0) + sd * 0.1;
+          parts.push(rod([xr - 0.2, y, zz], [xr + 0.2, y, zz], 0.018, 6));
+          parts.push(rod([xr - 0.2, y, zz - sd * 0.12], [xr - 0.2, y, zz], 0.016, 5));
+          parts.push(rod([xr + 0.2, y, zz - sd * 0.12], [xr + 0.2, y, zz], 0.016, 5));
+        }
+      });
     });
     // ходовые огни на фальшборте
     [1, -1].forEach((sd) => {
