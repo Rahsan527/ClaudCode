@@ -1338,15 +1338,16 @@ export function createGustloff() {
     });
     // якоря Холла в клюзах
     [1, -1].forEach((sd) => {
-      const xh = 95.0, yh = 14.6;
-      const r = sideAt(xh, yh - 1.2);
+      const yh = 14.6;
+      const xh = xAt(sec(95.0), yh - 0.9); // клюз нарисован в атласе по номинальной абсциссе 95
+      const r = sideAt(xh, yh - 0.9);
       const shank = box(0.35, 2.4, 0.3, 0, 0.3, 0);
       const crown = box(0.7, 0.5, 0.6, 0, -0.9, 0);
       const fl = (sx) => prism([[0.05, 0.03], [0.85, 0.2], [1.05, 1.1], [0.6, 0.7], [0.05, 0.43]].map(([a, b]) => [sx * a, b - 1.1]), 0.35);
       const anc = merge([shank, crown, fl(1), fl(-1)]);
       const q = new THREE.Quaternion().setFromUnitVectors(V3(0, 0, 1), r.n);
       anc.applyQuaternion(q);
-      anc.translate(xh, yh - 1.4, r.z + 0.22);
+      anc.translate(xh, yh - 1.0, r.z + 0.22);
       dark.push(sd > 0 ? anc : mirrorZ(anc));
     });
     // кнехты по бортам бака и юта
@@ -1413,7 +1414,7 @@ export function createGustloff() {
 
   // ======================= ШЛЮПКИ И ШЛЮПБАЛКИ
   const boatG = group('Lifeboats', ship);
-  const BOAT = { L: 7.6, B: 2.6, D: 1.05, z: 10.3, y: 21.85, n: 11, x0: -50, dx: 8.0 };
+  const BOAT = { L: 7.6, B: 2.6, D: 1.05, z: 10.3, y: 21.85, n: 11, x0: -51, dx: 8.0 };
   {
     const boatGeo = () => {
       const m = new Mesher();

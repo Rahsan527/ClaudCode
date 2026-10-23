@@ -618,6 +618,7 @@ export function createTF1() {
     black: pack(1.2, 1.2),
     torp: pack(7.3, 0.4),
     transom: pack(6.8, 3.4),
+    boat: pack(1.0, 0.5),
   };
   const roofUV = (x, z) => [lerp(SL.roof.u0, SL.roof.u1, clamp01((x + 31) / 62)), lerp(SL.roof.v0, SL.roof.v1, clamp01((z + 3.5) / 7))];
   const blackUV = () => [(SL.black.u0 + SL.black.u1) / 2, (SL.black.v0 + SL.black.v1) / 2];
@@ -673,7 +674,6 @@ export function createTF1() {
     anti: std('Antifouling_Dark', 0x3e2b27, 0.75, 0.1),
     bronze: std('Propeller_Bronze', 0xa47a45, 0.35, 0.9),
     wire: std('Rigging_Wire', 0x26282a, 0.55, 0.5),
-    canvas: std('Canvas_Covers', 0x6c6d5e, 0.9, 0.0),
   };
   const group = (name, parent, x = 0, y = 0, z = 0) => {
     const g = new THREE.Group();
@@ -1236,7 +1236,8 @@ export function createTF1() {
   // ======================= ШЛЮПКИ НА ШЛЮПБАЛКАХ
   const boatG = group('Boats', ship);
   {
-    const hulls = [], covers = [], davits = [];
+    const boats = [], davits = [];
+    const bu = (k) => [lerp(SL.boat.u0, SL.boat.u1, k), (SL.boat.v0 + SL.boat.v1) / 2];
     const boatPart = (L, Bm, D, cover) => {
       const m = new Mesher();
       const N = 14, M2 = 10;
@@ -1275,8 +1276,13 @@ export function createTF1() {
     [1, -1].forEach((sd) => {
       const L = 5.6, Bm = 1.65, D = 0.7;
       const bx = 3.6, bz = sd * 2.5, by = deckTop(bx, 2.5) + 2.0;
-      hulls.push(boatPart(L, Bm, D, false).translate(bx, by, bz));
-      covers.push(boatPart(L, Bm, D, true).translate(bx, by, bz));
+      // корпус и тент — одна замкнутая сетка; цвет по слоту атласа (корпус серый, тент — брезент)
+      const hb = boatPart(L, Bm, D, false), cv = boatPart(L, Bm, D, true);
+      [[hb, 0.25], [cv, 0.75]].forEach(([g, k]) => {
+        const uv = g.attributes.uv;
+        for (let i = 0; i < uv.count; i++) uv.setXY(i, ...bu(k));
+      });
+      boats.push(hb.translate(bx, by, bz), cv.translate(bx, by, bz));
       [bx + 2.2, bx - 2.2].forEach((x) => {
         const zb = sd * (deckHalf(x) - 0.3);
         const yb = deckTop(x, Math.abs(zb));
@@ -1288,8 +1294,7 @@ export function createTF1() {
       });
       [bx + 1.5, bx - 1.5].forEach((x) => davits.push(rod([x, by - 0.5, bz - sd * 0.75], [x, by - 0.5, bz + sd * 0.75], 0.04, 6)));
     });
-    mesh(merge(hulls), M.grey, 'Boat_Hulls', boatG);
-    mesh(merge(covers), M.canvas, 'Boat_Covers', boatG);
+    mesh(merge(boats), M.atlas, 'Boat_Hulls', boatG);
     mesh(merge(davits), M.grey, 'Boat_Davits', boatG);
   }
 
@@ -1762,6 +1767,11 @@ function paintAtlas(houses, SL, BH) {
     rect(C, sl.px - 2, sl.py - 2, sl.pw + 4, sl.ph + 4, GREY);
     rect(C, sl.px - 2, Y(WL + 0.3), sl.pw + 4, sl.py + sl.ph + 2 - Y(WL + 0.3), '#1d1f21');
     rect(C, sl.px - 2, Y(WL - 0.15), sl.pw + 4, sl.py + sl.ph + 2 - Y(WL - 0.15), '#3e2b27');
+  }
+  {
+    const sl = SL.boat;
+    rect(C, sl.px - 2, sl.py - 2, sl.pw / 2 + 2, sl.ph + 4, '#7f8487');
+    rect(C, sl.px + sl.pw / 2, sl.py - 2, sl.pw / 2 + 2, sl.ph + 4, '#6c6d5e');
   }
   // слот практической торпеды: u — от хвоста (0) к головной части (1)
   {
