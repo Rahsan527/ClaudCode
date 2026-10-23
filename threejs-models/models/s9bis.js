@@ -10,7 +10,7 @@ import { mergeGeometries, mergeVertices, toCreasedNormals } from 'three/addons/u
 
 const LOA = 77.75;
 const X_BOW = LOA / 2; // форштевень (верх носа)
-const X_TAIL = -36.4; // торец кормы (кормовые ТА)
+const X_TAIL = -36.6; // торец кормы (кормовые ТА)
 const X_RUD_TE = -LOA / 2; // задняя кромка руля
 const WL = 4.0; // ватерлиния
 const DECK = 6.0; // палуба надстройки на миделе
@@ -23,14 +23,14 @@ const V = (x, y, z) => new THREE.Vector3(x, y, z);
 // ОБВОДЫ КОРПУСА (сечения по шпангоутам)
 
 function keelY(x) {
-  if (x > 30) return 6.25 * ((x - 30) / (X_BOW - 30)) ** 2.2; // скруглённый наклонный форштевень
-  if (x < -23) return 2.05 * ((-23 - x) / (-23 - X_TAIL)) ** 1.5; // подрез кормы
+  if (x > 22) return 6.25 * ((x - 22) / (X_BOW - 22)) ** 2; // наклонный форштевень со скруглённым подрезом
+  if (x < -14) return 2.6 * ((-14 - x) / (-14 - X_TAIL)) ** 1.8; // подъём киля к корме
   return 0;
 }
 function deckY(x) {
   let y = DECK;
   if (x > 24) y += 0.65 * ((x - 24) / (X_BOW - 24)) ** 2; // седловатость к носу
-  if (x < -24) y -= 0.6 * ((-24 - x) / (-24 - X_TAIL)) ** 1.4;
+  if (x < -22) y -= 1.1 * ((-22 - x) / (-22 - X_TAIL)) ** 1.6;
   return y;
 }
 function maxHalfBeam(x) {
@@ -40,7 +40,7 @@ function maxHalfBeam(x) {
   }
   if (x < -6) {
     const u = clamp01((-6 - x) / (-6 - X_TAIL));
-    return 0.62 + 2.58 * Math.max(0, 1 - u ** 1.8) ** 0.9;
+    return 0.5 + 2.7 * Math.max(0, 1 - u ** 1.8) ** 0.9;
   }
   return 3.2;
 }
@@ -58,7 +58,7 @@ function profile(x) {
   const ycw = yk + 0.48 * h;
   const yt = yd - 0.55 * Math.min(1, h / 6);
   const ub = x > 4 ? clamp01((x - 4) / (X_BOW - 4)) : x < -6 ? clamp01((-6 - x) / (-6 - X_TAIL)) : 0;
-  const nB = x > 4 ? lerp(2.4, 1.35, ub) : lerp(2.4, 1.6, ub);
+  const nB = x > 4 ? lerp(2.2, 1.35, ub) : lerp(2.2, 1.6, ub);
   const pU = 2.2;
   const pts = [{ z: 0, y: yk }];
   for (let i = 1; i <= NB; i++) {
@@ -361,7 +361,7 @@ function noise(x, y) {
   const a = hash(xi, yi), b = hash(xi + 1, yi), c = hash(xi, yi + 1), d = hash(xi + 1, yi + 1);
   return lerp(lerp(a, b, sx), lerp(c, d, sx), sy);
 }
-const GREY = [116, 122, 127];
+const GREY = [100, 106, 112];
 const DARK = [40, 42, 45];
 const WOOD = [88, 80, 68];
 
@@ -463,7 +463,7 @@ function buildAtlas(towerInfo) {
           h -= 0.02 * (1 - da);
         }
         // крышки носовых торпедных аппаратов (4: по 2 на борт)
-        for (const [tx, ty] of [[35.75, 2.0], [35.35, 3.25]]) {
+        for (const [tx, ty] of [[30.9, 2.5], [30.5, 3.55]]) {
           const d = Math.hypot((x - tx) / 0.46, (y - ty) / 0.4);
           if (Math.abs(d - 1) < 0.06) {
             c = shade(c, 0.6);
@@ -511,9 +511,9 @@ function buildAtlas(towerInfo) {
       };
       h += rivet(y, ds - 0.035) + rivet(s, dy - 0.035);
       // шпигаты у основания рубки
-      if (y > 6.05 && y < 6.45) {
-        const xl = ((s + 100) % 0.5) - 0.25;
-        if (Math.abs(xl) < 0.08 && s > 0.6) {
+      if (y > 6.08 && y < 6.26) {
+        const xl = ((s + 100) % 0.6) - 0.3;
+        if (Math.abs(xl) < 0.06 && s > 0.6) {
           c = [16, 17, 18];
           h = -0.04;
         }
@@ -755,11 +755,11 @@ export function createS9bis() {
   }
   // Сетепрорезатель на форштевне (зубчатый нож)
   {
-    const stemX = (y) => 30 + (X_BOW - 30) * (y / 6.25) ** (1 / 2.2);
+    const stemX = (y) => 22 + (X_BOW - 22) * (y / 6.25) ** 0.5;
     const inner = [];
     const outer = [];
-    const y0 = 0.9, y1 = 5.9;
-    const n = 26;
+    const y0 = 2.3, y1 = 5.9;
+    const n = 20;
     for (let k = 0; k <= n; k++) {
       const y = lerp(y0, y1, k / n);
       inner.push([stemX(y) - 0.18, y]);
@@ -843,13 +843,13 @@ export function createS9bis() {
     for (const s of [-1, 1]) {
       const z = s * PROP_Z;
       // дейдвуд и вал
-      parts.push(revolveX([[-25.0, 0.2], [-27.0, 0.18], [-28.6, 0.12], [-28.8, 0.1]], 14, { capStart: false }).translate(0, PROP_Y, z));
+      parts.push(revolveX([[-23.0, 0.2], [-26.0, 0.18], [-28.6, 0.12], [-28.8, 0.1]], 14, { capStart: false }).translate(0, PROP_Y, z));
       parts.push(revolveX([[-28.7, 0.085], [PROP_X + 0.2, 0.085]], 12, { capStart: false, capEnd: false }).translate(0, PROP_Y, z));
       // кронштейн гребного вала
       const sx = -31.6;
       const sleeve = revolveX([[sx + 0.3, 0.12], [sx - 0.3, 0.12]], 12).translate(0, PROP_Y, z);
       parts.push(sleeve);
-      for (const [ty, tz] of [[1.4, 0.15], [2.85, 0.85]]) {
+      for (const [ty, tz] of [[2.0, 0.1], [2.85, 0.85]]) {
         const a = V(sx, PROP_Y, z);
         const b = V(sx, ty, s * tz);
         const d = b.clone().sub(a);
@@ -862,12 +862,12 @@ export function createS9bis() {
       }
       // ограждение винта
       const path = [
-        V(-28.6, 1.5, s * 1.05), V(-30.0, 1.5, s * 2.3), V(-31.5, 1.5, s * 2.85), V(-32.6, 1.5, s * 2.97),
-        V(-33.5, 1.6, s * 2.7), V(-34.0, 1.8, s * 1.7), V(-34.05, 2.05, s * 0.5),
+        V(-27.6, 1.9, s * 1.2), V(-29.4, 1.9, s * 2.35), V(-31.3, 1.9, s * 2.85), V(-32.6, 1.9, s * 2.95),
+        V(-33.6, 2.0, s * 2.6), V(-34.0, 2.3, s * 1.5), V(-34.0, 2.6, s * 0.3),
       ];
       parts.push(tube(path, 0.065, 48, 8));
       // крышки кормовых ТА на торце кормы
-      parts.push(revolveX([[X_TAIL + 0.04, 0.27], [X_TAIL - 0.06, 0.27], [X_TAIL - 0.08, 0.24]], 18, { capStart: false }).translate(0, 3.35, s * 0.3));
+      parts.push(revolveX([[X_TAIL + 0.04, 0.2], [X_TAIL - 0.06, 0.2], [X_TAIL - 0.08, 0.17]], 18, { capStart: false }).translate(0, 3.65, s * 0.22));
       // якоря в клюзах
       {
         const ax = 33.3, ay = 5.05;
@@ -926,8 +926,8 @@ export function createS9bis() {
   // РУЛИ: вертикальный руль (подвесной, балансирный), носовые (заваливающиеся) и кормовые горизонтальные
   const controls = group('Control_Surfaces');
   {
-    const stock = V(-37.3, 3.0, 0);
-    const g = foil({ root: [-36.8, X_RUD_TE], tip: [-36.75, -38.6], span: 3.8, tc: 0.13, nSpan: 5 }).translate(0, 1.2, 0);
+    const stock = V(-37.6, 2.8, 0);
+    const g = foil({ root: [-37.1, X_RUD_TE], tip: [-37.05, -38.55], span: 3.0, tc: 0.13, nSpan: 5 }).translate(0, 1.3, 0);
     setUV(g, uvTwo);
     movable('Rudder', controls, stock, merged([g], { uv: true }), M.hull);
   }
@@ -941,8 +941,8 @@ export function createS9bis() {
   };
   plane('Bow_Plane_L', -1, 31.15, 5.0, [31.6, 30.4], [31.45, 30.6], 1.65, 0.12);
   plane('Bow_Plane_R', 1, 31.15, 5.0, [31.6, 30.4], [31.45, 30.6], 1.65, 0.12);
-  plane('Stern_Plane_L', -1, -35.0, 2.3, [-34.5, -35.9], [-34.7, -35.8], 1.75, 0.12);
-  plane('Stern_Plane_R', 1, -35.0, 2.3, [-34.5, -35.9], [-34.7, -35.8], 1.75, 0.12);
+  plane('Stern_Plane_L', -1, -35.0, 2.9, [-34.5, -35.9], [-34.7, -35.8], 1.75, 0.12);
+  plane('Stern_Plane_R', 1, -35.0, 2.9, [-34.5, -35.9], [-34.7, -35.8], 1.75, 0.12);
 
   // =========================================================================
   // АРТИЛЛЕРИЯ (поворотные части; качающиеся части не выделены — угол возвышения 0)

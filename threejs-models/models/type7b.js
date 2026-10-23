@@ -94,6 +94,8 @@ const bodyA = table([
   [31.5, 0.19], [X1, 0.04],
 ]);
 const bodyN = table([[X0, 2.6], [-24, 2.3], [-16, 2.0], [16, 2.0], [24, 2.2], [X1, 2.2]]);
+// показатель нижней половины сечения: в носу — острее (V-образный подводный форштевень)
+const bodyNL = table([[X0, 2.4], [-24, 2.2], [-16, 2.0], [16, 2.0], [22, 1.8], [26, 1.45], [X1, 1.3]]);
 // Полуширина киля / скега (минимальная ширина сечения)
 const keelHalf = table([
   [X0, 0.12], [-30, 0.14], [-24, 0.16], [-18, 0.2], [18, 0.2], [22, 0.14], [25, 0.07], [27.5, 0.035], [X1, 0.03],
@@ -105,22 +107,30 @@ const tankF = (x) => smooth((x - TANK.x0) / (TANK.x1 - TANK.x0)) * (1 - smooth((
 function section(x) {
   return {
     keel: yKeel(x), deck: yDeck(x), dh: deckHalf(x), cb: casBot(x), bb: bodyBot(x), bt: bodyTop(x), a: bodyA(x),
-    n: bodyN(x), kh: keelHalf(x), f: tankF(x),
+    n: bodyN(x), nl: bodyNL(x), kh: keelHalf(x), f: tankF(x),
   };
 }
 
 // Полуширина корпуса на высоте y
 function halfWidth(s, y) {
-  let w = s.kh;
   const bc = (s.bb + s.bt) / 2, hb = (s.bt - s.bb) / 2;
   const t = Math.abs((y - bc) / hb);
-  if (t < 1) w = Math.max(w, s.a * (1 - t ** s.n) ** (1 / s.n));
+  const n = y < bc ? s.nl : s.n;
+  let w = t < 1 ? s.a * (1 - t ** n) ** (1 / n) : 0;
+  // надстройка: внизу плавно сходит на нет (скос), с корпусом — мягкое объединение
+  const fade = smooth((y - (s.cb - 0.45)) / 0.45);
+  if (fade > 0) {
+    const c = (s.dh + 0.04 * (s.deck - y)) * fade;
+    const k = 0.22;
+    w = (w + c + Math.sqrt((w - c) ** 2 + k * k * fade)) / 2 - (k * Math.sqrt(fade)) / 2 + 0.0;
+    w = Math.max(w, c);
+  }
+  // були: выдвигаются из корпуса по длине (сдвиг, а не масштаб — плавные оконечности)
   if (s.f > 0) {
     const tt = (y - TANK.yc) / TANK.v;
-    if (Math.abs(tt) < 1) w = Math.max(w, s.f * (TANK.zc + TANK.h * Math.sqrt(1 - tt * tt)));
+    if (Math.abs(tt) < 1) w = Math.max(w, TANK.zc + TANK.h * Math.sqrt(1 - tt * tt) - (1 - s.f) * 1.25);
   }
-  if (y >= s.cb) w = Math.max(w, s.dh + 0.04 * (s.deck - y));
-  return w;
+  return Math.max(w, s.kh);
 }
 export const hullHalfWidth = (x, y) => halfWidth(section(x), y);
 
