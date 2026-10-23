@@ -12,7 +12,7 @@ import { mergeGeometries, mergeVertices } from 'three/addons/utils/BufferGeometr
 // 20-мм «Эрликоны» на галереях. Две линии вала (паровые машины Скиннера «Унафлоу»), один руль.
 // Окраска — камуфляж Measure 14: борта и надстройки Ocean Gray 5-O, палубы Deck Blue 20-B, подводная часть тёмная.
 
-const XS = -76.6; // корма (срез подзора)
+const XS = -77.2; // корма (срез подзора)
 const XB = 79.6; // форштевень на уровне фальшборта
 const B2 = 9.93; // полуширина корпуса
 const RB = 1.8; // радиус скулы
@@ -50,7 +50,7 @@ function xStem(y) {
 function xSternEnd(y) {
   if (y <= 4.2) return -67.5;
   if (y <= 7.5) return -67.5 - 7.9 * Math.sqrt(Math.max(0, 1 - ((7.5 - y) / 3.3) ** 2));
-  return -75.4 - 1.2 * Math.min(1, (y - 7.5) / 3.5);
+  return -75.4 - 1.8 * Math.min(1, (y - 7.5) / 3.5);
 }
 function fullness(x, y) {
   const xf0 = lerp(28, 46, smooth(y / 10));
@@ -839,7 +839,7 @@ function paintFlightDeck() {
 
 function buildHull() {
   const m = new Mesher();
-  const NST = 160;
+  const NST = 200;
   let ts = [];
   for (let i = 0; i <= NST; i++) {
     const u = i / NST;
@@ -1123,7 +1123,7 @@ const BOATS = [[-10.0, 1], [-10.0, -1]];
 // Отрезки галерей вдоль кромки (без спонсонов, острова и труб)
 function catwalkSpans(sd) {
   const cuts = [];
-  BOFORS.forEach(([, x, s]) => s === sd && cuts.push([x - 2.9, x + 2.9]));
+  BOFORS.forEach(([, x, s]) => s === sd && cuts.push(x > 60 ? [x - 5.4, x + 2.9] : [x - 2.9, x + 5.4]));
   STACKS.forEach((x) => cuts.push([x - 1.15, x + 1.15]));
   if (sd > 0) cuts.push([ISL.x0 - 1.0, ISL.x1 + 1.0]);
   cuts.sort((a, b) => a[0] - b[0]);
@@ -1240,6 +1240,10 @@ export function createCasablanca() {
     });
     [[68, 1], [52, 1], [-64, 1]].forEach(([x]) => {
       [1, -1].forEach((sd) => f.push(box(1.0, 0.32, 0.34, x, deckY(x) + BUL + 0.16, sd * (sideZ(x, deckY(x) + BUL) - 0.1), ['-y'])));
+    });
+    // грибовидные вентиляторы на баке и юте
+    [[58, 3.2], [58, -3.2], [-60, 2.6], [-60, -2.6], [-64, 3.8], [-64, -3.8]].forEach(([x, z]) => {
+      f.push(lathe([[0.35, -0.03], [0.35, 0.9], [0.6, 0.95], [0.62, 1.1], [0.3, 1.3], [0, 1.32]], 14).translate(x, deckY(x), z));
     });
     mesh(merge(f), M.steel, 'Main_Deck_Fittings', hullG);
   }
@@ -1453,6 +1457,15 @@ export function createCasablanca() {
       og.push(latheX([[0.07, -0.6], [0.07, 0.3], [0.04, 0.35], [0.03, 1.6], [0.045, 1.62], [0.045, 1.8], [0, 1.82]], 8).translate(0, 1.25, 0));
       oer.push(merge(og).rotateY(x > 0 ? 0 : Math.PI).translate(x, deckY(x), z));
     });
+    // директоры Mk 51 для «Бофорсов»: малые площадки у спонсонов
+    BOFORS.forEach(([, x, sd]) => {
+      const dx = x > 60 ? -4.2 : 4.2;
+      const z = sd * (FHW + 1.0);
+      sp.push(lathe([[1.0, SPONSON_Y + 0.2], [1.0, SPONSON_Y + 1.25], [0.95, SPONSON_Y + 1.25], [0.95, SPONSON_Y + 0.45], [0, SPONSON_Y + 0.45]], 18, { top: false, bottom: true }).translate(x + dx, 0, z));
+      sp.push(lathe([[0.18, SPONSON_Y + 0.43], [0.14, SPONSON_Y + 1.35], [0.3, SPONSON_Y + 1.4], [0.3, SPONSON_Y + 1.6], [0, SPONSON_Y + 1.65]], 10).translate(x + dx, 0, z));
+      sp.push(box(0.5, 0.25, 0.3, x + dx + 0.15, SPONSON_Y + 1.75, z, []));
+      sp.push(rod([x + dx, SPONSON_Y + 0.2, z + sd * 0.6], [x + dx, 13.6, sd * (HG.hw + 0.03)], 0.1, 6));
+    });
     mesh(merge(sp), M.steel, 'Gun_Sponsons', armsG);
     mesh(merge(oer), M.gun, 'Oerlikons_20mm', armsG);
 
@@ -1499,19 +1512,13 @@ export function createCasablanca() {
   const elevG = group('Elevators', ship);
   const elevs = ELEV.map((e) => {
     const g = group(e.name, elevG, e.x, FD, 0);
-    const m = new Mesher();
-    const xa = -e.lx / 2, xb = e.lx / 2, za = -e.hz, zb = e.hz;
-    const c = [[xa, za], [xb, za], [xb, zb], [xa, zb]];
-    const T = c.map(([x, z]) => m.v(new THREE.Vector3(x, 0, z), FU(x + e.x), FV(z)));
-    const T2 = c.map(([x, z]) => m.v(new THREE.Vector3(x, 0, z), FU(e.x), FV(0)));
-    const B = c.map(([x, z]) => m.v(new THREE.Vector3(x, -EPLATE, z), FU(e.x), FV(0)));
-    m.quad(T[0], T[3], T[2], T[1]);
-    m.quad(B[0], B[1], B[2], B[3]);
-    for (let i = 0; i < 4; i++) {
-      const j = (i + 1) % 4;
-      m.quad(B[j], B[i], T2[i], T2[j]);
+    // плита с сеткой 6 × 6 (чтобы упрощение не схлопывало её), верх — по текстуре палубы
+    const geo = new THREE.BoxGeometry(e.lx, EPLATE, 2 * e.hz, 6, 1, 6).translate(0, -EPLATE / 2, 0);
+    const pa = geo.attributes.position, na = geo.attributes.normal, ua = geo.attributes.uv;
+    for (let i = 0; i < pa.count; i++) {
+      if (na.getY(i) > 0.5) ua.setXY(i, FU(pa.getX(i) + e.x), FV(pa.getZ(i)));
+      else ua.setXY(i, FU(e.x) + 0.002 * (i % 2), FV(0.4));
     }
-    const geo = m.build();
     mesh(geo, M.deck, `${e.name}_Platform`, g);
     return g;
   });

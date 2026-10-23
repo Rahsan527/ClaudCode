@@ -28,6 +28,9 @@ from pathlib import Path
 import bpy  # до bmesh и mathutils: в модуле bpy они появляются после его загрузки
 import bmesh
 from mathutils import Vector
+from mathutils.bvhtree import BVHTree
+
+DEBUG_FLIP = '--debug-flip' in sys.argv
 
 MAX_TEXTURE = 2048
 
@@ -99,6 +102,135 @@ def apply_rotation_scale(moving, rest):
         fail('масштаб не 1 у подвижных частей: ' + ', '.join(scaled[:10]))
 
 
+def manifold_regions(bm):
+    """Куски сетки, связанные через обычные рёбра (ровно две грани). Возвращает [(грани, замкнут ли)].
+
+    Через неправильные рёбра (переборка, приваренная к борту: на ребре три грани) не идём,
+    чтобы переборка и обшивка считались разными кусками."""
+    bm.faces.index_update()
+    seen, regions = set(), []
+    for start in bm.faces:
+        if start.index in seen:
+            continue
+        region, stack, closed = [], [start], True
+        seen.add(start.index)
+        while stack:
+            f = stack.pop()
+            region.append(f)
+            for e in f.edges:
+                if len(e.link_faces) != 2:
+                    closed = False
+                    continue
+                for g in e.link_faces:
+                    if g.index not in seen:
+                        seen.add(g.index)
+                        stack.append(g)
+        regions.append((region, closed))
+    return regions
+
+
+def ray_dirs(n):
+    """Луч по нормали и восемь под 50° к ней."""
+    t = n.orthogonal().normalized()
+    u = n.cross(t)
+    dirs = [n.copy()]
+    for k in range(8):
+        a = k * math.pi / 4
+        dirs.append((n * math.cos(math.radians(50)) +
+                     (t * math.cos(a) + u * math.sin(a)) * math.sin(math.radians(50))).normalized())
+    return dirs
+
+
+def orient_normals(meshes):
+    """Нормали наружу.
+
+    Замкнутый кусок разворачивает Blender. У открытого (переборка, щит, тент, борт без палубы) «наружу»
+    Blender угадывает наугад, и грань бывает задом к зрителю, то есть пропадает, а в корпусе видна дыра.
+    Поэтому открытый кусок поворачиваем лицом туда, откуда его видно: из центров граней пускаем лучи
+    в обе стороны, и сторона, с которой лучи чаще уходят из модели, и есть лицевая."""
+    bpy.context.view_layer.update()
+    world = []
+    for o in meshes:
+        bm = bmesh.new()
+        bm.from_mesh(o.data)
+        bm.transform(o.matrix_world)
+        world.append(bm)
+    joined = bmesh.new()
+    for bm in world:
+        tmp = bpy.data.meshes.new('_tmp')
+        bm.to_mesh(tmp)
+        joined.from_mesh(tmp)
+        bpy.data.meshes.remove(tmp)
+    tree = BVHTree.FromBMesh(joined)
+    joined.free()
+
+    def escapes(p, dirs):
+        return sum(1 for d in dirs if tree.ray_cast(p + d * 1e-3, d)[0] is None)
+
+    flipped, done = 0, set()
+    for o, wbm in zip(meshes, world):
+        if o.data.name in done:  # общая сетка у нескольких объектов: разворачиваем один раз
+            wbm.free()
+            continue
+        done.add(o.data.name)
+        bm = bmesh.new()
+        bm.from_mesh(o.data)
+        changed = False
+        regions = manifold_regions(bm)
+        wbm.faces.ensure_lookup_table()
+        for region, closed in regions:
+            # сначала как Blender (у почти замкнутых кусков он прав), потом проверка лучами
+            bmesh.ops.recalc_face_normals(bm, faces=region)
+            changed = True
+            if closed:
+                continue
+            front = back = 0.0
+            step = max(1, len(region) // 64)
+            for f in region[::step]:
+                wf = wbm.faces[f.index]
+                c = wf.calc_center_median()
+                n = f.normal @ o.matrix_world.inverted().to_3x3()  # нормаль после разворота, в мире
+                n.normalize()
+                if n.length < 0.5:
+                    continue
+                area = wf.calc_area()
+                front += area * escapes(c, ray_dirs(n))
+                back += area * escapes(c, ray_dirs(-n))
+            if DEBUG_FLIP and len(region) > 20:
+                cs = [wbm.faces[f.index].calc_center_median() for f in region]
+                print(f'    кусок {o.name}: {len(region)} гр., {front:.2f}/{back:.2f}, X {min(c.x for c in cs):.1f}..{max(c.x for c in cs):.1f} Z {min(c.z for c in cs):.1f}..{max(c.z for c in cs):.1f}')
+            if back > 2 * front + 0.5 * sum(wbm.faces[f.index].calc_area() for f in region[::step]):
+                bmesh.ops.reverse_faces(bm, faces=region)
+                flipped += len(region)
+                if DEBUG_FLIP:
+                    lo = [min(wbm.faces[f.index].calc_center_median()[i] for f in region) for i in range(3)]
+                    hi = [max(wbm.faces[f.index].calc_center_median()[i] for f in region) for i in range(3)]
+                    print(f'    развёрнут {o.name}: {len(region)} гр., {front:.2f}/{back:.2f}, '
+                          + ' '.join(f'{a:.1f}..{b:.1f}' for a, b in zip(lo, hi)))
+            # отдельная грань, которую спереди не видно ниоткуда, а сзади видно, — тоже лицом наружу
+            # (полоса обшивки, загнутая внутрь вместе с соседями); такой переворот ничего не скрывает
+            rot = o.matrix_world.to_3x3()
+            lone = []
+            for f in region:
+                n = rot @ f.normal
+                if n.length < 0.5 or f.calc_area() < 1e-4:
+                    continue
+                n.normalize()
+                c = wbm.faces[f.index].calc_center_median()
+                if escapes(c, ray_dirs(n)) == 0 and escapes(c, ray_dirs(-n)) >= 3:
+                    lone.append(f)
+            if lone:
+                bmesh.ops.reverse_faces(bm, faces=lone)
+                flipped += len(lone)
+        if changed:
+            bm.to_mesh(o.data)
+            o.data.update()
+        bm.free()
+        wbm.free()
+    if flipped:
+        print(f'  развёрнуто лицом наружу граней открытых кусков: {flipped}')
+
+
 def clean_meshes(smooth_angle):
     meshes = [o for o in bpy.context.scene.objects if o.type == 'MESH']
     for mesh in {o.data for o in meshes}:
@@ -115,7 +247,6 @@ def clean_meshes(smooth_angle):
         ngons = [f for f in bm.faces if len(f.verts) > 4]
         if ngons:
             bmesh.ops.triangulate(bm, faces=ngons, quad_method='BEAUTY', ngon_method='BEAUTY')
-        bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
         bm.to_mesh(mesh)
         bm.free()
         for layer in list(mesh.uv_layers)[1:]:
@@ -125,6 +256,7 @@ def clean_meshes(smooth_angle):
         if 'custom_normal' in mesh.attributes:
             mesh.attributes.remove(mesh.attributes['custom_normal'])
         mesh.update()
+    orient_normals(meshes)
     select_only(meshes)
     bpy.ops.object.shade_smooth_by_angle(angle=math.radians(smooth_angle), keep_sharp_edges=True)
 

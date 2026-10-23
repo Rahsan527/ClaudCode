@@ -294,15 +294,17 @@ function ctrlLoft(stations, { map, uv, xh, M = 6 }) {
       ring.push(m.v(map(s, le - t * c, -hh(t)), ...uv(s, t, false)));
     }
     ring.push(m.v(map(s, xh + 0.013, -0.72 * H), ...uv(s, th, false)));
+    ring.push(m.v(map(s, xh + 0.02, 0), ...uv(s, th, false))); // шов UV на носке
     rings.push(ring);
   }
-  for (let k = 0; k < rings.length - 1; k++) m.strip(rings[k], rings[k + 1], true);
+  for (let k = 0; k < rings.length - 1; k++) m.strip(rings[k], rings[k + 1]);
   [0, rings.length - 1].forEach((k, e) => {
     const c = new THREE.Vector3();
     const P = m.pos;
-    rings[k].forEach((i) => c.add(V3(P[i * 3], P[i * 3 + 1], P[i * 3 + 2])));
-    c.divideScalar(rings[k].length);
-    m.fan(rings[k], m.v(c, ...uv(stations[k].s, 0.9, true)), e === 1);
+    const rr = rings[k].slice(0, -1);
+    rr.forEach((i) => c.add(V3(P[i * 3], P[i * 3 + 1], P[i * 3 + 2])));
+    c.divideScalar(rr.length);
+    m.fan(rr, m.v(c, ...uv(stations[k].s, 0.9, true)), e === 1);
   });
   return m.build();
 }
@@ -358,11 +360,11 @@ function fuseY(x, z, upper = true) {
   return upper ? c.ym + (c.top - c.ym) * f : c.ym - (c.ym - c.bot) * f;
 }
 
-const NF = 48;
+const NF = 64;
 function buildFuselage() {
   const m = new Mesher();
   const st = [];
-  for (let x = XF0; x < 3.95 - 1e-6; x += 0.11) st.push({ x, c: sec(x) });
+  for (let x = XF0; x < 3.95 - 1e-6; x += 0.09) st.push({ x, c: sec(x) });
   st.push({ x: 3.95, c: sec(3.95) });
   // губа капота и внутренний канал
   const circ = (x, r) => ({ x, c: { top: r, bot: -r, hw: r, ym: 0, eT: 2, eB: 2 }, inner: r < 0.6 });
@@ -415,14 +417,14 @@ const wingMap = (s, x, h) => {
   return V3(x, y, s <= W_ROOT + 1e-9 ? fuseZ(x, y) - 0.012 : s);
 };
 function buildWingR() {
-  const A = [W_ROOT, 0.75, 1.1, 1.5, 1.75, 2.1, 2.45, 2.8, 3.05];
+  const A = [W_ROOT, 0.65, 0.85, 1.1, 1.4, 1.75, 2.1, 2.45, 2.8, 3.05];
   const list = A.map((a) => ({ a, cut: false }));
   list.push({ a: AIL.a0, cut: false }, { a: AIL.a0, cut: true });
-  [3.6, 3.9, 4.2, 4.5, 4.8, 5.1].forEach((a) => list.push({ a, cut: true }));
+  [3.55, 3.8, 4.05, 4.3, 4.55, 4.8, 5.05, 5.25].forEach((a) => list.push({ a, cut: true }));
   list.push({ a: AIL.a1, cut: true }, { a: AIL.a1, cut: false });
   [5.47, 5.58, 5.67, 5.73, 5.77, 5.79].forEach((a) => list.push({ a, cut: false }));
   const st = list.map(({ a, cut }) => ({ s: a, cut, ...wingSt(a) }));
-  return foilLoft(st, { map: wingMap, uv: wingUV, xCut: AIL.xh + 0.045, N1: 18, N2: 5, caps: [false, true] });
+  return foilLoft(st, { map: wingMap, uv: wingUV, xCut: AIL.xh + 0.045, N1: 22, N2: 6, caps: [false, true] });
 }
 function buildAileronR() {
   const st = [];
@@ -459,7 +461,7 @@ const stabMap = (s, x, h) => {
 function buildStabR() {
   const A = [S_ROOT, 0.2, 0.4, 0.7, 1.0, 1.3, 1.55, 1.75, 1.88, 1.97, 2.03, 2.065, STAB.half];
   const st = A.map((a) => ({ s: a, cut: true, ...tailSt(a) }));
-  return foilLoft(st, { map: stabMap, uv: stabUV, xCut: STAB.xh + 0.045, N1: 12, N2: 4, caps: [false, true] });
+  return foilLoft(st, { map: stabMap, uv: stabUV, xCut: STAB.xh + 0.045, N1: 14, N2: 4, caps: [false, true] });
 }
 function buildElevatorR() {
   const st = [];
@@ -578,7 +580,7 @@ function makeCanvas(w, h) {
   return c;
 }
 const COL = {
-  blueGray: [92, 110, 128],
+  blueGray: [74, 90, 108],
   lightGray: [188, 190, 186],
   insBlue: [28, 44, 104],
   insWhite: [236, 236, 232],
@@ -731,9 +733,9 @@ function shadeWing(p) {
   h += 0.12 * rv;
   c = mix(c, [48, 52, 56], 0.16 * ln);
   // нескользящая дорожка у корня сверху
-  if (top && a < 1.2 && t > 0.2 && t < 0.72) c = mix(c, COL.walk, 0.7);
+  if (top && a < 1.2 && t > 0.2 && t < 0.72) c = mix(c, COL.walk, 0.35);
   // АНО на законцовках
-  if (a > 5.72 && t < 0.2) c = z < 0 ? COL.red : COL.green;
+  if (a > 5.74 && t < 0.1) c = z < 0 ? COL.red : COL.green;
   // звёзды: сверху на левом крыле, снизу на правом
   if ((top && z < 0) || (!top && z > 0)) {
     const ws = wingSt(4.4);
@@ -920,7 +922,7 @@ function paintGlass() {
   g.addColorStop(1, '#3a5062');
   C.fillStyle = g;
   C.fillRect(0, 0, S, S);
-  C.fillStyle = 'rgb(92,110,128)';
+  C.fillStyle = 'rgb(74,90,108)';
   const vbar = (u, w = 10) => C.fillRect(u * S - w / 2, 0, w, S);
   const hbar = (v, u0, u1, w = 10) => C.fillRect(u0 * S, (1 - v) * S - w / 2, (u1 - u0) * S, w);
   // фонарь: дуги переплёта и продольные рамы
@@ -958,7 +960,7 @@ function paintProp() {
 // ---------------------------------------------------------------------------
 // ШАССИ И МЕЛОЧИ
 
-function wheelGeo(R, W, hubR, uvT, uvH, seg = 28) {
+function wheelGeo(R, W, hubR, uvT, uvH, seg = 36) {
   // профиль тела вращения вокруг Y (ось колеса), сверху вниз
   const P = [
     [0, W * 0.62, ...uvH],
@@ -1051,7 +1053,7 @@ function buildFittings() {
   [1, -1].forEach((sd) => {
     [[-0.4, 0.56], [-0.52, 0.48]].forEach(([y, zz]) => {
       const z0 = sd * (fuseZ(2.85, y) - 0.03);
-      parts.push(rod([2.9, y, z0], [2.6, y - 0.03, sd * (Math.abs(z0) + 0.06)], 0.038, 8));
+      parts.push(rod([2.88, y, z0], [2.64, y - 0.06, sd * (Math.abs(z0) + 0.025)], 0.032, 8));
     });
   });
   // телескопический прицел сквозь козырёк
@@ -1185,9 +1187,9 @@ export function createWildcat() {
 
   // ======================= ВИНТ (ось вала — наклонена вместе с фюзеляжем)
   {
-    const blade = bladeGeometry({ r0: 0.16, r1: PROP.r, chord0: 0.2, chord1: 0.27, pitch: 3.2, tc: 0.11 });
+    const blade = bladeGeometry({ r0: 0.16, r1: PROP.r, chord0: 0.2, chord1: 0.27, pitch: 3.2, tc: 0.11, n: 14 });
     const bl = [0, 1, 2].map((i) => blade.clone().rotateX((i * 2 * Math.PI) / 3));
-    const spinner = latheUV([[0, 0.27, 0.75, 0.5], [0.1, 0.24, 0.75, 0.5], [0.17, 0.16, 0.75, 0.5], [0.21, 0.06, 0.75, 0.5], [0.22, -0.04, 0.75, 0.5], [0.21, -0.12, 0.75, 0.5], [0, -0.12, 0.75, 0.5]], 24).rotateZ(-Math.PI / 2);
+    const spinner = latheUV([[0, 0.24, 0.75, 0.5], [0.09, 0.215, 0.75, 0.5], [0.15, 0.15, 0.75, 0.5], [0.185, 0.06, 0.75, 0.5], [0.195, -0.03, 0.75, 0.5], [0.19, -0.12, 0.75, 0.5], [0, -0.12, 0.75, 0.5]], 24).rotateZ(-Math.PI / 2);
     const g = merge([...bl, spinner]);
     g.translate(PROP.x, 0, 0);
     movable('Propeller', root, [PROP.x, 0, 0], g, M.prop, 'Propeller_Blades');
