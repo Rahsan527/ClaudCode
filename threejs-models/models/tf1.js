@@ -751,11 +751,14 @@ export function createTF1() {
       const c = new THREE.Vector3();
       loop.forEach((i) => c.add(m.P(i)));
       c.divideScalar(loop.length);
-      const mid = r.S[Math.floor(r.S.length / 2)];
-      const ci = m.v(c, m.uv[mid * 2], m.uv[mid * 2 + 1]);
-      for (let j = 0; j < loop.length; j++) {
-        if (k === 0) m.tri(ci, loop[j], loop[(j + 1) % loop.length]);
-        else m.tri(ci, loop[(j + 1) % loop.length], loop[j]);
+      // транец / торец — собственные вершины (острая кромка), UV — слот переборки
+      const sl = BH.slot;
+      const tuv = (p) => [lerp(sl.u0, sl.u1, clamp01((p.z + HL.B) / (2 * HL.B))), lerp(sl.v0, sl.v1, clamp01((p.y - 1.5) / 3.0))];
+      const own = loop.map((i) => m.v(m.P(i), ...tuv(m.P(i))));
+      const ci = m.v(c, ...tuv(c));
+      for (let j = 0; j < own.length; j++) {
+        if (k === 0) m.tri(ci, own[j], own[(j + 1) % own.length]);
+        else m.tri(ci, own[(j + 1) % own.length], own[j]);
       }
     });
     m.orientNow();
@@ -1088,10 +1091,10 @@ export function createTF1() {
     rackX.forEach((x) => {
       [1, -1].forEach((sd) => {
         const yd = deckTop(x, 1.6);
-        [0.28, 2.75].forEach((zz) => parts.push(box(0.12, 1.42, 0.12, x, yd + 0.66, sd * zz, { noBottom: true })));
+        [0.28, 2.75].forEach((zz) => parts.push(box(0.12, 1.55, 0.12, x, yd + 0.72, sd * zz, { noBottom: true })));
         parts.push(box(0.16, 0.1, 2.62, x, yd + 0.24, sd * 1.515));
-        parts.push(box(0.16, 0.1, 2.62, x, yd + 0.82, sd * 1.515));
-        parts.push(box(0.16, 0.08, 2.62, x, yd + 1.41, sd * 1.515));
+        parts.push(box(0.16, 0.1, 2.62, x, yd + 0.88, sd * 1.515));
+        parts.push(box(0.16, 0.08, 2.62, x, yd + 1.52, sd * 1.515));
       });
     });
     // слип для подъёма торпед в корме: наклонные направляющие на стойках
@@ -1223,7 +1226,7 @@ export function createTF1() {
     [1, -1].forEach((sd) => {
       const yd = deckTop(TORP.x, 1.6);
       [0.6, 1.2, 1.8, 2.4].forEach((z) => list.push(one().translate(TORP.x, yd + 0.29 + TORP.r, sd * z)));
-      [0.9, 1.5, 2.1].forEach((z) => list.push(one().translate(TORP.x, yd + 0.87 + TORP.r, sd * z)));
+      [0.9, 1.5, 2.1].forEach((z) => list.push(one().translate(TORP.x, yd + 0.93 + TORP.r, sd * z)));
     });
     const tg = group('Torpedo_Stowage', deckG);
     mesh(merge(list), M.atlas, 'Practice_Torpedoes', tg);
@@ -1756,14 +1759,14 @@ function paintAtlas(houses, SL, BH) {
     const sl = SL.torp;
     const X = (m) => sl.px + (m / 7.16) * sl.pw;
     const band = (m0, m1, color) => rect(C, X(m0), sl.py - 2, X(m1) - X(m0), sl.ph + 4, color);
-    band(0, 7.16, '#8d9293');
-    band(0, 1.05, '#5b4d35'); // хвост с рулями и винтами
+    band(0, 7.16, '#7b8082');
+    band(0, 1.05, '#5e5848'); // хвост с рулями и винтами
     band(1.05, 1.12, '#3a3c3d');
     band(2.7, 2.75, '#4d5254');
     band(4.3, 4.35, '#4d5254');
-    band(5.0, 7.16, '#9a2d27'); // учебное зарядное отделение
+    band(5.0, 7.16, '#8c3328'); // учебное зарядное отделение
     band(5.45, 5.75, '#d2ad35');
-    band(6.5, 6.75, '#f0f0ea');
+    band(6.5, 6.75, '#c9c6b8');
   }
 
   // карта нормалей из высот

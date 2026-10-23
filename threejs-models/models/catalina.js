@@ -349,6 +349,7 @@ function hullSec(x) {
     const s = clamp01((-1.5 - x) / (-1.5 - XH0));
     W = 1.55 - 1.25 * s ** 1.5;
   } else W = 1.55;
+  W *= Math.sqrt(clamp01((x - XH0) / 0.45)) * 0.88 + 0.12;
   W = Math.max(W, 0.035);
   let yk, dr = 0.3;
   if (x > 4.5) {
@@ -906,11 +907,11 @@ function paintAtlas() {
         let h = 0.5;
         // шпангоуты и стрингеры
         const fr = groove(nearest(x, 0.52, 0.1), 0.006, pwX);
-        const sg = groove(nearest(arc, 0.42), 0.006, pwA);
+        const sg = groove(nearest(arc, 0.62), 0.005, pwA) * 0.7;
         const ln = Math.max(fr, sg);
-        h -= 0.35 * ln;
-        if (fr > 0.2 && nearest(arc, 0.055) < pwA * 0.9) h += 0.25;
-        colr = mix(colr, [60, 64, 66], 0.18 * ln);
+        h -= 0.3 * ln;
+        if (fr > 0.2 && nearest(arc, 0.055) < pwA * 0.9) h += 0.2;
+        colr = mix(colr, [60, 64, 66], 0.06 * ln);
         // скула (гладкая)
         // кокарда C1 на борту
         if (q > QB && q < QS + 0.2 * (1 - QS)) {

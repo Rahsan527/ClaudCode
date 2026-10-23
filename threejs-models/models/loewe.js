@@ -1294,8 +1294,8 @@ export function createLoewe() {
   const TT = [{ x: -9.0 }, { x: -16.3 }];
   TT.forEach((t) => (t.y = deckY(t.x, 0) + 0.3));
   const FL = [
-    { x: 13.75, z: 2.35, y: yPlat },
-    { x: 13.75, z: -2.35, y: yPlat },
+    { x: 13.75, z: 2.2, y: yPlat },
+    { x: 13.75, z: -2.2, y: yPlat },
     { x: -27.4, z: 1.95 },
     { x: -27.4, z: -1.95 },
   ];
@@ -1310,7 +1310,7 @@ export function createLoewe() {
     {
       const xw = 28.6;
       [1, -1].forEach((sd) => {
-        const g = prism([[0, -0.1], [3.0, -0.1], [3.0, 0.55], [0, 0.85]], 0.06);
+        const g = prism([[0, -0.1], [3.0, -0.1], [3.0, 0.55], [0, 0.85]], 0.06, { skip: (a, b) => a + b === 1 && a * b === 0 });
         g.rotateY(-sd * (Math.PI / 2 - 0.62));
         g.translate(xw, fcY(xw) - 0.02, 0);
         parts.push(g);
@@ -1321,7 +1321,7 @@ export function createLoewe() {
     // площадки (кольцевые щиты) 2-см автоматов
     const tub = (r, h) => lathe([[r, -0.06], [r, h], [r - 0.05, h], [r - 0.05, -0.06]], 28, { top: false });
     FL.forEach((f, i) => {
-      if (i < 2) parts.push(tub(0.95, 0.95).translate(f.x, f.y, f.z));
+      if (i < 2) parts.push(tub(0.85, 1.0).translate(f.x, f.y, f.z));
       else parts.push(tub(0.85, 0.85).translate(f.x, deckY(f.x, f.z), f.z));
     });
     // кольцевой щит 4-см автомата на крыше кормовой рубки
@@ -1396,7 +1396,7 @@ export function createLoewe() {
         parts.push(tubePath(pts, 0.05, 6));
         for (let i = 0; i <= 8; i += 2) {
           const x = lerp(RAIL.x0, RAIL.x1, i / 8);
-          parts.push(box(0.12, 0.1, 0.14, x, deckY(x, z) + 0.04, z));
+          parts.push(boxOpen(0.12, 0.12, 0.14, x, deckY(x, z) + 0.03, z));
         }
       });
     });
@@ -1405,7 +1405,7 @@ export function createLoewe() {
       const x = -19.6;
       const z = sd * 2.85;
       const base = lathe([[0.28, -0.08], [0.26, 0.28], [0, 0.3]], 14);
-      const barrel = rod([0, 0.22, 0], [0, 1.05, sd * 0.38], 0.15, 12);
+      const barrel = rod([0, 0.22, 0], [0, 1.05, sd * 0.38], 0.15, 12, 'none');
       const cup = lathe([[0.22, 0], [0.22, 0.1], [0, 0.11]], 12, { bottom: true });
       cup.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(V3(0, 1, 0), V3(0, 0.83, sd * 0.38).normalize()));
       cup.translate(0, 1.05, sd * 0.38);
@@ -1830,9 +1830,9 @@ export function createLoewe() {
     [-2.2, 0.0, 2.2].forEach((x) => p.push(box(0.14, 0.12, 0.5, x, 0.62, 0)));
     p.push(box(0.8, 0.12, 1.2, -2.6, 0.17, 0));
     // пост наводчика с прицелом и колпаком
-    p.push(box(0.7, 0.9, 0.7, -2.6, 0.68, 0));
+    p.push(boxOpen(0.7, 0.95, 0.7, -2.6, 0.675, 0));
     p.push(lathe([[0.3, 0], [0.28, 0.15], [0.0, 0.32]], 14).translate(-2.6, 1.13, 0));
-    p.push(rod([-2.25, 1.0, 0], [-1.7, 1.0, 0], 0.05, 6));
+    p.push(rod([-2.4, 1.0, 0], [-1.7, 1.0, 0], 0.05, 6, 'top'));
     return merge(p);
   };
   const tubeGeo = buildTubes();
