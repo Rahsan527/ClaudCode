@@ -540,7 +540,7 @@ function toTextures(col, nrm, name) {
   return { map, normalMap };
 }
 
-const OCEAN_GRAY = '#6c7883';
+const OCEAN_GRAY = '#5a6772';
 const DECK_BLUE = '#3a4552';
 
 function paintAtlas() {
@@ -562,7 +562,7 @@ function paintAtlas() {
   const top = 0, bot = S / 2;
   C.fillStyle = OCEAN_GRAY;
   C.fillRect(0, top, S, bot);
-  C.fillStyle = '#3e2622'; // подводная часть (тёмный необрастающий)
+  C.fillStyle = '#3a2420'; // подводная часть (тёмный необрастающий)
   C.fillRect(0, HY(5.95), S, bot - HY(5.95));
   C.fillStyle = '#1b1d1f'; // полоса ватерлинии
   C.fillRect(0, HY(6.75), S, HY(5.95) - HY(6.75));
@@ -716,7 +716,7 @@ function paintAtlas() {
     Hc.fillRect(x0, ya, x1 - x0, yb - ya);
   }
   // гладкая полоса и чёрная полоса
-  C.fillStyle = '#6a7681';
+  C.fillStyle = '#58656f';
   C.fillRect(0, py(0.235), S, py(0.221) - py(0.235));
   C.fillStyle = '#17181a';
   C.fillRect(0, py(0.247), S, py(0.238) - py(0.247));
@@ -1152,7 +1152,7 @@ export function createCasablanca() {
   const M = {
     paint: std('Hull_Paint_Atlas', 0xffffff, 0.8, 0.1, { map: atlas.map, normalMap: atlas.normalMap }),
     deck: std('Flight_Deck_Wood', 0xffffff, 0.86, 0.0, { map: fdt.map, normalMap: fdt.normalMap }),
-    steel: std('Steel_Ocean_Gray', 0x6c7883, 0.66, 0.2),
+    steel: std('Steel_Ocean_Gray', 0x5a6772, 0.66, 0.2),
     dark: std('Steel_Dark', 0x26292c, 0.6, 0.35),
     gun: std('Gun_Steel', 0x4f565c, 0.45, 0.55),
     bronze: std('Propeller_Bronze', 0x9b7745, 0.32, 0.9),
@@ -1502,7 +1502,7 @@ export function createCasablanca() {
     m.quad(B[0], B[1], B[2], B[3]);
     for (let i = 0; i < 4; i++) {
       const j = (i + 1) % 4;
-      m.quad(B[i], B[j], T2[j], T2[i]);
+      m.quad(B[j], B[i], T2[i], T2[j]);
     }
     const geo = m.build();
     mesh(geo, M.deck, `${e.name}_Platform`, g);
