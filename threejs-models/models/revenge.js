@@ -67,8 +67,8 @@ function sec(xn) {
     s = clamp01((-44 - xn) / (-44 - XS));
     W = B0 * Math.max(0, 1 - s ** 2.0) ** 0.8;
     wd = BD * Math.max(0, 1 - s ** 3.2) ** 0.5;
-    yk = 7.2 * s ** 2.2;
-    nb = 6.5 - 3.4 * s;
+    yk = 9.0 * s ** 1.8;
+    nb = 6.5 - 4.5 * s ** 0.7;
     yw = WL - 0.6 + 2.6 * s * s;
     rake = 0.15 * s * s;
     up = s;
@@ -760,11 +760,6 @@ function paintHullAtlas() {
         Hc.fillRect(i, V(a) - 0.75, 2, 1.5);
       }
     }
-    // днище: продольные пазы по обводу
-    for (let a = 1.6; a < 12; a += 1.8) {
-      line(C, 0, V(a), S, V(a), 1.5, 'rgba(20,24,26,0.12)');
-      line(Hc, 0, V(a), S, V(a), 1.5, 'rgb(110,110,110)');
-    }
     for (let x = R.x0 + 2.2; x < R.x0 + XU; x += 5.4 + rnd() * 1.4) {
       const X = px(regU(R, x));
       line(C, X, yTop, X, yBot, 1.5, 'rgba(20,24,26,0.13)');
@@ -1077,10 +1072,10 @@ export function createRevenge() {
 
   // подводные выступы: валы, кронштейны, дейдвуд, скуловые кили
   const PROPS = [
-    { name: 'Propeller_1', x: -64.0, z: 7.4, sd: 1 },
-    { name: 'Propeller_2', x: -74.0, z: 3.0, sd: 1 },
-    { name: 'Propeller_3', x: -74.0, z: -3.0, sd: -1 },
-    { name: 'Propeller_4', x: -64.0, z: -7.4, sd: -1 },
+    { name: 'Propeller_1', x: -72.0, z: 7.6, sd: 1 },
+    { name: 'Propeller_2', x: -79.0, z: 3.0, sd: 1 },
+    { name: 'Propeller_3', x: -79.0, z: -3.0, sd: -1 },
+    { name: 'Propeller_4', x: -72.0, z: -7.6, sd: -1 },
   ];
   const PROP_R = 1.45;
   // ось винта — на 0,45 м ниже днища над верхней половиной диска
@@ -1092,7 +1087,7 @@ export function createRevenge() {
     }
     p.y = +(y - 0.45).toFixed(2);
   }
-  const RUD = { x: -85.2, y0: 1.7 };
+  const RUD = { x: -87.0, y0: 1.75 };
   RUD.y1 = bottomAt(RUD.x - 0.4, 0) - 0.12;
   const debug = { props: [], rudderTop: RUD.y1 };
   {
@@ -1125,9 +1120,9 @@ export function createRevenge() {
     }
     // дейдвуд перед рулём: верхнее ребро внутри корпуса — без грани
     const sk = [];
-    for (let x = -50; x >= -83.01; x -= 3) sk.push([x, Math.max(0, ((-50 - x) / 33) * 1.6)]);
+    for (let x = -50; x >= -85.01; x -= 2.5) sk.push([x, Math.max(0, ((-50 - x) / 35) * 1.65)]);
     const top = [];
-    for (let x = -83; x <= -50.01; x += 3) top.push([x, bottomAt(x, 0) + 0.3]);
+    for (let x = -85; x <= -50.01; x += 2.5) top.push([x, bottomAt(x, 0) + 0.3]);
     top.push([-50, 0.6]);
     const poly = [...sk, ...top];
     parts.push(prism(poly, 0.7, top.slice(0, -1).map((_, i) => sk.length + i)));

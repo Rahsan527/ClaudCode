@@ -343,7 +343,6 @@ function tubePath(points, r, seg = 6, { capStart = true, capEnd = true } = {}) {
     for (let j = 0; j <= seg; j++) {
       const a = (j / seg) * Math.PI * 2;
       const off = nrm.clone().multiplyScalar(Math.cos(a) * r).addScaledVector(bin, Math.sin(a) * r);
-      // растяжение только поперёк изгиба — упрощённо по всей окружности
       ring.push(m.v(P[i].clone().addScaledVector(off, i > 0 && i < n - 1 ? Math.min(k, 1.25) : 1), j / seg, clamp01(len / 50)));
     }
     rings.push(ring);
@@ -1118,8 +1117,6 @@ export function createShoreham() {
       parts.push(rod([-23.0, PROP.y + 0.52, sd * 2.12], [-28.5, PROP.y + 0.34, sd * 2.29], 0.24, 10));
       // двуногий кронштейн у винта
       const xb = PROP.x + 0.95;
-      const ru = sideAt(xb, 2.3);
-      const zu = ru ? ru.z - 0.05 : 1.5;
       parts.push(latheX([[0.0, -0.32], [0.2, -0.22], [0.2, 0.25], [0.0, 0.38]], 12).translate(xb, PROP.y, z));
       const leg = (zz, yy) => {
         const g = prism([[-0.3, 0], [0.3, 0], [0.18, 1], [-0.18, 1]], 0.07);
@@ -1130,7 +1127,6 @@ export function createShoreham() {
         g.translate(a.x, a.y, a.z);
         return g;
       };
-      void zu;
       parts.push(leg(sd * 2.2, 2.15));
       parts.push(leg(sd * 0.6, 1.5));
       // скуловой киль: клин от борта, основание внутри корпуса
@@ -1472,14 +1468,12 @@ export function createShoreham() {
         const pts = [];
         for (let i = 0; i <= 8; i++) {
           const t = i / 8;
-          const a = (t * Math.PI) / 2;
           if (t < 0.45) pts.push(V3(x, y0 + 3.4 * (t / 0.45) * 0.78, sd * ze));
           else {
             const tt = (t - 0.45) / 0.55;
             const ang = (tt * Math.PI) / 2;
             pts.push(V3(x, y0 + 2.65 + 0.8 * Math.sin(ang), sd * (ze - 0.85 * (1 - Math.cos(ang)) + 0.0)));
           }
-          void a;
         }
         parts.push(tubePath(pts, 0.085, 8, { capStart: false }));
         // блок и тали
@@ -1609,12 +1603,8 @@ export function createShoreham() {
       const raft = () => {
         const curve = new THREE.EllipseCurve(0, 0, 1.15, 0.55, 0, Math.PI * 2);
         const pts = curve.getPoints(20).slice(0, -1).map((p) => V3(p.x, p.y, 0));
-        const rings = [];
         const r = 0.16;
-        for (let j = 0; j < 8; j++) {
-          const a = (j / 8) * Math.PI * 2;
-          rings.push(a);
-        }
+        const rings = Array.from({ length: 8 }, (_, j) => (j / 8) * Math.PI * 2);
         const m = new Mesher();
         const ids = pts.map((p, i) => {
           const q = pts[(i + 1) % pts.length], o = pts[(i - 1 + pts.length) % pts.length];
