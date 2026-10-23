@@ -1301,6 +1301,19 @@ export function createGustloff() {
       }
       for (let i = 0; i < NX; i++) lm.strip(g[i], g[i + 1]);
       dark.push(orientOut(lm.build({ orient: false }), V3(h.x, yt - 2, 0)));
+      // торцы брезента: серп между верхом комингса (yt) и выпуклой крышкой — без них сквозная щель
+      [x0, x1].forEach((xe) => {
+        const em = new Mesher();
+        const top = [], bot = [];
+        for (let k = 0; k <= NZ; k++) {
+          const z = lerp(h.lz / 2, -h.lz / 2, k / NZ);
+          const dome = 0.18 * Math.sin((Math.PI * k) / NZ) ** 0.8;
+          top.push(em.v(V3(xe, yt + dome, z), k / NZ, 1));
+          bot.push(em.v(V3(xe, yt, z), k / NZ, 0));
+        }
+        em.strip(bot, top);
+        dark.push(orientOut(em.build({ orient: false }), V3(h.x, yt - 2, 0)));
+      });
     });
     // грузовые лебёдки у мачт
     const winch = (x, z, yaw = 0) => {
