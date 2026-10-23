@@ -1421,14 +1421,14 @@ export function createDestroyerO() {
     });
     // вентиляторы-раструбы
     const cowl = (h, r, yaw) => {
-      const stem = lathe([[r, -0.15], [r, h]], 12, { top: false });
+      const stem = lathe([[r, -0.15], [r, h + 0.03]], 12, { top: false }); // заходит в колено: без шва
       const bend = [];
       for (let i = 0; i <= 5; i++) {
         const a = (i / 5) * (Math.PI / 2);
         bend.push(V3(r * 1.2 * (1 - Math.cos(a)), h + r * 1.2 * Math.sin(a), 0));
       }
-      const mouth = tubePath(bend, r, 12, { capStart: false, capEnd: false });
-      const bell = latheX([[r * 1.0, 0], [r * 1.45, 0.22], [r * 1.25, 0.22], [r * 0.95, 0.05]], 12, { bottom: false, top: false }).translate(r * 1.2, h + r * 1.2, 0);
+      const mouth = tubePath(bend, r, 12, { capStart: false, capEnd: true }); // донце в горле: сквозь раструб не видно насквозь
+      const bell = latheX([[r * 1.0, -0.03], [r * 1.0, 0], [r * 1.45, 0.22], [r * 1.25, 0.22], [r * 0.95, 0.05], [r * 0.95, -0.02]], 12, { bottom: false, top: false }).translate(r * 1.2, h + r * 1.2, 0);
       const g = merge([stem, mouth, bell]);
       g.rotateY(yaw);
       return g;

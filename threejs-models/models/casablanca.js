@@ -62,7 +62,8 @@ function fullness(x, y) {
     return Math.max(0, 1 - s ** p) ** e;
   }
   if (x < xa0) {
-    const s = clamp01((xa0 - x) / (xa0 - xSternEnd(y)));
+    // наверху подзора — узкий плоский транец (без «ножа» в ДП)
+    const s = Math.min(clamp01((xa0 - x) / (xa0 - xSternEnd(y))), 1 - 0.012 * smooth((y - 5.5) / 2.5));
     const k = smooth((y - 4.0) / 4.2);
     const p = lerp(1.2 + 0.2 * Math.min(y, 5), 3.2, k);
     const e = lerp(1.0, 0.5, k);
@@ -875,6 +876,7 @@ function buildHull() {
   };
   const regions = { bottom: [], side: [], cap: [], inner: [] };
   const decks = [];
+  let stern = null;
   for (const t of ts) {
     const yTop = solveY(t, (x) => deckY(x) + BUL);
     const yDk = solveY(t, (x) => deckY(x));
@@ -897,7 +899,7 @@ function buildHull() {
       side.push([new THREE.Vector3(x, y, B2 * fullness(x, y)), U(x), V_SIDE(y)]);
     });
     const outerTop = side[side.length - 1][0];
-    const zIn = Math.max(0, outerTop.z - 0.2);
+    const zIn = outerTop.z - Math.min(0.2, 0.5 * outerTop.z);
     const xTop = outerTop.x;
     const cap = [
       [outerTop.clone(), U(xTop), V_SIDE(yTop)],
@@ -907,7 +909,8 @@ function buildHull() {
     for (let j = 0; j <= 2; j++) {
       const y = lerp(yTop, yDk, j / 2);
       const x = X(t, y);
-      inner.push([new THREE.Vector3(x, y, Math.max(0, Math.min(zIn, B2 * fullness(x, y) - 0.2))), U(x), V_SIDE(y)]);
+      const zo = B2 * fullness(x, y);
+      inner.push([new THREE.Vector3(x, y, Math.min(zIn, zo - Math.min(0.2, 0.5 * zo))), U(x), V_SIDE(y)]);
     }
     const zEdge = inner[inner.length - 1][0].z;
     const xd = X(t, yDk);
@@ -916,6 +919,7 @@ function buildHull() {
     const dS = zs.map((z) => m.v(new THREE.Vector3(xd, yDk, z), U(xd), V_DECK(z)));
     const dP = zs.map((z) => m.v(new THREE.Vector3(xd, yDk, -z), U(xd), V_DECK(-z)));
     decks.push({ x: xd, S: dS, P: dP });
+    if (t === ts[0]) stern = [...side, cap[1], ...inner.slice(1)].map(([p]) => p);
     const add = (name, list) => {
       const S = list.map(([p, u, v]) => m.v(p, u, v));
       const P = list.map(([p, u, v]) => m.v(new THREE.Vector3(p.x, p.y, -p.z), u, v));
@@ -941,7 +945,15 @@ function buildHull() {
       m.quad(b.P[j], a.P[j], a.P[j + 1], b.P[j + 1]);
     }
   }
-  return m.build();
+  // транец: контур кормового шпангоута (правый борт вверх, по фальшборту, через палубу, левый борт вниз)
+  const mt = new Mesher();
+  let loop = stern.filter((p) => p.z > 1e-4);
+  loop = [...loop, ...loop.slice().reverse().map((p) => V3(p.x, p.y, -p.z))];
+  loop = loop.filter((p, i) => i === 0 || p.distanceTo(loop[i - 1]) > 1e-4);
+  const ids = loop.map((p) => mt.v(p, U(p.x), V_SIDE(p.y)));
+  THREE.ShapeUtils.triangulateShape(loop.map((p) => new THREE.Vector2(p.z, p.y)), []).forEach(([i, j, k]) => mt.tri(ids[i], ids[j], ids[k]));
+  const tr = orientBy(mt.build({ orient: false }), () => V3(-1, 0, 0));
+  return merge([m.build(), tr]);
 }
 
 // Замкнутое тело: контур в плане [[x, z], ...], от y0 до y1, с полом и крышей

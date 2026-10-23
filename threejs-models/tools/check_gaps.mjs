@@ -68,10 +68,26 @@ function lines(px){
   }
   return found;
 }
+// камера внутри замкнутой детали: ближайшая грань в нескольких направлениях повёрнута к камере изнанкой
+// (или до неё меньше ближней плоскости)
+const probe=new THREE.Raycaster(); const nm=new THREE.Matrix3();
+function inside(p){ let back=0;
+  for(const d of [[1,0,0],[-1,0,0],[0,1,0],[0,-1,0],[0,0,1],[0,0,-1]]){
+    probe.set(p,new THREE.Vector3(...d)); const h=probe.intersectObjects(front,false)[0];
+    if(!h) continue; if(h.distance<0.06) return true;
+    const n=h.face.normal.clone().applyMatrix3(nm.getNormalMatrix(h.object.matrixWorld)).normalize();
+    if(n.dot(probe.ray.direction)>0) back++; }
+  return back>=4; }
 window.scan=()=>{ const res=[]; const gl=r.getContext(); const px=new Uint8Array(W*H*4);
   pts.forEach(([x,y],i)=>{ for(const [name,v] of Object.entries(views)){
-    cam.position.set(x+v[0]*D,y+v[1]*D,v[2]*D); cam.lookAt(x,y,0); r.render(scene,cam);
-    gl.readPixels(0,0,W,H,gl.RGBA,gl.UNSIGNED_BYTE,px); const f=lines(px);
+    cam.position.set(x+v[0]*D,y+v[1]*D,v[2]*D); cam.lookAt(x,y,0);
+    if(inside(cam.position)) continue;
+    r.render(scene,cam);
+    gl.readPixels(0,0,W,H,gl.RGBA,gl.UNSIGNED_BYTE,px);
+    // камера попала внутрь детали (видит её изнанку почти на весь кадр) — ракурс не считается
+    let redAll=0; for(let k=0;k<W*H;k++) if(px[k*4]>200&&px[k*4+1]<60&&px[k*4+2]<60) redAll++;
+    if(redAll>W*H*0.2) continue;
+    const f=lines(px);
     if(f.length) res.push({i,x,y,name,len:Math.max(...f.map(Math.abs)),blob:f.some(v=>v<0)}); } });
   return {res,n:pts.length,step,D,pts}; };
 window.shot=(x,y,name)=>{ const v=views[name]; cam.position.set(x+v[0]*D,y+v[1]*D,v[2]*D); cam.lookAt(x,y,0); r.render(scene,cam); };
