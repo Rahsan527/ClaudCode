@@ -1198,7 +1198,7 @@ export function createGustloff() {
     W.push(walls(flat(T4poly, T3.top), T4.top, 2));
     R.push(roof(T4poly, [], T4.top));
     // крылья мостика (плиты без внутреннего торца)
-    const WING = { x0: 35.0, x1: 38.0, z0: T3.hw, z1: 11.3, t: 0.3 };
+    const WING = { x0: 33.0, x1: 36.0, z0: T3.hw, z1: 11.3, t: 0.3 };
     [1, -1].forEach((sd) => {
       const w = WING.z1 - WING.z0;
       R.push(boxSkip(WING.x1 - WING.x0, WING.t, w, (WING.x0 + WING.x1) / 2, T3.top - WING.t / 2, sd * (WING.z0 + w / 2), sd > 0 ? 'nz' : 'pz'));
@@ -1342,7 +1342,7 @@ export function createGustloff() {
       const r = sideAt(xh, yh - 1.2);
       const shank = box(0.35, 2.4, 0.3, 0, 0.3, 0);
       const crown = box(0.7, 0.5, 0.6, 0, -0.9, 0);
-      const fl = (sx) => prism([[0, 0], [0.85, 0.2], [1.05, 1.1], [0.6, 0.7], [0, 0.45]].map(([a, b]) => [sx * a, b - 1.1]), 0.35);
+      const fl = (sx) => prism([[0.05, 0.03], [0.85, 0.2], [1.05, 1.1], [0.6, 0.7], [0.05, 0.43]].map(([a, b]) => [sx * a, b - 1.1]), 0.35);
       const anc = merge([shank, crown, fl(1), fl(-1)]);
       const q = new THREE.Quaternion().setFromUnitVectors(V3(0, 0, 1), r.n);
       anc.applyQuaternion(q);
@@ -1399,7 +1399,7 @@ export function createGustloff() {
     // нактоуз, прожекторы и ходовые огни на крыше рубки
     white.push(lathe([[0.3, -0.05], [0.25, 1.0], [0.38, 1.1], [0, 1.4]], 12).translate(35.5, T4.top, 0));
     [1, -1].forEach((sd) => {
-      white.push(boxSkip(0.6, 0.8, 0.35, 36.5, T3.top + 0.4, sd * 11.05, 'ny'));
+      white.push(boxSkip(0.6, 0.8, 0.35, 34.2, T3.top + 0.4, sd * 10.8, 'ny'));
       white.push(lathe([[0.25, -0.05], [0.18, 0.5], [0, 0.55]], 10).translate(36.5, T4.top, sd * 4.5));
       white.push(latheX([[0.0, -0.4], [0.35, -0.3], [0.38, 0.3], [0.0, 0.32]], 12).translate(36.5, T4.top + 0.95, sd * 4.5));
     });
@@ -1588,9 +1588,9 @@ export function createGustloff() {
     run(shrink(T4.x0, T4.x1, T4.hw, T4.rA, T4.rF, inset).map(([x, z]) => [x, T4.top, z]), true);
     [1, -1].forEach((sd) => {
       run([
-        [35.0 + inset, T3.top, sd * (T3.hw + 0.05)],
-        [35.0 + inset, T3.top, sd * (11.3 - inset)],
-        [38.0 - 0.1, T3.top, sd * (11.3 - inset)],
+        [33.0 + inset, T3.top, sd * (T3.hw + 0.05)],
+        [33.0 + inset, T3.top, sd * (11.3 - inset)],
+        [36.0 - 0.1, T3.top, sd * (11.3 - inset)],
       ]);
     });
     mesh(merge(strips), M.rail, 'Railings', ship);
