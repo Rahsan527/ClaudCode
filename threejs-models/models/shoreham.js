@@ -763,7 +763,7 @@ function paintAtlas() {
   C.fillStyle = '#5f6468';
   C.fillRect(0, d0, S, d1 - d0);
   for (let i = 0; i < 900; i++) {
-    C.fillStyle = rnd() < 0.5 ? 'rgba(255,255,255,0.025)' : 'rgba(0,0,0,0.035)';
+    C.fillStyle = rnd() < 0.5 ? 'rgba(255,255,255,0.012)' : 'rgba(0,0,0,0.02)';
     C.beginPath();
     C.ellipse(rnd() * S, d0 + rnd() * (d1 - d0), 6 + rnd() * 28, 4 + rnd() * 14, 0, 0, Math.PI * 2);
     C.fill();
@@ -1185,8 +1185,8 @@ export function createShoreham() {
     const bl = roundRect(12.25, 18.45, -4.05, 4.05, 0.85, 4);
     parts.push(
       sweepPath(bl, [[0, yPlat - 0.01], [-0.03, yPlat + 1.1], [0.06, yPlat + 1.1], [0.06, yPlat - 0.01]], (per, pr) => [
-        0.004 + per * KU_WALL,
-        V_WALL(0, pr[1] - yPlat),
+        FUN.u0 + ((per * KU_WALL) % (FUN.u1 - FUN.u0)),
+        V_FUN(0.15 + Math.max(0, pr[1] - yPlat)),
       ]),
     );
     // штурманская рубка / ветроотбойник на мостике (передняя часть)
@@ -1230,7 +1230,7 @@ export function createShoreham() {
 
   // ======================= ПАЛУБНОЕ ОБОРУДОВАНИЕ (сталь)
   const deckG = group('Deck_Equipment', ship);
-  const GF = { x: 26.6, h: 0.7 }; // носовое орудие
+  const GF = { x: 26.6, h: 0.45 }; // носовое орудие
   const GA = { x: -22.3 }; // кормовое (на рубке)
   const yGA = mainDeckY(-22) + 0.12 + 2.1; // крыша кормовой рубки
   {
@@ -1609,7 +1609,7 @@ export function createShoreham() {
   const armsG = group('Armament', ship);
   const buildGun = () => {
     const p = [];
-    const ty = 0.95; // ось цапф над тумбой
+    const ty = 0.85; // ось цапф над тумбой
     p.push(lathe([[0.62, 0], [0.62, 0.08], [0.55, 0.12], [0, 0.13]], 24));
     // станок: щёки
     [1, -1].forEach((sd) => {
@@ -1638,19 +1638,19 @@ export function createShoreham() {
       const sh = new Mesher();
       const R = 1.55;
       const cxs = -0.75; // центр кривизны (позади)
-      const yb = 0.25, yt = 2.0;
+      const yb = 0.2, yt = 1.75;
       const NA = 14;
       const a0 = -0.95, a1 = 0.95;
       const rowsO = [], rowsI = [];
       for (const [y, kk] of [
         [yb, 0],
-        [yt - 0.35, 1],
+        [yt - 0.3, 1],
         [yt, 2],
       ]) {
         const ro = [], ri = [];
         for (let i = 0; i <= NA; i++) {
           const a = a0 + ((a1 - a0) * i) / NA;
-          const rr = R - (kk === 2 ? 0.35 : 0);
+          const rr = R - (kk === 2 ? 0.3 : 0);
           const yy = y;
           ro.push(sh.v(V3(cxs + (rr + 0.015) * Math.cos(a), yy, (rr + 0.015) * Math.sin(a)), i / NA, kk / 2));
           ri.push(sh.v(V3(cxs + (rr - 0.015) * Math.cos(a), yy, (rr - 0.015) * Math.sin(a)), i / NA, kk / 2));

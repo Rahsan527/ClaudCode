@@ -1193,44 +1193,48 @@ export function createGrimsby() {
   const boatG = group('Boats', ship);
   {
     const hulls = [], covers = [], davits = [];
-    const boatHull = (L, Bm, D) => {
-      // корпус-скорлупа: кольца-шпангоуты с толщиной, обрез с привальным брусом
-      const rings = [];
-      const N = 14;
+    // Шлюпка-вельбот (двусторонняя): корпус — открытая скорлупа, тент — свод над ней; оба сходятся
+    // по планширю, вместе — замкнутое тело без внутренних граней
+    const boatPart = (L, Bm, D, cover) => {
+      const m = new Mesher();
+      const N = 16, M2 = 10;
+      const rows = [];
       for (let i = 0; i <= N; i++) {
         const t = i / N;
         const x = (t - 0.5) * L;
-        const w = Bm / 2 * Math.max(0.04, Math.sin(Math.PI * (0.03 + 0.94 * t)) ** 0.6);
-        const d = D * (0.75 + 0.25 * Math.sin(Math.PI * t));
-        const ring = [];
-        const M2 = 10;
+        const sn = Math.sin(Math.PI * t);
+        const w = (Bm / 2) * Math.max(0.015, sn ** 0.55);
+        const d = D * (0.55 + 0.45 * sn ** 0.5);
+        const sheer = 0.3 * (2 * t - 1) ** 2;
+        const ids = [];
         for (let j = 0; j <= M2; j++) {
           const a = (j / M2) * Math.PI;
-          ring.push(V3(x, -d * Math.sin(a) ** 1.4 + 0.08 * Math.abs(t - 0.5) ** 2 * 4, w * Math.cos(a)));
+          const y = cover ? sheer + 0.32 * Math.sin(a) * sn ** 0.7 : sheer - d * Math.sin(a) ** 1.3;
+          ids.push(m.v(V3(x, y, w * Math.cos(a)), t, j / M2));
         }
-        rings.push(ring);
+        rows.push({ ids, x, sheer });
       }
-      return loftRings(rings);
+      for (let i = 0; i < N; i++) {
+        const A = rows[i].ids, B = rows[i + 1].ids;
+        for (let j = 0; j < M2; j++) {
+          const c = m.P(A[j]).add(m.P(B[j + 1])).multiplyScalar(0.5);
+          const want = c.clone().sub(V3(c.x, (rows[i].sheer + rows[i + 1].sheer) / 2 + (cover ? -0.3 : 0.3), 0));
+          m.triN(A[j], B[j], B[j + 1], want);
+          m.triN(A[j], B[j + 1], A[j + 1], want);
+        }
+      }
+      [0, N].forEach((i) => {
+        const r = rows[i];
+        const ci = m.v(V3(r.x, r.sheer, 0), 0.5, 0.5);
+        for (let j = 0; j < M2; j++) m.triN(ci, r.ids[j], r.ids[j + 1], V3(i === 0 ? -1 : 1, 0, 0));
+      });
+      return m.build({ orient: false });
     };
     [1, -1].forEach((sd) => {
       const L = 8.2, Bm = 1.95, D = 0.85;
       const bx = -1.2, bz = sd * 4.25, by = deckTop(bx, 4.25) + 2.35;
-      const hull = boatHull(L, Bm, D).translate(bx, by, bz);
-      hulls.push(hull);
-      // тент поверх шлюпки
-      const cv = [];
-      for (let i = 0; i <= 10; i++) {
-        const t = i / 10;
-        const x = (t - 0.5) * (L - 0.5);
-        const w = Bm / 2 * 0.96 * Math.max(0.05, Math.sin(Math.PI * (0.05 + 0.9 * t)) ** 0.6);
-        const ring = [];
-        for (let j = 0; j <= 8; j++) {
-          const a = (j / 8) * Math.PI;
-          ring.push(V3(x, 0.02 + 0.3 * Math.sin(a) * Math.sin(Math.PI * (0.1 + 0.8 * t)), w * Math.cos(a)));
-        }
-        cv.push(ring);
-      }
-      covers.push(loftRings(cv).translate(bx, by, bz));
+      hulls.push(boatPart(L, Bm, D, false).translate(bx, by, bz));
+      covers.push(boatPart(L, Bm, D, true).translate(bx, by, bz));
       // шлюпбалки (изогнутые): стойка от палубы, вынос над шлюпкой
       [bx + 3.3, bx - 3.3].forEach((x) => {
         const zb = sd * (deckHalf(x) - 0.35);
