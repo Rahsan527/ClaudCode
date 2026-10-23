@@ -25,7 +25,7 @@ const T1 = { x0: -64, x1: 52, top: 17.8 }; // закрытая прогулоч�
 const T2 = { x0: -58, x1: 46, hw: 9.0, top: 20.6, rA: 2.0, rF: 4.5 }; // крыша — шлюпочная палуба
 const T3 = { x0: -44, x1: 39, hw: 6.0, top: 23.4, rA: 1.5, rF: 3.0 }; // крыша — солнечная палуба
 const T4 = { x0: 30, x1: 38.5, hw: 5.6, top: 26.2, rA: 0.8, rF: 2.5 }; // ходовая рубка
-const FUN = { x: -6, a: 7.0, b: 4.2, h: 11.5, rake: Math.tan((5 * Math.PI) / 180), cap: 1.5 };
+const FUN = { x: -6, a: 7.0, b: 4.2, h: 12.5, rake: Math.tan((5 * Math.PI) / 180), cap: 1.5 };
 
 const clamp01 = (t) => Math.min(1, Math.max(0, t));
 const smooth = (t) => {
@@ -56,7 +56,10 @@ function sec(xn) {
   } else if (xn < MID_A) {
     s = clamp01((MID_A - xn) / (MID_A - XS));
     W = BEAM * Math.max(0, 1 - s ** 1.25) ** 1.05;
-    wd = BEAM * Math.max(0, 1 - s ** 3.2) ** 0.4;
+    // план кормы: эллиптическое скругление (крейсерская корма)
+    const d = xn - XS;
+    const LE = 9.0, WE = 8.6;
+    wd = d < LE ? WE * Math.sqrt(Math.max(0, 1 - (1 - d / LE) ** 2)) : lerp(WE, BEAM, smooth((d - LE) / (MID_A - XS - LE)) ** 0.8);
     yk = 5.0 * s ** 1.6;
     yw = 5.5 + 0.8 * s;
     nb = 6 - 3.0 * s;
@@ -1100,7 +1103,7 @@ export function createGustloff() {
 
   // Винты, валы, кронштейны, скуловые кили, руль
   const PROP = { x: -88, y: 3.3, z: 5.6, r: 2.3 };
-  const RUD = { x: -97.4, y0: 0.9 };
+  const RUD = { x: -94.0, y0: 1.3 };
   {
     // контроль зазоров винта (в статистику)
     for (let a = 0; a < 16; a++) {
@@ -1159,9 +1162,9 @@ export function createGustloff() {
     {
       const lo = [], hi = [];
       for (let i = 0; i <= 10; i++) {
-        const x = lerp(-80, RUD.x + 0.9, i / 10);
+        const x = lerp(-74, RUD.x + 1.4, i / 10);
         const yk = keelYAt(x);
-        lo.push([x, Math.min(yk - 0.05, lerp(keelYAt(-80) - 0.05, RUD.y0 + 0.2, (i / 10) ** 1.4))]);
+        lo.push([x, Math.min(yk - 0.05, lerp(keelYAt(-74) - 0.05, 3.0, i / 10))]);
         hi.push([x, yk + 0.5]);
       }
       parts.push(prism([...lo, ...hi.reverse()], 0.5).translate(0, 0, 0));
@@ -1410,7 +1413,7 @@ export function createGustloff() {
 
   // ======================= ШЛЮПКИ И ШЛЮПБАЛКИ
   const boatG = group('Lifeboats', ship);
-  const BOAT = { L: 8.6, B: 2.8, D: 1.1, z: 10.3, y: 21.85, n: 11, x0: -42, dx: 7.2 };
+  const BOAT = { L: 7.6, B: 2.6, D: 1.05, z: 10.3, y: 21.85, n: 11, x0: -50, dx: 8.0 };
   {
     const boatGeo = () => {
       const m = new Mesher();
@@ -1448,7 +1451,7 @@ export function createGustloff() {
       for (let i = 0; i < BOAT.n; i++) {
         const x = BOAT.x0 + i * BOAT.dx;
         boats.push(one.clone().translate(x, BOAT.y + BOAT.D, sd * BOAT.z));
-        [x - 3.0, x + 3.0].forEach((xd) => {
+        [x - 2.7, x + 2.7].forEach((xd) => {
           // гравитационная шлюпбалка: наклонная станина + рычаг
           const zb = T2.hw - 0.45;
           davits.push(boxSkip(0.35, 1.5, 0.35, xd, T2.top + 0.75, sd * zb, 'ny'));
@@ -1609,8 +1612,8 @@ export function createGustloff() {
     });
     // руль: полубалансирный, баллер по Y
     const rg = group('Rudder', propG, RUD.x, RUD.y0, 0);
-    const yIn = Math.max(keelYAt(RUD.x - 3.3), keelYAt(RUD.x + 1.1)) - RUD.y0 + 0.5;
-    const f = foil({ root: [1.1, -3.3], tip: [0.9, -2.9], span: yIn, tc: 0.16, y0: 0, nSpan: 4 });
+    const yIn = Math.max(keelYAt(RUD.x - 3.0), keelYAt(RUD.x + 1.0)) - RUD.y0 + 0.5;
+    const f = foil({ root: [1.0, -3.0], tip: [0.9, -2.7], span: yIn, tc: 0.16, y0: 0, nSpan: 4 });
     mesh(merge([f]), M.bottom, 'Rudder_Blade', rg);
   }
 
