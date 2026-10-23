@@ -901,7 +901,7 @@ function paintAtlas() {
         const y = lerp(T.pts[k][0], T.pts[k + 1][0], f);
         const z = lerp(T.pts[k][1], T.pts[k + 1][1], f);
         let colr = COL.white;
-        if (q > QS + 0.3 * (1 - QS)) colr = camo(x, z);
+        if (q > QS + 0.3 * (1 - QS) && (x < 8.95 || y > 1.92 + 0.6 * (x - 8.95) * 0)) colr = camo(x, z);
         // грязь у ватерлинии и днища
         if (y < 1.15) colr = mix(colr, [170, 178, 168], 0.18 * smooth((1.15 - y) / 0.6) + 0.06 * noise(u, v));
         let h = 0.5;
@@ -919,8 +919,8 @@ function paintAtlas() {
           if (r) colr = r;
         }
         // окно бомбардира на носу
-        if (x > 9.12 && y > 1.5 && y < 1.98 && z < 0.45) {
-          colr = Math.abs(z - 0.0) < 0.025 || Math.abs(y - 1.74) < 0.02 ? COL.edsg : COL.glass;
+        if (x > 9.3 && y > 1.42 && y < 1.8 && z < 0.4 && q < 0.85) {
+          colr = Math.abs(z - 0.0) < 0.025 || Math.abs(y - 1.62) < 0.02 ? COL.edsg : COL.glass;
           h = 0.45;
         }
         // люк швартовки перед турелью

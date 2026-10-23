@@ -617,6 +617,7 @@ export function createTF1() {
     roof: pack(5, 3),
     black: pack(1.2, 1.2),
     torp: pack(7.3, 0.4),
+    transom: pack(6.8, 3.4),
   };
   const roofUV = (x, z) => [lerp(SL.roof.u0, SL.roof.u1, clamp01((x + 31) / 62)), lerp(SL.roof.v0, SL.roof.v1, clamp01((z + 3.5) / 7))];
   const blackUV = () => [(SL.black.u0 + SL.black.u1) / 2, (SL.black.v0 + SL.black.v1) / 2];
@@ -752,8 +753,8 @@ export function createTF1() {
       loop.forEach((i) => c.add(m.P(i)));
       c.divideScalar(loop.length);
       // транец / торец — собственные вершины (острая кромка), UV — слот переборки
-      const sl = BH.slot;
-      const tuv = (p) => [lerp(sl.u0, sl.u1, clamp01((p.z + HL.B) / (2 * HL.B))), lerp(sl.v0, sl.v1, clamp01((p.y - 1.5) / 3.0))];
+      const sl = SL.transom;
+      const tuv = (p) => [lerp(sl.u0, sl.u1, clamp01((p.z + 3.4) / 6.8)), lerp(sl.v0, sl.v1, clamp01((p.y - 1.5) / 5.6))];
       const own = loop.map((i) => m.v(m.P(i), ...tuv(m.P(i))));
       const ci = m.v(c, ...tuv(c));
       for (let j = 0; j < own.length; j++) {
@@ -1754,6 +1755,14 @@ function paintAtlas(houses, SL, BH) {
     });
   }
 
+  // слот транца и торца форштевня: y от 1.5 до 7.1
+  {
+    const sl = SL.transom;
+    const Y = (y) => sl.py + sl.ph * (1 - (y - 1.5) / 5.6);
+    rect(C, sl.px - 2, sl.py - 2, sl.pw + 4, sl.ph + 4, GREY);
+    rect(C, sl.px - 2, Y(WL + 0.3), sl.pw + 4, sl.py + sl.ph + 2 - Y(WL + 0.3), '#1d1f21');
+    rect(C, sl.px - 2, Y(WL - 0.15), sl.pw + 4, sl.py + sl.ph + 2 - Y(WL - 0.15), '#3e2b27');
+  }
   // слот практической торпеды: u — от хвоста (0) к головной части (1)
   {
     const sl = SL.torp;

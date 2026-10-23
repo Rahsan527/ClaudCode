@@ -112,6 +112,34 @@ const hullZAtY = (x, y) => {
   const c = sec(x);
   return sideYZ(c, qOfY(c, y))[1];
 };
+// номинальная абсцисса шпангоута, проходящего через фактическую точку (x, y)
+function xnFor(x, y) {
+  const f = (xn) => xAt(sec(xn), y);
+  let lo = XS, hi = XF;
+  for (let i = 0; i < 44; i++) {
+    const m = (lo + hi) / 2;
+    if (f(m) < x) lo = m;
+    else hi = m;
+  }
+  return (lo + hi) / 2;
+}
+// фактическая полуширина корпуса в точке (x, y); 0 — ниже киля
+function zAtXY(x, y) {
+  const c = sec(xnFor(x, y));
+  if (y < c.yk) return 0;
+  return sideYZ(c, qOfY(c, Math.min(y, c.yd)))[1];
+}
+// высота обшивки над точкой (x, z)
+function yAtXZ(x, z) {
+  let lo = 0, hi = deckY(x);
+  for (let i = 0; i < 40; i++) {
+    const m = (lo + hi) / 2;
+    if (zAtXY(x, m) < z) lo = m;
+    else hi = m;
+  }
+  return (lo + hi) / 2;
+}
+const keelYAt = (x) => yAtXZ(x, 0.02);
 
 // Точка борта на высоте y в абсциссе x (с учётом наклона штевней) и нормаль
 function sideAt(x, y) {
@@ -1079,8 +1107,7 @@ export function createGustloff() {
       const ang = (a / 16) * Math.PI * 2;
       const y = PROP.y + (PROP.r + 0.15) * Math.cos(ang), z = PROP.z + (PROP.r + 0.15) * Math.sin(ang);
       for (const dx of [-0.6, 0, 0.6]) {
-        const c = sec(PROP.x + dx);
-        if (y > c.yk && Math.abs(z) < hullZAtY(PROP.x + dx, Math.min(y, c.yd))) stats.warn.push(`prop clash a=${a} dx=${dx}`);
+        if (Math.abs(z) < zAtXY(PROP.x + dx, y)) stats.warn.push(`prop clash a=${a} dx=${dx}`);
       }
     }
     const parts = [];
@@ -1088,7 +1115,7 @@ export function createGustloff() {
       const z = sd * PROP.z;
       // выход вала из корпуса: где обвод на высоте вала уже уже, чем z
       let xe = PROP.x;
-      while (xe < 0 && hullZAtY(xe, PROP.y) < PROP.z - 0.05) xe += 0.25;
+      while (xe < 0 && zAtXY(xe, PROP.y) < PROP.z - 0.05) xe += 0.25;
       const xIn = xe + 2.0;
       parts.push(rod([xIn, PROP.y, z], [PROP.x + 0.35, PROP.y, z], 0.32, 12, 'both'));
       // мортира — обтекатель вала у корпуса
@@ -1105,9 +1132,9 @@ export function createGustloff() {
         g.translate(a.x, a.y, a.z);
         return g;
       };
-      parts.push(leg(V3(xb, hullYAtZ(xb, PROP.z) + 0.4, z)));
+      parts.push(leg(V3(xb, yAtXZ(xb, PROP.z) + 0.4, z)));
       const yIn = PROP.y - 0.3;
-      parts.push(leg(V3(xb, yIn, sd * (hullZAtY(xb, Math.max(yIn, sec(xb).yk + 0.05)) - 0.3))));
+      parts.push(leg(V3(xb, yIn, sd * Math.max(0.2, zAtXY(xb, Math.max(yIn, keelYAt(xb) + 0.05)) - 0.3))));
       // скуловой киль
       const bk = [];
       for (let i = 0; i <= 24; i++) {
@@ -1133,8 +1160,8 @@ export function createGustloff() {
       const lo = [], hi = [];
       for (let i = 0; i <= 10; i++) {
         const x = lerp(-80, RUD.x + 0.9, i / 10);
-        const yk = sec(x).yk;
-        lo.push([x, Math.min(yk, lerp(sec(-80).yk, RUD.y0 + 0.2, (i / 10) ** 1.4))]);
+        const yk = keelYAt(x);
+        lo.push([x, Math.min(yk - 0.05, lerp(keelYAt(-80) - 0.05, RUD.y0 + 0.2, (i / 10) ** 1.4))]);
         hi.push([x, yk + 0.5]);
       }
       parts.push(prism([...lo, ...hi.reverse()], 0.5).translate(0, 0, 0));
@@ -1173,10 +1200,8 @@ export function createGustloff() {
       const w = WING.z1 - WING.z0;
       R.push(boxSkip(WING.x1 - WING.x0, WING.t, w, (WING.x0 + WING.x1) / 2, T3.top - WING.t / 2, sd * (WING.z0 + w / 2), sd > 0 ? 'nz' : 'pz'));
       // ветроотбойник на крыле
-      R.push(boxSkip(0.08, 1.1, w, WING.x1 - 0.04, T3.top + 0.55, sd * (WING.z0 + w / 2), sd > 0 ? 'nyz' : 'nypz'));
+      R.push(boxSkip(0.08, 1.1, w, WING.x1 - 0.04, T3.top + 0.55, sd * (WING.z0 + w / 2), 'ny'));
     });
-    // верх ходовой рубки: «компасная площадка» и козырёк
-    R.push(boxSkip(T4.x1 - T4.x0 + 0.6, 0.15, 2 * T4.hw + 0.6, (T4.x0 + T4.x1) / 2, T4.top + 0.075, 0, ''));
     mesh(merge(W), M.walls, 'Superstructure_Walls', supG);
     mesh(merge(D), M.deck, 'Superstructure_Decks', supG);
     mesh(merge(R), M.white, 'Bridge_Roof_Wings', supG);
@@ -1369,14 +1394,14 @@ export function createGustloff() {
     white.push(lathe([[0.1, deckY(102.5) - 0.05], [0.06, deckY(102.5) + 5.5], [0.1, deckY(102.5) + 5.6], [0, deckY(102.5) + 5.7]], 8).translate(102.5, 0, 0));
     white.push(lathe([[0.12, deckY(-102.5) - 0.05], [0.07, deckY(-102.5) + 7], [0.12, deckY(-102.5) + 7.1], [0, deckY(-102.5) + 7.2]], 8).translate(-102.5, 0, 0));
     // нактоуз, прожекторы и ходовые огни на крыше рубки
-    white.push(lathe([[0.3, -0.05], [0.25, 1.0], [0.38, 1.1], [0, 1.4]], 12).translate(35.5, T4.top + 0.15, 0));
+    white.push(lathe([[0.3, -0.05], [0.25, 1.0], [0.38, 1.1], [0, 1.4]], 12).translate(35.5, T4.top, 0));
     [1, -1].forEach((sd) => {
       white.push(boxSkip(0.6, 0.8, 0.35, 36.5, T3.top + 0.4, sd * 11.05, 'ny'));
-      white.push(lathe([[0.25, -0.05], [0.18, 0.5], [0, 0.55]], 10).translate(36.5, T4.top + 0.15, sd * 4.5));
+      white.push(lathe([[0.25, -0.05], [0.18, 0.5], [0, 0.55]], 10).translate(36.5, T4.top, sd * 4.5));
       white.push(latheX([[0.0, -0.4], [0.35, -0.3], [0.38, 0.3], [0.0, 0.32]], 12).translate(36.5, T4.top + 0.95, sd * 4.5));
     });
     // сигнальная мачта на ходовой рубке
-    buff.push(lathe([[0.2, T4.top + 0.1], [0.12, T4.top + 9], [0, T4.top + 9.05]], 10).translate(33.0, 0, 0));
+    buff.push(lathe([[0.2, T4.top - 0.05], [0.12, T4.top + 9], [0, T4.top + 9.05]], 10).translate(33.0, 0, 0));
     buff.push(rod([33.0, T4.top + 6.5, -2.4], [33.0, T4.top + 6.5, 2.4], 0.07, 6));
     mesh(merge(white), M.white, 'Deck_Fittings_White', eqG);
     mesh(merge(dark), M.dark, 'Deck_Fittings_Dark', eqG);
@@ -1557,7 +1582,7 @@ export function createGustloff() {
     const shrink = (x0, x1, hw, rA, rF, d) => roundRect2(x0 + d, x1 - d, hw - d, Math.max(0.2, rA - d), Math.max(0.2, rF - d));
     run(shrink(T2.x0, T2.x1, T2.hw, T2.rA, T2.rF, inset).map(([x, z]) => [x, T2.top, z]), true);
     run(shrink(T3.x0, T3.x1, T3.hw, T3.rA, T3.rF, inset).filter(([x]) => true).map(([x, z]) => [x, T3.top, z]), true);
-    run(shrink(T4.x0 - 0.3, T4.x1 + 0.3, T4.hw + 0.3, T4.rA, T4.rF, inset).map(([x, z]) => [x, T4.top + 0.15, z]), true);
+    run(shrink(T4.x0, T4.x1, T4.hw, T4.rA, T4.rF, inset).map(([x, z]) => [x, T4.top, z]), true);
     [1, -1].forEach((sd) => {
       run([
         [35.0 + inset, T3.top, sd * (T3.hw + 0.05)],
@@ -1584,7 +1609,7 @@ export function createGustloff() {
     });
     // руль: полубалансирный, баллер по Y
     const rg = group('Rudder', propG, RUD.x, RUD.y0, 0);
-    const yIn = sec(RUD.x).yk - RUD.y0 + 0.6;
+    const yIn = Math.max(keelYAt(RUD.x - 3.3), keelYAt(RUD.x + 1.1)) - RUD.y0 + 0.5;
     const f = foil({ root: [1.1, -3.3], tip: [0.9, -2.9], span: yIn, tc: 0.16, y0: 0, nSpan: 4 });
     mesh(merge([f]), M.bottom, 'Rudder_Blade', rg);
   }
