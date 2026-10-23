@@ -183,8 +183,8 @@ function strut(a, b, cw, th, uv, seg = 10) {
   };
   const RA = ring(A), RB = ring(B);
   m.strip(RA, RB, true);
-  m.fan(RA, m.v(A, ...uv), true);
-  m.fan(RB, m.v(B, ...uv), false);
+  m.fan(RA, m.v(A, ...uv), false);
+  m.fan(RB, m.v(B, ...uv), true);
   return m.build();
 }
 
@@ -993,7 +993,7 @@ function buildGear() {
     const top = [1.52, -0.62, sd * (fuseZ(1.52, -0.62) - 0.02)];
     const axle = [MAIN.x, MAIN.yc + 0.02, sd * (MAIN.z - 0.055)];
     parts.push(rod(top, axle, 0.048, 10, sU));
-    parts.push(rod([1.6, -0.95, sd * 0.68], [1.6, -0.95 - 0.2, sd * 0.81], 0.062, 10, sU)); // гильза амортизатора
+    parts.push(rod(top.map((v, j) => lerp(v, axle[j], 0.3)), top.map((v, j) => lerp(v, axle[j], 0.68)), 0.064, 10, sU)); // цилиндр амортизатора
     // подкосы
     const mid = top.map((v, j) => lerp(v, axle[j], 0.55));
     parts.push(rod([1.05, -0.66, sd * (fuseZ(1.05, -0.66) - 0.02)], mid, 0.026, 8, sU));
@@ -1015,15 +1015,15 @@ function buildGear() {
 // Двигатель R-1830 (передний ряд цилиндров, картер редуктора) в канале капота
 function buildEngine() {
   const parts = [];
-  const nose = latheUV([[0, 0.36, 0.5, 0.5], [0.12, 0.34, 0.5, 0.5], [0.2, 0.25, 0.5, 0.5], [0.3, 0.12, 0.5, 0.5], [0.33, 0.02, 0.5, 0.5], [0.33, -0.04, 0.5, 0.5], [0, -0.04, 0.5, 0.5]], 24);
+  const nose = latheUV([[0, 0.36, 0.5, 0.5], [0.12, 0.34, 0.5, 0.5], [0.2, 0.25, 0.5, 0.5], [0.3, 0.12, 0.5, 0.5], [0.33, 0.06, 0.5, 0.5], [0.33, 0.03, 0.5, 0.5], [0, 0.03, 0.5, 0.5]], 24);
   parts.push(nose.rotateZ(-Math.PI / 2).translate(3.6, 0, 0));
   for (let i = 0; i < 7; i++) {
     const a = (i / 7) * Math.PI * 2;
     const ca = Math.cos(a), sa = Math.sin(a);
-    parts.push(rod([3.72, 0.26 * ca, 0.26 * sa], [3.72, 0.53 * ca, 0.53 * sa], 0.075, 10));
+    parts.push(rod([3.78, 0.26 * ca, 0.26 * sa], [3.78, 0.53 * ca, 0.53 * sa], 0.075, 10));
     // задний ряд — между цилиндрами переднего
     const b = a + Math.PI / 7;
-    parts.push(rod([3.64, 0.3 * Math.cos(b), 0.3 * Math.sin(b)], [3.64, 0.535 * Math.cos(b), 0.535 * Math.sin(b)], 0.07, 8));
+    parts.push(rod([3.7, 0.3 * Math.cos(b), 0.3 * Math.sin(b)], [3.7, 0.535 * Math.cos(b), 0.535 * Math.sin(b)], 0.07, 8));
   }
   // вал
   parts.push(rod([3.9, 0, 0], [4.02, 0, 0], 0.07, 12));
@@ -1070,8 +1070,8 @@ function buildFittings() {
   parts.push(rod(tip, [-3.62, 1.7, 0], 0.005, 5));
   // приёмник ПВД под правым крылом
   const pw = wingSt(4.95);
-  parts.push(rod([pw.le - 0.25, wy(4.95) - 0.05, 4.95], [pw.le + 0.32, wy(4.95) - 0.05, 4.95], 0.012, 6));
-  parts.push(strut([pw.le - 0.15, wy(4.95) - 0.02, 4.95], [pw.le - 0.1, wy(4.95) - 0.06, 4.95], 0.08, 0.015, [0.5, 0.5], 6));
+  parts.push(rod([pw.le - 0.2, wy(4.95) - 0.12, 4.95], [pw.le + 0.3, wy(4.95) - 0.12, 4.95], 0.012, 6));
+  parts.push(strut([pw.le - 0.12, wy(4.95) - 0.02, 4.95], [pw.le - 0.08, wy(4.95) - 0.12, 4.95], 0.08, 0.015, [0.5, 0.5], 6));
   return merge(parts);
 }
 

@@ -1322,8 +1322,15 @@ export function createCasablanca() {
     STACKS.forEach((x) => {
       [1, -1].forEach((sd) => {
         const z = sd * STACK_Z;
-        const pts = [[x, 13.4, sd * (HG.hw - 0.05)], [x, 13.4, sd * 11.2], [x, 14.1, sd * 12.55], [x, 15.3, z], [x, 17.0, z], [x, 18.0, z]];
-        body.push(tube(pts, 0.72, 12, 16));
+        // горизонтальный патрубок из стены ангара, колено R = 1.6 м, вертикальная труба
+        const R = 1.6, y0 = 13.4, zk = STACK_Z - R;
+        const pts = [V3(x, y0, sd * (HG.hw - 0.05)), V3(x, y0, sd * (zk - 0.6))];
+        for (let i = 0; i <= 6; i++) {
+          const a = (i / 6) * (Math.PI / 2);
+          pts.push(V3(x, y0 + R - R * Math.cos(a), sd * (zk + R * Math.sin(a))));
+        }
+        pts.push(V3(x, y0 + R + 1.2, z), V3(x, 18.0, z));
+        body.push(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts, false, 'centripetal'), 24, 0.72, 12, false));
         caps.push(lathe([[0.77, 17.9], [0.77, 18.6], [0.6, 18.6], [0.6, 18.25], [0, 18.25]], 12, { top: false }).translate(x, 0, z));
       });
     });
