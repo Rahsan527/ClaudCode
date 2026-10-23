@@ -16,14 +16,14 @@ const ATLAS = 2048;
 
 // Наружный корпус
 const H = {
-  xEnd: -37.75, // кормовой срез палубы
+  xEnd: -37.65, // кормовой срез палубы
   xa0: -15.5, // начало кормового заострения
   xb0: 20.5, // начало носового заострения
   xStem: 37.45, // форштевень на уровне палубы
   W: 3.38, // полуширина по цистернам
   wd: 2.05, // полуширина палубы
   yw: 3.45, // высота наибольшей ширины
-  yd: 6.2, // палуба на миделе
+  yd: 5.85, // палуба на миделе
   NL: 18, // точек на нижней дуге (киль → наибольшая ширина)
   NU: 10, // точек на завале борта (→ кромка палубы)
   ND: 12, // сегментов палубы поперёк
@@ -55,11 +55,11 @@ function sec(xn) {
     s = clamp01((H.xa0 - xn) / (H.xa0 - H.xEnd));
     W = H.W * Math.max(0, 1 - s ** 1.25) ** 1.25;
     wd = H.wd * Math.max(0, 1 - s ** 2.0) ** 0.75;
-    yk = 1.75 * s ** 1.6;
-    yw = H.yw - 0.35 * s;
-    yd = H.yd - 0.3 * s * s;
+    yk = 1.6 * s ** 1.5;
+    yw = H.yw - 0.1 * s;
+    yd = H.yd - 0.25 * s * s;
     nb = 2.5 - 0.8 * s;
-    rake = 0.55 * s * s; // нижние точки уходят в нос — подрез кормы над винтами
+    rake = 0.18 * s * s; // нижние точки уходят в нос — подрез кормы над винтами
   }
   W = Math.max(W, 0.06);
   wd = Math.min(Math.max(wd, 0.05), W * 0.92);
@@ -116,7 +116,7 @@ const xOfU = (u) => XA + ((u - 0.005) / 0.99) * (XB - XA);
 const V_SIDE = (arc) => 0.505 + (0.49 * arc) / GIRTH;
 const ZD = 2.3;
 const V_DECK = (z) => 0.255 + (0.24 * (z + ZD)) / (2 * ZD);
-const TW = { y0: 5.95, yF: 7.85, yTop: 8.96, xw: -0.4, M: 72 };
+const TW = { y0: 5.6, yF: 7.75, yTop: 9.02, xw: -0.4, M: 72 };
 const V_TOWER = (y) => 0.005 + (0.2 * (y - TW.y0)) / (TW.yTop - TW.y0);
 const V_INNER = (y) => 0.215 + (0.028 * (y - TW.yF)) / (TW.yTop - TW.yF);
 
@@ -458,9 +458,9 @@ const merge = (list) => {
 function towerOutline(y, M = TW.M) {
   const t = clamp01((y - TW.y0) / (TW.yF - TW.y0));
   const xc = 2.2;
-  const af = lerp(5.9, 4.75, smooth(t * 1.25));
-  const aa = lerp(5.0, 4.85, t);
-  const b = lerp(1.72, 1.55, t);
+  const af = lerp(6.6, 4.75, smooth(t * 1.15));
+  const aa = lerp(5.15, 4.85, smooth(t * 1.5));
+  const b = lerp(1.9, 1.55, smooth(t * 1.3));
   const pts = [];
   for (let j = 0; j < M; j++) {
     const ph = Math.PI + (2 * Math.PI * j) / M;
@@ -511,7 +511,7 @@ function paintAtlas() {
   for (let i = 0; i < 900; i++) {
     const x = rnd() * S, y = rnd() * hullBot;
     const r = 8 + rnd() * 40;
-    C.fillStyle = rnd() < 0.5 ? 'rgba(255,255,255,0.025)' : 'rgba(0,0,0,0.03)';
+    C.fillStyle = rnd() < 0.5 ? 'rgba(255,255,255,0.012)' : 'rgba(0,0,0,0.018)';
     C.beginPath();
     C.ellipse(x, y, r * 1.8, r, 0, 0, Math.PI * 2);
     C.fill();
@@ -580,9 +580,10 @@ function paintAtlas() {
     if (hullShape(x, y, 0.3, 0.13, '#0d0f10', 'rgb(10,10,10)', 0.5) && rnd() < 0.18) streak(x, y - 0.08, 0.6 + rnd() * 1.2, 0.18);
   }
   // крупные шпигаты лёгкого корпуса
-  for (let x = -27; x < 28; x += 1.35) {
-    const y = deckY(x, 0) - 0.95;
-    hullShape(x, y, 0.62, 0.24, '#101214', 'rgb(16,16,16)', 0.5);
+  for (let x = -26; x < 27; x += 1.7) {
+    if (Math.abs(x - 2) < 4) continue;
+    const y = deckY(x, 0) - 0.85;
+    hullShape(x, y, 0.42, 0.17, '#1a1d1f', 'rgb(30,30,30)', 0.5);
   }
   // кингстоны цистерн у днища
   for (let x = -14; x < 19; x += 1.7) hullShape(x, 1.0, 0.55, 0.28, '#151719', 'rgb(20,20,20)', 0.4);
@@ -635,7 +636,7 @@ function paintAtlas() {
     C.ellipse(rnd() * S, py(0.205) + rnd() * (py(0.005) - py(0.205)), 10 + rnd() * 30, 6 + rnd() * 18, 0, 0, Math.PI * 2);
     C.fill();
   }
-  [6.75, 7.85, 8.55].forEach((y) => {
+  [6.6, TW.yF, 8.6].forEach((y) => {
     line(C, 0, py(V_TOWER(y)), S, py(V_TOWER(y)), 2, 'rgba(20,24,26,0.25)');
     line(Hc, 0, py(V_TOWER(y)), S, py(V_TOWER(y)), 2, 'rgb(96,96,96)');
   });
@@ -645,12 +646,12 @@ function paintAtlas() {
     line(Hc, X, py(0.205), X, py(0.005), 2, 'rgb(100,100,100)');
   }
   // шпигаты в основании рубки и скобы-ступени
-  for (let p = 0.6; p < TOWER_PER - 0.4; p += 0.42) {
+  for (let p = 0.9; p < TOWER_PER - 0.6; p += 0.95) {
     const X = px(0.005 + (0.99 * p) / TOWER_PER);
-    const Y = py(V_TOWER(6.42));
+    const Y = py(V_TOWER(5.98));
     C.fillStyle = '#0d0f10';
     Hc.fillStyle = 'rgb(10,10,10)';
-    const w = (0.26 / TOWER_PER) * 0.99 * S, h = (0.2 * 0.13 / (TW.yTop - TW.y0)) * S;
+    const w = (0.3 / TOWER_PER) * 0.99 * S, h = (0.2 * 0.12 / (TW.yTop - TW.y0)) * S;
     C.fillRect(X - w / 2, Y - h / 2, w, h);
     Hc.fillRect(X - w / 2, Y - h / 2, w, h);
     if (rnd() < 0.25) {
@@ -747,7 +748,7 @@ function buildHull() {
 // Рубка: тело до пола мостика (с полом-настилом), фальшборт мостика с козырьком
 function buildTower() {
   const m = new Mesher();
-  const ys = [TW.y0, 6.3, 6.75, 7.3, TW.yF];
+  const ys = [TW.y0, 5.95, 6.2, 6.5, 6.9, 7.3, TW.yF];
   const rings = ys.map((y) => {
     const pts = towerOutline(y);
     pts.push(pts[0]);
@@ -791,8 +792,8 @@ function buildTower() {
   const bl = [...loop, ...wall];
   const prof = [
     [0, TW.yF],
-    [0.03, 8.55],
-    [0.2, 8.9],
+    [0.03, 8.62],
+    [0.2, 8.96],
     [0.2, TW.yTop],
     [-0.07, TW.yTop],
     [-0.07, TW.yF],
@@ -850,7 +851,7 @@ export function createType9B() {
   // Подводные выступы: валы, кронштейны, стабилизаторы, ограждения винтов (тёмная сталь)
   const PROP = { x: -34.4, y: 2.05, z: 1.62, r: 0.95 };
   const STERN = { hinge: -35.85, y: 2.05, z0: 1.98, z1: 3.3 };
-  const RUD = { x: -37.4, y0: 0.95, y1: 3.15, z: PROP.z };
+  const RUD = { x: -37.35, y0: 1.2, y1: 2.9, z: PROP.z };
   {
     const parts = [];
     [1, -1].forEach((sd) => {
@@ -863,7 +864,7 @@ export function createType9B() {
       parts.push(rod([-32.9, PROP.y, z], [-32.6, PROP.y + 0.6, sd * zin], 0.07, 8));
       parts.push(rod([-32.9, PROP.y, z], [-33.1, PROP.y - 0.55, sd * Math.max(0.15, zin - 0.25)], 0.07, 8));
       // горизонтальный стабилизатор: внутренняя часть несёт руль направления, внешняя — кормовой горизонтальный руль
-      const stIn = foil({ root: [-35.05, RUD.x + 0.27], tip: [-35.15, RUD.x + 0.27], span: STERN.z0 - 0.02, tc: 0.14, y0: 0.0, nSpan: 2 });
+      const stIn = foil({ root: [-35.05, RUD.x + 0.22], tip: [-35.15, RUD.x + 0.22], span: STERN.z0 - 0.02, tc: 0.14, y0: 0.0, nSpan: 2 });
       const stOut = foil({ root: [-35.15, STERN.hinge + 0.05], tip: [-35.3, STERN.hinge + 0.05], span: STERN.z1 + 0.05 - STERN.z0, tc: 0.12, y0: STERN.z0 - 0.04, nSpan: 2 });
       [stIn, stOut].forEach((st) => parts.push(st.rotateX(sd > 0 ? Math.PI / 2 : -Math.PI / 2).translate(0, STERN.y, 0)));
       // ограждение винта: труба от борта вокруг диска к концу стабилизатора
@@ -950,7 +951,7 @@ export function createType9B() {
     // леерный трос (сетерез → рубка → корма)
     const wf = [38.12, deckY(36.6) + 0.9, 0];
     const wt = [6.95, TW.yTop - 0.02, 0];
-    const wa = [-2.75, TW.yF + 1.0, 0];
+    const wa = [-2.72, TW.yF + 1.05, 0];
     const ws = [-35.0, deckY(-35) + 0.74, 0];
     const wire = [rod(wf, wt, 0.016, 6), rod(wa, ws, 0.016, 6)];
     // изоляторы
@@ -981,7 +982,7 @@ export function createType9B() {
     parts.push(rod([0.85, TW.yF - 0.02, -1.05], [0.85, 9.08, -1.05], 0.035, 8));
     parts.push(new THREE.TorusGeometry(0.27, 0.025, 6, 20).translate(0.85, 9.33, -1.05));
     // тумба 20-мм автомата
-    parts.push(lathe([[0.2, TW.yF - 0.02], [0.16, 8.1], [0.12, 8.45], [0.15, 8.5], [0.15, 8.56], [0, 8.58]], 16).translate(-1.55, 0, 0));
+    parts.push(lathe([[0.2, -0.02], [0.16, 0.25], [0.12, 0.6], [0.15, 0.65], [0.15, 0.71], [0, 0.73]], 16).translate(-1.55, TW.yF, 0));
     // леера площадки (Wintergarten)
     const ord = tower.platformLoop.map((p) => {
       const d = Math.hypot(p[0] - 2.2, p[1]) || 1;
@@ -994,11 +995,11 @@ export function createType9B() {
       if (i > 0) acc += Math.hypot(p[0] - railPts[i - 1][0], p[1] - railPts[i - 1][1]);
       if (acc > 0.75 || i === railPts.length - 1) {
         acc = 0;
-        parts.push(rod([p[0], TW.yF - 0.02, p[1]], [p[0], 8.9, p[1]], 0.025, 6));
+        parts.push(rod([p[0], TW.yF - 0.02, p[1]], [p[0], TW.yF + 1.05, p[1]], 0.025, 6));
       }
       if (i > 0) {
         const q = railPts[i - 1];
-        [8.4, 8.9].forEach((y) => parts.push(rod([q[0], y, q[1]], [p[0], y, p[1]], 0.022, 6)));
+        [TW.yF + 0.55, TW.yF + 1.05].forEach((y) => parts.push(rod([q[0], y, q[1]], [p[0], y, p[1]], 0.022, 6)));
       }
     });
     // ходовые огни на фальшборте
@@ -1094,7 +1095,7 @@ export function createType9B() {
   }
   // 2-см C/30 на площадке за мостиком
   {
-    const g = group('Flak_20mm', armsG, -1.55, 8.58, 0);
+    const g = group('Flak_20mm', armsG, -1.55, TW.yF + 0.73, 0);
     const p = [];
     const ty = 0.25;
     p.push(lathe([[0.17, 0], [0.17, 0.05], [0, 0.06]], 16));
@@ -1160,7 +1161,7 @@ export function createType9B() {
   [1, -1].forEach((sd) => {
     const g = group(sd > 0 ? 'Rudder_R' : 'Rudder_L', ctrlG, RUD.x, (RUD.y0 + RUD.y1) / 2, sd * RUD.z);
     const half = (RUD.y1 - RUD.y0) / 2;
-    const f = foil({ root: [0.3, -0.82], tip: [0.3, -0.82], span: 2 * half, tc: 0.14, y0: -half, nSpan: 2 });
+    const f = foil({ root: [0.25, -0.72], tip: [0.25, -0.72], span: 2 * half, tc: 0.14, y0: -half, nSpan: 2 });
     const stock = rod([0, -half - 0.02, 0], [0, half + 0.02, 0], 0.06, 10);
     mesh(merge([f, stock]), M.dark, `${g.name}_Blade`, g);
   });

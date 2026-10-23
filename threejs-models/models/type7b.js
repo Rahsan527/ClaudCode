@@ -61,8 +61,8 @@ const spow = (v, e) => Math.sign(v) * Math.abs(v) ** e;
 // Линия киля (нижняя кромка): у форштевня поднимается по наклонному форштевню, в корме — скег
 const yKeel = table([
   [X0, -0.62], [-31.8, -0.95], [-30.8, -2.0], [-29.9, -2.95], [-28.5, -3.15], [-26, -3.4], [-24, -3.8], [-21, -4.3],
-  [-18, -4.62], [-14, KEEL], [14, KEEL], [18, -4.72], [21, -4.6], [24, -4.3], [26, -3.85], [28, -3.0], [30, -1.85],
-  [31.3, -0.75], [32.3, 0.45], [X1, 1.6],
+  [-18, -4.62], [-14, KEEL], [14, KEEL], [17, -4.72], [21, -4.52], [24, -4.05], [26, -3.45], [28, -2.6], [30, -1.5],
+  [31.3, -0.5], [32.3, 0.6], [X1, 1.6],
 ]);
 // Палуба (верх надстройки): седловатость к носу
 const yDeck = table([
@@ -81,8 +81,8 @@ const casBot = table([
 // Основной корпус (прочный корпус в средней части, лёгкий — в оконечностях): низ, верх, полуширина
 const bodyBot = table([
   [X0, -0.5], [-31.8, -0.75], [-30.8, -1.05], [-29.9, -1.35], [-28.5, -1.85], [-26, -2.7], [-24, -3.45], [-21, -4.1],
-  [-18, -4.38], [-14, -4.44], [14, -4.44], [18, -4.4], [21, -4.3], [24, -4.05], [26, -3.7], [28, -2.95], [30, -1.82],
-  [31.3, -0.72], [32.3, 0.48], [X1, 1.63],
+  [-18, -4.38], [-14, -4.44], [14, -4.44], [17, -4.4], [21, -4.27], [24, -4.0], [26, -3.43], [28, -2.58], [30, -1.48],
+  [31.3, -0.48], [32.3, 0.62], [X1, 1.63],
 ]);
 const bodyTop = table([
   [X0, 0.7], [-29, 0.65], [-26, 0.55], [-21, 0.4], [-16, 0.28], [-12, 0.26], [12, 0.26], [16, 0.35], [20, 0.75],
@@ -90,8 +90,8 @@ const bodyTop = table([
 ]);
 const bodyA = table([
   [X0, 0.3], [-31.5, 0.34], [-30, 0.4], [-28.5, 0.48], [-27, 0.66], [-25, 1.0], [-22, 1.5], [-18, 2.02], [-14, 2.32],
-  [-10, 2.35], [10, 2.35], [14, 2.3], [18, 2.05], [21, 1.72], [24, 1.3], [26, 1.02], [28, 0.72], [30, 0.44],
-  [31.5, 0.25], [X1, 0.04],
+  [-10, 2.35], [10, 2.35], [14, 2.3], [18, 2.0], [21, 1.6], [24, 1.12], [26, 0.82], [28, 0.55], [30, 0.32],
+  [31.5, 0.19], [X1, 0.04],
 ]);
 const bodyN = table([[X0, 2.6], [-24, 2.3], [-16, 2.0], [16, 2.0], [24, 2.2], [X1, 2.2]]);
 // Полуширина киля / скега (минимальная ширина сечения)
@@ -99,7 +99,7 @@ const keelHalf = table([
   [X0, 0.12], [-30, 0.14], [-24, 0.16], [-18, 0.2], [18, 0.2], [22, 0.14], [25, 0.07], [27.5, 0.035], [X1, 0.03],
 ]);
 // Седловидные цистерны (у VIIB — увеличенные): эллипс со смещённым центром
-const TANK = { zc: 1.92, h: 1.18, yc: -1.38, v: 1.86, x0: -15.5, x1: -10.5, x2: 9.5, x3: 14.5 };
+const TANK = { zc: 1.72, h: 1.38, yc: -1.3, v: 2.0, x0: -19.5, x1: -10, x2: 8, x3: 17.5 };
 const tankF = (x) => smooth((x - TANK.x0) / (TANK.x1 - TANK.x0)) * (1 - smooth((x - TANK.x2) / (TANK.x3 - TANK.x2)));
 
 function section(x) {
@@ -382,10 +382,10 @@ function paintAtlas(rnd) {
   c.fillStyle = COL.lower;
   c.fillRect(0, yWL, ATLAS, PY(HV0) - yWL + 12);
   // лёгкая неоднородность краски: мягкие пятна
-  for (let i = 0; i < 900; i++) {
+  for (let i = 0; i < 700; i++) {
     const x = rnd() * ATLAS, y = rnd() * PY(HV0);
-    const r = 6 + rnd() * 40;
-    c.fillStyle = y < yWL ? `rgba(${rnd() < 0.5 ? '255,255,255' : '30,34,38'},${0.025 + rnd() * 0.03})` : `rgba(${rnd() < 0.5 ? '120,130,135' : '10,12,14'},${0.04 + rnd() * 0.05})`;
+    const r = 6 + rnd() * 30;
+    c.fillStyle = y < yWL ? `rgba(${rnd() < 0.5 ? '200,205,208' : '40,44,48'},${0.02 + rnd() * 0.025})` : `rgba(${rnd() < 0.5 ? '90,98,102' : '20,22,24'},${0.03 + rnd() * 0.04})`;
     c.beginPath();
     c.ellipse(x, y, r * 2.5, r * 0.6, 0, 0, Math.PI * 2);
     c.fill();
@@ -515,7 +515,7 @@ function paintPlanks(rnd) {
   const W = 1024, Hh = 512;
   const cv = makeCanvas(W, Hh);
   const c = cv.getContext('2d');
-  c.fillStyle = '#7d776c';
+  c.fillStyle = '#6b6862';
   c.fillRect(0, 0, W, Hh);
   const planks = 24; // поперёк палубы (≈ 0.14 м)
   const ph = Hh / planks;
@@ -523,8 +523,8 @@ function paintPlanks(rnd) {
     let x = -rnd() * W;
     while (x < W) {
       const len = W * (0.35 + rnd() * 0.45);
-      const g = 104 + rnd() * 30;
-      c.fillStyle = `rgb(${g + 10},${g + 4},${g - 8})`;
+      const g = 92 + rnd() * 26;
+      c.fillStyle = `rgb(${g + 6},${g + 3},${g - 4})`;
       c.fillRect(x, p * ph, len, ph);
       // волокна
       for (let i = 0; i < 10; i++) {
@@ -548,7 +548,7 @@ function paintPlanks(rnd) {
 // ---------------------------------------------------------------------------
 // РАЗМЕЩЕНИЕ ДЕТАЛЕЙ
 
-const TW = { x0: 0.6, floor: 3.0, top: 4.2, base: 0.95, bridgeAft: -2.75 };
+const TW = { x0: 0.6, floor: 3.3, top: 4.45, base: 0.95, bridgeAft: -2.55 };
 const TV0 = 0.27, TV1 = 0.49;
 const towerV = (y) => TV0 + ((TV1 - TV0) * (y - TW.base)) / (TW.top - TW.base);
 const TT_BOW = [[29.55, -0.55], [28.75, -1.6]]; // крышки носовых ТА (x, y), по две на борт
@@ -556,8 +556,8 @@ const ANCHOR = { x: 29.3, y: 0.85 };
 const GUN = { x: 10.6 };
 const SHAFT = { y: -2.68, z: 1.12, xProp: -28.55, xIn: -22.6, r: 0.11 };
 const PROP_R = 0.8;
-const STERN_PLANE = { x: -29.7, y: SHAFT.y };
-const RUDDER = { x: -31.15 };
+const STERN_PLANE = { x: -29.5, y: SHAFT.y };
+const RUDDER = { x: -30.85 };
 const BOW_PLANE = { x: 26.4, y: -2.45 };
 
 // ---------------------------------------------------------------------------
@@ -732,7 +732,7 @@ export function createType7B() {
     const zg0 = hullHalfWidth(xg, yg) - 0.08;
     darkParts.push(tube([[xg, yg, side * zg0], [xg - 0.9, yg, side * 1.75], [SHAFT.xProp, yg, side * 2.12], [STERN_PLANE.x + 0.35, yg, side * 2.32]], 0.06, 6, 20));
     // неподвижная часть горизонтального руля
-    const stab = foil({ le: STERN_PLANE.x + 0.55, te: STERN_PLANE.x + 0.06, y0: 0.05, y1: 2.4, tc: 0.22, nS: 3, nC: 8 }).rotateX(side > 0 ? Math.PI / 2 : -Math.PI / 2).translate(0, STERN_PLANE.y, 0);
+    const stab = foil({ le: STERN_PLANE.x + 0.42, te: STERN_PLANE.x + 0.06, y0: 0.05, y1: 2.4, tc: 0.22, nS: 3, nC: 8 }).rotateX(side > 0 ? Math.PI / 2 : -Math.PI / 2).translate(0, STERN_PLANE.y, 0);
     darkParts.push(stab);
   }
 
@@ -811,16 +811,14 @@ export function createType7B() {
     lightParts.push(g);
     lightParts.push(box(0.12, 0.1, r * 1.4, x - l / 2 - 0.02, y + 0.1, 0)); // петля
   }
-  // Ящики кранцевых выстрелов у орудия
-  for (const side of [1, -1]) lightParts.push(box(0.9, 0.3, 0.4, GUN.x - 1.6, deckY(GUN.x - 1.6) + 0.13, side * 1.0));
 
   // =========================================================================
   // РУБКА (ограждение рубки, мостик, «зимний сад» с 20-мм автоматом)
   const towerG = group('Conning_Tower');
   const towerPlan = {
-    xf: table([[TW.base, 5.7], [1.3, 4.7], [1.8, 4.0], [2.4, 3.55], [3.0, 3.35], [TW.top, 3.12]]),
-    xa: table([[TW.base, -7.8], [1.3, -7.0], [1.8, -6.35], [2.4, -5.95], [3.0, -5.7], [TW.top, -5.7]]),
-    w: table([[TW.base, 1.45], [1.4, 1.38], [2.0, 1.33], [3.0, 1.3], [TW.top, 1.2]]),
+    xf: table([[TW.base, 4.9], [1.3, 4.1], [1.7, 3.55], [2.2, 3.3], [3.3, 3.12], [TW.top, 2.95]]),
+    xa: table([[TW.base, -7.4], [1.3, -6.6], [1.8, -6.0], [2.4, -5.6], [3.3, -5.35], [TW.top, -5.35]]),
+    w: table([[TW.base, 1.4], [1.3, 1.3], [1.8, 1.25], [3.3, 1.22], [TW.top, 1.12]]),
   };
   const TM = 64;
   const towerPt = (y, t, clampAft = false) => {
@@ -834,7 +832,7 @@ export function createType7B() {
   };
   {
     const m = new Mesher();
-    const levels = [TW.base, 1.1, 1.3, 1.55, 1.8, 2.1, 2.5, TW.floor];
+    const levels = [TW.base, 1.1, 1.3, 1.55, 1.8, 2.2, 2.7, TW.floor];
     const ring = (y, clamp, vFn) => {
       const r = [];
       for (let j = 0; j <= TM; j++) r.push(m.v(...towerPt(y, j / TM, clamp), j / TM, vFn(y)));
@@ -850,7 +848,7 @@ export function createType7B() {
     const up = new THREE.Vector3(0, 1, 0);
     for (let j = 0; j < TM; j++) m.triDir(c, fl[j], fl[(j + 1) % TM], up);
     // Ограждение мостика: стенка с толщиной, сзади — поперечная переборка у зимнего сада
-    const cl = [TW.floor, 3.6, TW.top];
+    const cl = [TW.floor, 3.9, TW.top];
     const outer = cl.map((y) => ring(y, true, towerV));
     for (let k = 0; k < outer.length - 1; k++) m.strip(outer[k], outer[k + 1]);
     // внутренний контур: смещение внутрь по нормали контура в плане
@@ -914,10 +912,10 @@ export function createType7B() {
     towerLight.push(g);
   }
   // Тумба перископов (обтекатель) — лофт сечений
-  const PERI = { xc: TW.x0 - 1.15, top: 4.6, sky: TW.x0 - 0.88, att: TW.x0 - 1.42 };
+  const PERI = { xc: TW.x0 - 1.0, top: 4.85, sky: TW.x0 - 0.73, att: TW.x0 - 1.27 };
   {
     const m = new Mesher();
-    const lv = [TW.floor - 0.02, 3.6, 4.2, PERI.top];
+    const lv = [TW.floor - 0.02, 3.8, 4.4, PERI.top];
     const plan = (y) => {
       const h = (y - TW.floor) / (PERI.top - TW.floor);
       return { f: lerp(0.75, 0.48, h), a: lerp(-0.8, -0.52, h), w: lerp(0.42, 0.3, h), xs: lerp(0.1, 0, h) };
@@ -947,8 +945,8 @@ export function createType7B() {
   // Пелорус/UZO на носу мостика, рамочная антенна пеленгатора, рубочный люк
   towerLight.push(cylY(0.09, 0.07, 0.95, 10, TW.x0 + 2.45, TW.floor, 0));
   towerLight.push(box(0.22, 0.16, 0.42, TW.x0 + 2.45, TW.floor + 1.02, 0));
-  towerLight.push(cylY(0.04, 0.03, 1.55, 6, TW.x0 + 0.2, TW.floor, -0.82));
-  towerLight.push(new THREE.TorusGeometry(0.24, 0.025, 6, 20).translate(TW.x0 + 0.2, TW.floor + 1.8, -0.82));
+  towerLight.push(cylY(0.04, 0.03, 1.15, 6, TW.x0 + 0.2, TW.floor, -0.8));
+  towerLight.push(new THREE.TorusGeometry(0.22, 0.025, 6, 20).translate(TW.x0 + 0.2, TW.floor + 1.38, -0.8));
   towerLight.push(cylY(0.36, 0.34, 0.1, 20, TW.x0 + 0.55, TW.floor - 0.03, 0));
   // Ограждение зимнего сада: стойки и два поручня
   {
@@ -1128,9 +1126,9 @@ export function createType7B() {
     // Вертикальный руль: ось баллера — вертикаль через (RUDDER.x, ·, z)
     {
       const z = side * SHAFT.z;
-      const yTop = -1.45;
+      const yTop = -1.55;
       const g = group(`Rudder_${sfx}`, ctlG, RUDDER.x, yTop, z);
-      const blade = foil({ le: 0.28, te: -0.72, y0: -2.15, y1: 0, leTip: 0.22, teTip: -0.66, tc: 0.14, nS: 4, nC: 10 });
+      const blade = foil({ le: 0.26, te: -0.7, y0: -1.8, y1: 0, leTip: 0.22, teTip: -0.64, tc: 0.14, nS: 4, nC: 10 });
       const stockTop = casBot(RUDDER.x) + 0.25 - yTop;
       const stock = cylY(0.055, 0.055, stockTop + 0.05, 8, 0, -0.05, 0);
       mesh(mergePlain(`Rudder_${sfx}_Blade`, [blade, stock]), M.dark, `Rudder_${sfx}_Blade`, g);
@@ -1139,7 +1137,7 @@ export function createType7B() {
     // Кормовой горизонтальный руль: ось — поперечная (Z) на STERN_PLANE.x
     {
       const g = group(`Stern_Plane_${sfx}`, ctlG, STERN_PLANE.x, STERN_PLANE.y, 0);
-      const f = foil({ le: 0.03, te: -1.1, y0: 0.08, y1: 2.42, teTip: -0.95, tc: 0.12, nS: 3, nC: 10 }).rotateX(side > 0 ? Math.PI / 2 : -Math.PI / 2);
+      const f = foil({ le: 0.03, te: -0.95, y0: 0.08, y1: 2.42, teTip: -0.82, tc: 0.12, nS: 3, nC: 10 }).rotateX(side > 0 ? Math.PI / 2 : -Math.PI / 2);
       mesh(mergePlain(`Stern_Plane_${sfx}_Blade`, [f]), M.dark, `Stern_Plane_${sfx}_Blade`, g);
       movable[`Stern_Plane_${sfx}`] = g;
     }
