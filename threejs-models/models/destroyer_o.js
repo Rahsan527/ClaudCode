@@ -1081,8 +1081,8 @@ function fixVol(g) {
 }
 
 // Стенка с толщиной вдоль открытой ломаной в плане [[x, z], ...] от y0 до y1 (замкнутое тело)
-function wallPath(path, y0, y1, th, uvFn = () => [0.5, 0.5]) {
-  const g = sweepPath(path, [[0, y0], [0, y1], [th, y1], [th, y0], [0, y0]], (per, pr, k, p) => uvFn(per, pr, k, p), {
+function wallPath(path, y0, y1, th, uvFn = () => [0.5, 0.5], lean = 0) {
+  const g = sweepPath(path, [[0, y0], [lean, y1], [lean + th, y1], [th, y0], [0, y0]], (per, pr, k, p) => uvFn(per, pr, k, p), {
     closed: false,
     caps: true,
   });
@@ -1359,7 +1359,7 @@ export function createDestroyerO() {
       const bl = circle(PP.x, 0, PP.r - 0.04, 24);
       parts.push(
         sweepPath(bl, [[0, yPP - 0.01], [0, yPP + 1.05], [0.07, yPP + 1.05], [0.07, yPP - 0.01]], (per, pr) => [
-          FUN.u0 + ((per * KU_WALL) % (FUN.u1 - FUN.u0)),
+          FUN.u0 + (FUN.u1 - FUN.u0) * Math.min(1, per / (2 * Math.PI * (PP.r - 0.04) * 0.995)),
           V_FUN(0.15 + Math.max(0, pr[1] - yPP)),
         ]),
       );
@@ -1714,9 +1714,7 @@ export function createDestroyerO() {
       [1, -1].forEach((sd) => {
         [-31.6, -28.6].forEach((x) => rafts.push(raft().translate(x, yX0 + 1.1, sd * (XH.hw + 0.16))));
         [14.6, 17.6].forEach((x) => rafts.push(raft().translate(x, ySh - 1.05, sd * (SH.hw + 0.16))));
-        const rr = raft(0.9, 0.45);
-        rr.rotateY(Math.PI / 2);
-        rafts.push(rr.translate(PP.x, mainDeckY(PP.x) + 1.3, sd * 2.05));
+        rafts.push(raft(0.9, 0.45).translate(PP.x, mainDeckY(PP.x) + 1.3, sd * 2.07));
       });
       mesh(merge(rafts), M.boat, 'Carley_Floats', boatsG);
     }
@@ -1806,11 +1804,11 @@ export function createDestroyerO() {
     p.push(bg);
     // щит: передний лист со скосами, боковины, крыша (открыт сзади)
     {
-      const y0 = 0.25, y1 = 2.25, th = 0.035;
-      const path = [[-1.15, 1.3], [0.5, 1.3], [1.0, 0.75], [1.08, 0], [1.0, -0.75], [0.5, -1.3], [-1.15, -1.3]];
-      p.push(wallPath(path, y0, y1, th));
-      const roof = [[-1.15, 1.28], [0.5, 1.28], [0.98, 0.74], [1.06, 0], [0.98, -0.74], [0.5, -1.28], [-1.15, -1.28]];
-      p.push(slab(roof, y1 - 0.03, 0.05, () => [0.5, 0.5]));
+      const y0 = 0.22, y1 = 2.0, th = 0.035, ln = 0.3;
+      const path = [[-1.15, 1.35], [0.45, 1.35], [1.05, 0.75], [1.15, 0], [1.05, -0.75], [0.45, -1.35], [-1.15, -1.35]];
+      p.push(wallPath(path, y0, y1, th, undefined, ln));
+      const roof = [[-1.15, 1.07], [0.33, 1.07], [0.77, 0.63], [0.86, 0], [0.77, -0.63], [0.33, -1.07], [-1.15, -1.07]];
+      p.push(slab(roof, y1 - 0.025, 0.05, () => [0.5, 0.5]));
     }
     return merge(p);
   };
