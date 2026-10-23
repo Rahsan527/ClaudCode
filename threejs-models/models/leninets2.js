@@ -16,6 +16,9 @@ const XS = -39.6; // транец (выход минных труб)
 const LEN = XB - XS;
 const DRAFT = 3.96;
 const REPEAT = 8; // повтор текстуры обшивки по длине (≈10 м на повтор)
+// Повтор задаётся не KHR_texture_transform (Blender пишет его в extensionsRequired), а разрезом UV:
+// корпус разбит по длине на REPEAT участков, каждый занимает всю текстуру u = 0…1.
+const TILE = LEN / REPEAT;
 
 const clamp01 = (t) => Math.min(1, Math.max(0, t));
 const smooth = (t) => {
@@ -141,7 +144,7 @@ const deckY = (x, z) => {
   const s = section(x);
   return s.yT - 0.05 * Math.min(1, Math.abs(z) / (0.93 * s.dw)) ** 2;
 };
-const uOf = (x) => clamp01((x - XS) / LEN);
+
 
 // ---------------------------------------------------------------------------
 // ГЕОМЕТРИЧЕСКИЕ ПОМОЩНИКИ
@@ -535,7 +538,6 @@ function hullTextures() {
   for (const t of [map, normalMap]) {
     t.wrapS = THREE.RepeatWrapping;
     t.wrapT = THREE.ClampToEdgeWrapping;
-    t.repeat.set(REPEAT, 1);
     t.anisotropy = 8;
   }
   map.name = 'Hull_Paint_Color';
@@ -576,23 +578,31 @@ export function createLeninets2() {
   // КОРПУС
   const hullG = group('Hull');
   {
-    const xs = [];
+    let xs = [];
     for (let x = XS; x < XS + 10; x += 0.25) xs.push(x);
     for (let x = XS + 10; x < XB - 12; x += 0.5) xs.push(x);
     for (let x = XB - 12; x < XB - 0.001; x += 0.2) xs.push(x);
-    xs.push(XB);
+    const cuts = [];
+    for (let k = 1; k < REPEAT; k++) cuts.push(XS + k * TILE);
+    xs = xs.filter((x) => cuts.every((c) => Math.abs(x - c) > 0.08));
+    xs.push(XB, ...cuts);
+    xs.sort((a, b) => a - b);
     const m = new Mesher();
-    const rings = [];
     const ringPts = [];
+    let prev = null;
     for (const x of xs) {
       const h = halfSection(x);
       const full = [...h, ...h.slice(1, -1).reverse().map(([z, y, v]) => [-z, y, v])];
-      const u = uOf(x);
       ringPts.push(full.map(([z, y]) => V(x, y, z)));
-      rings.push(full.map(([z, y, v]) => m.v(V(x, y, z), u, v)));
+      const tile = Math.min(REPEAT - 1, Math.floor((x - XS) / TILE + 1e-6));
+      const isCut = cuts.some((c) => Math.abs(x - c) < 1e-6);
+      // на разрезе — два кольца: конец предыдущего участка (u = 1) и начало следующего (u = 0)
+      const uIn = isCut ? 1 : clamp01((x - XS - tile * TILE) / TILE);
+      const ringIn = full.map(([z, y, v]) => m.v(V(x, y, z), uIn, v));
+      if (prev) m.strip(prev, ringIn);
+      prev = isCut ? full.map(([z, y, v]) => m.v(V(x, y, z), 0, v)) : ringIn;
     }
-    for (let k = 0; k < rings.length - 1; k++) m.strip(rings[k], rings[k + 1]);
-    const capUV = (p) => [uOf(p.x), p.y < 0 ? 0.2 : 0.55];
+    const capUV = (p) => [p.x > 0 ? 1 : 0, p.y < 0 ? 0.2 : 0.55];
     m.fan(ringPts[0], capUV);
     m.fan(ringPts[ringPts.length - 1], capUV);
     mesh(m.build(), M.hull, 'Hull_Outer', hullG);
@@ -640,7 +650,7 @@ export function createLeninets2() {
   const rimY = (x) => lerp(4.15, 4.62, smooth((x + 4.6) / 2.2));
   {
     const m = new Mesher();
-    const uvT = (p, v) => [uOf(p.x), v];
+    const uvT = (p, v) => [clamp01((p.x - TA) / (TF - TA)), v];
     const levels = [[1.75, 1.0], [2.6, 0.995], [3.3, 0.985]];
     const rings = levels.map(([y, s]) => outline(0, s).map(([x, z]) => ({ p: V(x, y, z), v: lerp(0.45, 0.62, (y - 1.75) / 2.9) })));
     const top = outline(0, 0.975);
@@ -652,7 +662,7 @@ export function createLeninets2() {
     const ids = rings.map((r) => r.map(({ p, v }) => m.v(p, ...uvT(p, v))));
     for (let k = 0; k < ids.length - 1; k++) m.strip(ids[k], ids[k + 1]);
     // пол мостика — палубный настил
-    m.fan(inner.map(([x, z]) => V(x, FLOOR, z)), (p) => [uOf(p.x), 0.9 + 0.05 * (p.z / TW)], true);
+    m.fan(inner.map(([x, z]) => V(x, FLOOR, z)), (p) => [clamp01((p.x - TA) / (TF - TA)), 0.9 + 0.05 * (p.z / TW)], true);
     const fence = m.build({ orient: false });
     // ориентация: проверим по точке снаружи (нормаль у носа должна смотреть в +X)
     mesh(fence, M.hull, 'Tower_Fence', hullG);
@@ -679,9 +689,10 @@ export function createLeninets2() {
     };
     const m = new Mesher();
     const rings = [ring(FLOOR - 0.02, 1), ring(4.6, 0.97), ring(SCOPE_TOP, 0.9)];
-    const ids = rings.map((r, k) => r.map((p) => m.v(p, uOf(p.x), [0.47, 0.55, 0.62][k])));
+    const uS = (x) => clamp01((x + 1.8) / 4.1) * 0.4 + 0.3;
+    const ids = rings.map((r, k) => r.map((p) => m.v(p, uS(p.x), [0.47, 0.55, 0.62][k])));
     for (let k = 0; k < ids.length - 1; k++) m.strip(ids[k], ids[k + 1]);
-    m.fan(rings[2], (p) => [uOf(p.x), 0.63], true);
+    m.fan(rings[2], (p) => [uS(p.x), 0.63], true);
     mesh(m.build({ orient: false }), M.hull, 'Periscope_Standard', hullG);
   }
 

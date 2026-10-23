@@ -71,7 +71,7 @@ const yDeck = table([
 ]);
 // Полуширина палубы
 const deckHalf = table([
-  [X0, 0.36], [-32.2, 0.78], [-31.3, 1.05], [-30, 1.22], [-28, 1.32], [-24, 1.4], [-18, 1.48], [-12, 1.55], [-4, 1.6],
+  [X0, 0.4], [-32.2, 0.88], [-31.3, 1.2], [-30, 1.32], [-28, 1.38], [-24, 1.4], [-18, 1.48], [-12, 1.55], [-4, 1.6],
   [6, 1.58], [12, 1.48], [16, 1.36], [20, 1.18], [24, 0.94], [27, 0.7], [29.5, 0.45], [31.5, 0.25], [X1, 0.05],
 ]);
 // Нижняя кромка борта надстройки (ниже — уже корпус или були)
@@ -282,6 +282,7 @@ function tube(points, r, seg = 6, tubular = 24, closed = false) {
 }
 // Тело вращения вокруг X по профилю [[x, r], ...] (концы с r = 0 — острые)
 function latheX(profile, seg = 16) {
+  if (profile[0][0] > profile[profile.length - 1][0]) profile = [...profile].reverse();
   const pts = profile.map(([x, r]) => new THREE.Vector2(Math.max(r, 0), x));
   return new THREE.LatheGeometry(pts, seg).rotateZ(-Math.PI / 2).rotateX(Math.PI / 2);
 }
@@ -860,8 +861,8 @@ export function createType7B() {
         const a = pts[(j - 1 + TM) % TM], b = pts[(j + 1) % TM];
         const tx = b[0] - a[0], tz = b[2] - a[2];
         const l = Math.hypot(tx, tz) || 1;
-        // контур идёт против часовой (вид сверху: корма → правый борт → нос), нормаль наружу = (tz, -tx)
-        return [p[0] - (tz / l) * d, y, p[2] + (tx / l) * d];
+        // контур: корма → правый борт (+Z) → нос; нормаль наружу = (−tz, tx)
+        return [p[0] + (tz / l) * d, y, p[2] - (tx / l) * d];
       });
     };
     const innerTop = inset(TW.top, 0.07).map((p) => m.v(...p, ...flat));
@@ -893,7 +894,7 @@ export function createType7B() {
       const a = towerPt(TW.top, (j - 1) / TM), b = towerPt(TW.top, (j + 1) / TM);
       const tx = b[0] - a[0], tz = b[2] - a[2];
       const l = Math.hypot(tx, tz);
-      const nx = tz / l, nz = -tx / l;
+      const nx = -tz / l, nz = tx / l;
       const o = 0.2;
       ids.push([
         m.v(p[0] - nx * 0.02, TW.top - 0.12, p[2] - nz * 0.02),
@@ -1193,7 +1194,6 @@ export function createType7B() {
     movable.Flak_20mm.rotation.y = d(90) * h;
     movable.Periscope_Sky.position.y = TW.floor + 0.1 + 1.6 * h;
     movable.Periscope_Attack.position.y = TW.floor + 0.1 + 1.2 * h;
-    if (h === 0) for (const k of ['Propeller_L', 'Propeller_R']) if (t === 0) movable[k].quaternion.identity();
   };
   root.userData.update(0, 0);
   root.userData.info = { waterlineAboveKeel: -KEEL };

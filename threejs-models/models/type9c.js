@@ -579,12 +579,13 @@ function finishGroups(g) {
 // РУБКА
 
 // Контур рубки в плане: aft (корма) … fore (нос), полуширина W; u — доля периметра
-const TM = 22;
+const TM = 28;
 function towerOutline(A, F, W, y, rf = 1.4, ra = 2.2) {
   const pts = [];
   for (let i = 0; i <= TM; i++) {
-    const t = 0.5 - 0.5 * Math.cos((Math.PI * i) / TM);
-    const x = A + (F - A) * t;
+    const t = i / TM;
+    const Xm = 0.5; // половина точек — от кормы до x = 0.5, половина — до носа: точки колец совпадают по x
+    const x = t <= 0.5 ? A + (Xm - A) * (1 - Math.cos((Math.PI * t))) : Xm + (F - Xm) * Math.sin(Math.PI * (t - 0.5));
     let w = W;
     if (x > F - rf) w = W * Math.sqrt(Math.max(0, 1 - ((x - (F - rf)) / rf) ** 2));
     else if (x < A + ra) w = W * Math.max(0, 1 - ((A + ra - x) / ra) ** 1.7) ** 0.6;
