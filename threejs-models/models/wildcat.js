@@ -123,16 +123,6 @@ function signedVolume(pos, idx) {
   }
   return vol;
 }
-// открытая оболочка: развернуть нормали «от точки» inside
-function orientAway(m, inside) {
-  let g = m.build({ orient: false });
-  const p = g.attributes.position, n = g.attributes.normal;
-  let s = 0;
-  for (let i = 0; i < p.count; i++) s += (p.getX(i) - inside.x) * n.getX(i) + (p.getY(i) - inside.y) * n.getY(i) + (p.getZ(i) - inside.z) * n.getZ(i);
-  if (s < 0) g = m.build({ orient: false, flip: true });
-  return g;
-}
-
 // Тело вращения вокруг Y: профиль [[r, y, u, v], ...] сверху вниз; r = 0 — полюс. Нормали наружу (по объёму).
 function latheUV(profile, seg = 24) {
   const m = new Mesher();
@@ -509,23 +499,38 @@ function buildRudder() {
 // ---------------------------------------------------------------------------
 // ОСТЕКЛЕНИЕ: козырёк (неподвижный) и сдвижной фонарь. Нижние кромки уходят под обшивку.
 
-function glassShell(xs, wFn, topFn, uFn, K = 16) {
+function glassShell(xs, wFn, topFn, uFn, K = 16, T = 0.012) {
+  // замкнутая оболочка с толщиной T: наружная и внутренняя поверхности, торцы и полосы по нижним кромкам
   const m = new Mesher();
-  const rings = xs.map((x, i) => {
+  const outer = [], inner = [];
+  xs.forEach((x, i) => {
     const w = wFn(x);
     const ys = fuseY(x, w) - 0.03;
-    const yt = Math.max(ys + 0.02, topFn(x));
-    const ids = [];
+    const yt = Math.max(ys + 0.02 + T, topFn(x));
+    const o = [], n = [];
     for (let k = 0; k <= K; k++) {
       const f = (k / K) * Math.PI;
       const cf = Math.cos(f), sf = Math.sin(f);
       const e = 2 / 2.6;
-      ids.push(m.v(V3(x, ys + (yt - ys) * Math.abs(sf) ** e, -w * Math.sign(cf) * Math.abs(cf) ** e), uFn(i / (xs.length - 1)), 0.02 + 0.96 * (k / K)));
+      const u = uFn(i / (xs.length - 1)), v = 0.02 + 0.96 * (k / K);
+      const yy = Math.abs(sf) ** e, zz = -Math.sign(cf) * Math.abs(cf) ** e;
+      o.push(m.v(V3(x, ys + (yt - ys) * yy, w * zz), u, v));
+      n.push(m.v(V3(x, ys + (yt - T - ys) * yy, (w - T) * zz), u, v));
     }
-    return ids;
+    outer.push(o);
+    inner.push(n);
   });
-  for (let k = 0; k < rings.length - 1; k++) m.strip(rings[k], rings[k + 1]);
-  return orientAway(m, V3((xs[0] + xs.at(-1)) / 2, fuseY((xs[0] + xs.at(-1)) / 2, 0) - 0.3, 0));
+  for (let k = 0; k < xs.length - 1; k++) {
+    m.strip(outer[k], outer[k + 1]);
+    m.strip(inner[k + 1], inner[k]);
+    // нижние кромки (под обшивкой фюзеляжа)
+    m.quad(outer[k][0], inner[k][0], inner[k + 1][0], outer[k + 1][0]);
+    m.quad(outer[k + 1][K], inner[k + 1][K], inner[k][K], outer[k][K]);
+  }
+  // торцевые дуги спереди и сзади
+  m.strip(inner[0], outer[0]);
+  m.strip(outer.at(-1), inner.at(-1));
+  return m.build();
 }
 const CANOPY = { x0: 0.46, x1: -0.82 };
 function buildWindscreen() {

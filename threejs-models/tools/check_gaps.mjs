@@ -4,8 +4,8 @@
 //
 // Модель снимается в three.js так же, как в игре: материалы односторонние. Изнанка граней красится красным.
 // Камера идёт вдоль модели (по X) и с близкого расстояния снимает в четырёх ракурсах сверху-сбоку.
-// Длинная тонкая красная линия — это щель (палуба не дошла до переборки, фонарь без задней стенки,
-// шов между частями трубы). Красное пятно — открытая труба или раструб, это не щель.
+// Длинная тонкая красная линия — щель (палуба не дошла до переборки, фонарь без задней стенки).
+// Красное пятно больше --blob пикселей (150) — дыра: шов между коленами трубы, раструб без внутренней стенки.
 // Материалы с doubleSided (ограждения, сетки) не проверяются: изнанка у них видна по задумке.
 // Код выхода 0 — щелей нет; 1 — найдены (снимки с ними в --out, если задан).
 import { createRequire } from 'module';
@@ -31,7 +31,7 @@ const html = `<!doctype html><html><body style="margin:0">
 <script type="module">
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-const W=${W},H=${H}, BG=[0x8f,0xa8,0xd8];
+const W=${W},H=${H}, MINBLOB=${Number(opt('blob', 150))};
 const r=new THREE.WebGLRenderer({antialias:false,preserveDrawingBuffer:true}); r.setSize(W,H); document.body.appendChild(r.domElement);
 const scene=new THREE.Scene(); scene.background=new THREE.Color(0x8fa8d8);
 scene.add(new THREE.HemisphereLight(0xffffff,0x445566,2.2));
@@ -63,7 +63,8 @@ function lines(px){
     while(h<t){ const p=q[h++]; n++; const x=p%W,y=(p/W)|0; x0=Math.min(x0,x);x1=Math.max(x1,x);y0=Math.min(y0,y);y1=Math.max(y1,y);
       for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){const X=x+dx,Y=y+dy; if(X<0||Y<0||X>=W||Y>=H)continue; const k=Y*W+X; if(isR[k]&&!seen[k]){seen[k]=1;q[t++]=k;}}}
     const len=Math.max(x1-x0,y1-y0)+1, wid=n/len;
-    if(len>120 && wid>1.5 && wid<12) found.push(len);
+    // щель — длинная тонкая линия; дыра — любое заметное пятно (раструб без внутренней стенки)
+    if((len>120 && wid>1.5 && wid<12) || n>MINBLOB) found.push(n>MINBLOB&&!(len>120&&wid<12)?-n:len);
   }
   return found;
 }
@@ -71,7 +72,7 @@ window.scan=()=>{ const res=[]; const gl=r.getContext(); const px=new Uint8Array
   pts.forEach(([x,y],i)=>{ for(const [name,v] of Object.entries(views)){
     cam.position.set(x+v[0]*D,y+v[1]*D,v[2]*D); cam.lookAt(x,y,0); r.render(scene,cam);
     gl.readPixels(0,0,W,H,gl.RGBA,gl.UNSIGNED_BYTE,px); const f=lines(px);
-    if(f.length) res.push({i,x,y,name,len:Math.max(...f)}); } });
+    if(f.length) res.push({i,x,y,name,len:Math.max(...f.map(Math.abs)),blob:f.some(v=>v<0)}); } });
   return {res,n:pts.length,step,D,pts}; };
 window.shot=(x,y,name)=>{ const v=views[name]; cam.position.set(x+v[0]*D,y+v[1]*D,v[2]*D); cam.lookAt(x,y,0); r.render(scene,cam); };
 window.ready=true;
@@ -99,7 +100,7 @@ const { res, n, step, D, pts } = await page.evaluate(() => window.scan());
 if (process.env.GAPS_DEBUG) console.log(pts.map(([x, y]) => x.toFixed(1) + ':' + y.toFixed(1)).join(' '));
 console.log(`${path.basename(glb)}: снято ${n} точек × 4 ракурса (шаг ${step.toFixed(2)} м, камера в ${D.toFixed(1)} м)`);
 for (const h of res) {
-  console.log(`  щель? x = ${h.x.toFixed(1)} м, ракурс ${h.name}, красная линия ${h.len} px`);
+  console.log(h.blob ? `  дыра? x = ${h.x.toFixed(1)} м, ракурс ${h.name}, красное пятно ${h.len} px` : `  щель? x = ${h.x.toFixed(1)} м, ракурс ${h.name}, красная линия ${h.len} px`);
   if (out) {
     await page.evaluate(([x, y, nm]) => window.shot(x, y, nm), [h.x, h.y, h.name]);
     await page.locator('canvas').screenshot({ path: path.join(out, `gap_x${h.x.toFixed(1)}_${h.name}.png`) });

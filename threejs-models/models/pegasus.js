@@ -1112,8 +1112,8 @@ export function createPegasus() {
       parts.push(g);
       for (let x = HATCH.x0 + 1.6; x < HATCH.x1 - 1; x += 2.95) parts.push(box(0.22, 0.14, 2 * HATCH.hw - 0.3, x, yT + 0.07, 0, ['-y']));
       parts.push(box(HATCH.x1 - HATCH.x0 - 0.8, 0.12, 0.18, (HATCH.x0 + HATCH.x1) / 2, yT + 0.06, 0, ['-y']));
-      // рельсы сдвижной крышки вдоль комингса
-      [1, -1].forEach((sd) => parts.push(box(HATCH.x1 - HATCH.x0 + 3, 0.1, 0.16, (HATCH.x0 + HATCH.x1) / 2 + 1.5, yT - 0.35, sd * (HATCH.hw + 0.08), [sd > 0 ? '-z' : '+z'])));
+      // рельсы сдвижной крышки вдоль комингса; за люком они выходят на 3 м в воздух, поэтому брус замкнут со всех сторон
+      [1, -1].forEach((sd) => parts.push(box(HATCH.x1 - HATCH.x0 + 3, 0.1, 0.16, (HATCH.x0 + HATCH.x1) / 2 + 1.5, yT - 0.35, sd * (HATCH.hw + 0.08), [])));
     }
     // тумбы кранов и катапульты (неподвижные)
     [1, -1].forEach((sd) => parts.push(lathe([[0.7, deckY(CRANE.x) - 0.05], [0.7, deckY(CRANE.x) + 0.25], [0.55, deckY(CRANE.x) + 0.4], [0.55, deckY(CRANE.x) + CRANE.h + 0.02]], 18, { top: false }).translate(CRANE.x, 0, sd * CRANE.z)));

@@ -764,6 +764,7 @@ export function createTF1() {
     });
     m.orientNow();
     // переборка среза полубака (смотрит в корму)
+    // вершины — те же точки шпангоута (с наклоном), а не ровное x, иначе у палубы бака щель
     {
       const x = HL.XBRK;
       const pts = [];
@@ -774,7 +775,7 @@ export function createTF1() {
       [...brkA.D].reverse().slice(1, -1).forEach((i) => pts.push(m.P(i)));
       const y0 = yMain(x), y1 = yFc(x) + 0.2;
       const sl = BH.slot;
-      const ids = pts.map((p) => m.v(V3(x, p.y, p.z), lerp(sl.u0, sl.u1, (p.z + HL.B) / (2 * HL.B)), lerp(sl.v0, sl.v1, (p.y - y0) / (y1 - y0))));
+      const ids = pts.map((p) => m.v(V3(p.x, p.y, p.z), lerp(sl.u0, sl.u1, (p.z + HL.B) / (2 * HL.B)), lerp(sl.v0, sl.v1, (p.y - y0) / (y1 - y0))));
       const tris = THREE.ShapeUtils.triangulateShape(pts.map((p) => new THREE.Vector2(p.z, p.y)), []);
       tris.forEach(([a, b, c]) => m.triN(ids[a], ids[b], ids[c], V3(-1, 0, 0)));
     }

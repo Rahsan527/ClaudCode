@@ -1020,22 +1020,34 @@ function buildFlightDeck() {
     THREE.ShapeUtils.triangulateShape(V2(outline), [V2(hole)]).forEach(([a, b, c]) => m.tri(ii[a], ii[b], ii[c]));
     parts.push(orientBy(m.build({ orient: false }), () => V3(0, -1, 0)));
   }
-  // шахты подъёмников: стенки внутрь, пол — палуба ангара
+  // шахты подъёмников: замкнутые «стаканы» (наружная стенка, кольцо под настилом, стенки шахты лицом внутрь,
+  // пол на уровне палубы ангара) — однозначная ориентация, сквозь зазор у платформы изнанки не видно
   holes.forEach((h) => {
-    const cx = (h[0][0] + h[1][0]) / 2;
-    for (let i = 0; i < 4; i++) {
-      const j = (i + 1) % 4;
-      const m = new Mesher();
-      const [x0, z0] = h[i], [x1, z1] = h[j];
-      const L = Math.hypot(x1 - x0, z1 - z0);
-      const q = [m.v(V3(x0, FLOOR, z0), 0.3, V_PLAIN - 0.005), m.v(V3(x1, FLOOR, z1), 0.3 + L / 100, V_PLAIN - 0.005), m.v(V3(x1, FD, z1), 0.3 + L / 100, V_PLAIN + 0.005), m.v(V3(x0, FD, z0), 0.3, V_PLAIN + 0.005)];
-      m.quad(...q);
-      parts.push(orientBy(m.build({ orient: false }), (p) => V3(cx - p.x, 0, -p.z)));
-    }
     const m = new Mesher();
-    const F = h.map(([x, z]) => m.v(V3(x, FLOOR, z), U(x), V_DECK(z)));
-    m.quad(F[0], F[1], F[2], F[3]);
-    parts.push(orientBy(m.build({ orient: false }), () => V3(0, 1, 0)));
+    const M2 = 0.25, yTop = FD - 0.03, yBot = FLOOR - 0.25;
+    const sx = [-1, 1, 1, -1], sz = [-1, -1, 1, 1];
+    const O = h.map(([x, z], i) => [x + sx[i] * M2, z + sz[i] * M2]);
+    const uvW = (k) => [0.3 + 0.1 * (k % 2), V_PLAIN];
+    const loop = (pts, y) => pts.map(([x, z], i) => m.v(V3(x, y, z), ...uvW(i)));
+    const Ob = loop(O, yBot), Ot = loop(O, yTop), It = loop(h, yTop), Ib = h.map(([x, z]) => m.v(V3(x, FLOOR, z), U(x), V_DECK(z)));
+    const ring = (A, B) => {
+      for (let i = 0; i < 4; i++) {
+        const j = (i + 1) % 4;
+        m.quad(A[i], A[j], B[j], B[i]);
+      }
+    };
+    ring(Ob, Ot);
+    ring(Ot, It);
+    // стенки шахты — свои вершины (UV стены), пол — свои (UV палубы)
+    const Iw = loop(h, FLOOR);
+    ring(It, Iw);
+    const cx = (h[0][0] + h[1][0]) / 2;
+    const Cf = m.v(V3(cx, FLOOR, 0), U(cx), V_DECK(0));
+    for (let i = 0; i < 4; i++) m.tri(Ib[i], Ib[(i + 1) % 4], Cf);
+    const Cb = m.v(V3(cx, yBot, 0), 0.35, V_PLAIN);
+    for (let i = 0; i < 4; i++) m.tri(Cb, Ob[(i + 1) % 4], Ob[i]);
+    const g = m.build({ orient: true });
+    parts.push(g);
   });
   return { top, structure: merge(parts) };
 }
