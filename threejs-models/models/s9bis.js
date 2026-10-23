@@ -248,7 +248,7 @@ function prism(poly, w0, w1, axis = 'z', { bottom = true, top = true, uvFn = uvP
     for (const [a, b, c] of tris) (flip ? m.tri(ids[a], ids[c], ids[b]) : m.tri(ids[a], ids[b], ids[c]));
   };
   // ориентация стенок задаётся обходом; крышки согласуем с ней
-  const sideOut = ccw === (axis === 'z'); // для 'y' ось (a, b) = (x, z) даёт обратную ориентацию
+  const sideOut = ccw; // отражение осей ('y') меняет ориентацию стенок и крышек одинаково
   if (top) cap(w1, !sideOut);
   if (bottom) cap(w0, sideOut);
   return m.build({ orient: true, uv });
@@ -802,7 +802,7 @@ export function createS9bis() {
   // =========================================================================
   // ПАЛУБНОЕ ОБОРУДОВАНИЕ (серая сталь)
   const PED100 = V(9.0, DECK + 0.55, 0);
-  const PED45 = V(-4.7, Y_PLATFORM + 0.45, 0);
+  const PED45 = V(-4.35, Y_PLATFORM + 0.45, 0);
   {
     const parts = [];
     // тумба 100-мм орудия
@@ -837,19 +837,19 @@ export function createS9bis() {
 
   // =========================================================================
   // ТЁМНАЯ СТАЛЬ: валы, кронштейны, ограждения винтов, леера, антенны, якоря, кормовые ТА
-  const PROP_X = -32.6, PROP_Y = 1.9, PROP_Z = 1.75, PROP_R = 0.78;
+  const PROP_X = -32.6, PROP_Y = 1.9, PROP_Z = 1.7, PROP_R = 0.78;
   {
     const parts = [];
     for (const s of [-1, 1]) {
       const z = s * PROP_Z;
       // дейдвуд и вал
-      parts.push(revolveX([[-26.3, 0.24], [-27.4, 0.2], [-28.6, 0.13], [-28.8, 0.1]], 14, { capStart: false }).translate(0, PROP_Y, z));
+      parts.push(revolveX([[-25.0, 0.2], [-27.0, 0.18], [-28.6, 0.12], [-28.8, 0.1]], 14, { capStart: false }).translate(0, PROP_Y, z));
       parts.push(revolveX([[-28.7, 0.085], [PROP_X + 0.2, 0.085]], 12, { capStart: false, capEnd: false }).translate(0, PROP_Y, z));
       // кронштейн гребного вала
       const sx = -31.6;
       const sleeve = revolveX([[sx + 0.3, 0.12], [sx - 0.3, 0.12]], 12).translate(0, PROP_Y, z);
       parts.push(sleeve);
-      for (const [ty, tz] of [[1.05, 0.25], [2.85, 0.85]]) {
+      for (const [ty, tz] of [[1.4, 0.15], [2.85, 0.85]]) {
         const a = V(sx, PROP_Y, z);
         const b = V(sx, ty, s * tz);
         const d = b.clone().sub(a);
@@ -955,7 +955,7 @@ export function createS9bis() {
     p.push(prism(cheek, 0.2, 0.28, 'z', { uv: false }), prism(cheek, -0.28, -0.2, 'z', { uv: false }));
     p.push(rod(V(0, 0.68, -0.34), V(0, 0.68, 0.34), 0.07, 12, { caps: true }));
     p.push(revolveX([[-0.75, 0.17], [0.9, 0.17], [0.95, 0.14]], 18, { uv: false }).translate(0, 0.68, 0));
-    p.push(revolveX([[0.5, 0.105], [1.3, 0.095], [4.1, 0.07], [4.12, 0.082], [4.25, 0.082], [4.25, 0.05], [3.9, 0.05]], 18, { uv: false }).translate(0, 0.68, 0));
+    p.push(revolveX([[0.5, 0.105], [1.3, 0.095], [4.1, 0.07], [4.12, 0.082], [4.25, 0.082], [4.25, 0.05], [3.9, 0.05]], 18, { uv: false, capStart: false }).translate(0, 0.68, 0));
     for (const z of [-0.09, 0.09]) p.push(revolveX([[-0.6, 0.06], [0.85, 0.06]], 10, { uv: false }).translate(0, 0.9, z));
     p.push(new THREE.BoxGeometry(0.42, 0.36, 0.34).translate(-0.95, 0.68, 0));
     // маховики наводки и прицел
@@ -978,7 +978,7 @@ export function createS9bis() {
     p.push(prism(cheek, 0.1, 0.15, 'z', { uv: false }), prism(cheek, -0.15, -0.1, 'z', { uv: false }));
     p.push(rod(V(0, 0.36, -0.18), V(0, 0.36, 0.18), 0.04, 10, { caps: true }));
     p.push(revolveX([[-0.45, 0.085], [0.4, 0.085]], 14, { uv: false }).translate(0, 0.36, 0));
-    p.push(revolveX([[0.3, 0.05], [1.9, 0.036], [1.92, 0.044], [2.0, 0.044], [2.0, 0.024], [1.85, 0.024]], 14, { uv: false }).translate(0, 0.36, 0));
+    p.push(revolveX([[0.3, 0.05], [1.9, 0.036], [1.92, 0.044], [2.0, 0.044], [2.0, 0.024], [1.85, 0.024]], 14, { uv: false, capStart: false }).translate(0, 0.36, 0));
     p.push(new THREE.BoxGeometry(0.24, 0.2, 0.18).translate(-0.55, 0.36, 0));
     p.push(new THREE.BoxGeometry(0.3, 0.05, 0.05).translate(-0.35, 0.36, 0.22), new THREE.BoxGeometry(0.3, 0.05, 0.05).translate(-0.35, 0.36, -0.22));
     p.push(new THREE.BoxGeometry(0.16, 0.08, 0.05).translate(0.0, 0.56, -0.16));

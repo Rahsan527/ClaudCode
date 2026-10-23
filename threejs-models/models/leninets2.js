@@ -11,8 +11,8 @@ import { mergeGeometries, mergeVertices } from 'three/addons/utils/BufferGeometr
 
 export const MODEL_NAME = 'Submarine_L_Leninets_II';
 
-const XB = 40.55; // верх форштевня
-const XS = -39.6; // транец (выход минных труб)
+const XB = 40.9; // верх форштевня
+const XS = -39.95; // транец (выход минных труб)
 const LEN = XB - XS;
 const DRAFT = 3.96;
 const REPEAT = 8; // повтор текстуры обшивки по длине (≈10 м на повтор)
@@ -602,10 +602,38 @@ export function createLeninets2() {
       if (prev) m.strip(prev, ringIn);
       prev = isCut ? full.map(([z, y, v]) => m.v(V(x, y, z), 0, v)) : ringIn;
     }
-    const capUV = (p) => [p.x > 0 ? 1 : 0, p.y < 0 ? 0.2 : 0.55];
-    m.fan(ringPts[0], capUV);
-    m.fan(ringPts[ringPts.length - 1], capUV);
-    mesh(m.build(), M.hull, 'Hull_Outer', hullG);
+    const nStrip = m.idx.length;
+    // транец и торец форштевня: горизонтальные ряды между симметричными точками борта,
+    // v как у обшивки — ватерлиния на транце остаётся чёткой линией
+    const endCap = (x, u) => {
+      const h = halfSection(x);
+      const sIdx = h.map(([z, y, v]) => m.v(V(x, y, z), u, v));
+      const pIdx = h.map(([z, y, v], i) => (i === 0 || i === h.length - 1 ? sIdx[i] : m.v(V(x, y, -z), u, v)));
+      for (let i = 0; i < h.length - 1; i++) {
+        if (i === 0) m.tri(sIdx[0], sIdx[1], pIdx[1]);
+        else if (i === h.length - 2) m.tri(sIdx[i], sIdx[i + 1], pIdx[i]);
+        else m.quad(sIdx[i], sIdx[i + 1], pIdx[i + 1], pIdx[i]);
+      }
+    };
+    endCap(XS, 0.6);
+    const nTransom = m.idx.length;
+    endCap(XB, 0.6);
+    // обход наружу для каждого треугольника: обшивка — от оси сечения, транец — в −X, торец — в +X
+    const P = m.pos;
+    const I = m.idx;
+    const a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3(), n = new THREE.Vector3(), o = new THREE.Vector3();
+    for (let t = 0; t < I.length; t += 3) {
+      a.fromArray(P, I[t] * 3); b.fromArray(P, I[t + 1] * 3); c.fromArray(P, I[t + 2] * 3);
+      n.subVectors(b, a).cross(o.subVectors(c, a));
+      let out;
+      if (t < nStrip) {
+        const cx = (a.x + b.x + c.x) / 3;
+        const sct = section(cx);
+        out = V(0, (a.y + b.y + c.y) / 3 - (sct.yT + sct.yB) / 2, (a.z + b.z + c.z) / 3);
+      } else out = V(t < nTransom ? -1 : 1, 0, 0);
+      if (n.dot(out) < 0) [I[t + 1], I[t + 2]] = [I[t + 2], I[t + 1]];
+    }
+    mesh(m.build({ orient: false }), M.hull, 'Hull_Outer', hullG);
   }
 
   // =========================================================================

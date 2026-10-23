@@ -266,8 +266,8 @@ function lathe(profile, seg = 20, { bottom = false } = {}) {
       ids.push(m.v(new THREE.Vector3(r * Math.cos(a), y, -r * Math.sin(a)), 0.5 + 0.5 * Math.cos(a), 0.5 + 0.5 * Math.sin(a)));
     }
     for (let j = 0; j < seg; j++) {
-      if (up) m.tri(c, ids[j], ids[(j + 1) % seg]);
-      else m.tri(c, ids[(j + 1) % seg], ids[j]);
+      if (up) m.tri(c, ids[(j + 1) % seg], ids[j]);
+      else m.tri(c, ids[j], ids[(j + 1) % seg]);
     }
   };
   capAt(n - 1, true);
@@ -331,7 +331,10 @@ function loftRings(rings, uvFn = () => [0.5, 0.5]) {
     c.divideScalar(rings[k].length);
     const ci = m.v(c, ...uvFn(c));
     const r = ids[k];
-    for (let j = 0; j < r.length; j++) m.tri(ci, r[j], r[(j + 1) % r.length]);
+    for (let j = 0; j < r.length; j++) {
+      if (k === 0) m.tri(ci, r[j], r[(j + 1) % r.length]);
+      else m.tri(ci, r[(j + 1) % r.length], r[j]);
+    }
   });
   return m.build();
 }
@@ -733,7 +736,10 @@ function buildHull() {
     c.divideScalar(loop.length);
     const mid = r.S[Math.floor(r.S.length / 2)];
     const ci = m.v(c, m.uv[mid * 2], m.uv[mid * 2 + 1]);
-    for (let j = 0; j < loop.length; j++) m.tri(ci, loop[j], loop[(j + 1) % loop.length]);
+    for (let j = 0; j < loop.length; j++) {
+      if (k === 0) m.tri(ci, loop[j], loop[(j + 1) % loop.length]);
+      else m.tri(ci, loop[(j + 1) % loop.length], loop[j]);
+    }
   });
   return m.build();
 }
@@ -843,7 +849,7 @@ export function createType9B() {
 
   // Подводные выступы: валы, кронштейны, стабилизаторы, ограждения винтов (тёмная сталь)
   const PROP = { x: -34.4, y: 2.05, z: 1.62, r: 0.95 };
-  const STERN = { hinge: -35.95, y: 2.05 };
+  const STERN = { hinge: -35.85, y: 2.05, z0: 1.98, z1: 3.3 };
   const RUD = { x: -37.4, y0: 0.95, y1: 3.15, z: PROP.z };
   {
     const parts = [];
@@ -856,10 +862,10 @@ export function createType9B() {
       const zin = r ? r.z - 0.1 : 0.3;
       parts.push(rod([-32.9, PROP.y, z], [-32.6, PROP.y + 0.6, sd * zin], 0.07, 8));
       parts.push(rod([-32.9, PROP.y, z], [-33.1, PROP.y - 0.55, sd * Math.max(0.15, zin - 0.25)], 0.07, 8));
-      // горизонтальный стабилизатор с кормовыми рулями
-      const st = foil({ root: [-35.05, STERN.hinge + 0.02], tip: [-35.3, STERN.hinge + 0.02], span: 3.1, tc: 0.16, y0: 0.0, nSpan: 3 });
-      st.rotateX(sd > 0 ? Math.PI / 2 : -Math.PI / 2).translate(0, STERN.y, 0);
-      parts.push(st);
+      // горизонтальный стабилизатор: внутренняя часть несёт руль направления, внешняя — кормовой горизонтальный руль
+      const stIn = foil({ root: [-35.05, RUD.x + 0.27], tip: [-35.15, RUD.x + 0.27], span: STERN.z0 - 0.02, tc: 0.14, y0: 0.0, nSpan: 2 });
+      const stOut = foil({ root: [-35.15, STERN.hinge + 0.05], tip: [-35.3, STERN.hinge + 0.05], span: STERN.z1 + 0.05 - STERN.z0, tc: 0.12, y0: STERN.z0 - 0.04, nSpan: 2 });
+      [stIn, stOut].forEach((st) => parts.push(st.rotateX(sd > 0 ? Math.PI / 2 : -Math.PI / 2).translate(0, STERN.y, 0)));
       // ограждение винта: труба от борта вокруг диска к концу стабилизатора
       const pts = [];
       const r0 = sideAt(-30.6, PROP.y);
@@ -868,14 +874,12 @@ export function createType9B() {
         [-31.8, 2.3],
         [-33.2, 2.72],
         [-34.4, 2.86],
-        [-35.4, 2.95],
+        [-35.4, 2.92],
       ];
       const curve = new THREE.CatmullRomCurve3(ctrl.map(([x, zz]) => new THREE.Vector3(x, PROP.y, sd * zz)));
       for (let i = 0; i <= 12; i++) pts.push(curve.getPoint(i / 12));
       const tube = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 16, 0.075, 8, false);
       parts.push(tube);
-      // стойка руля под стабилизатором (пятка)
-      parts.push(box(0.9, 0.12, 0.22, -36.75, STERN.y - 0.01, z));
     });
     // кормовой киль-плавник между валами
     const skeg = prism([[-24, 0.3], [-31.5, 1.35], [-34.0, 1.9], [-33.8, 2.6], [-24, 1.4]], 0.18);
@@ -979,15 +983,10 @@ export function createType9B() {
     // тумба 20-мм автомата
     parts.push(lathe([[0.2, TW.yF - 0.02], [0.16, 8.1], [0.12, 8.45], [0.15, 8.5], [0.15, 8.56], [0, 8.58]], 16).translate(-1.55, 0, 0));
     // леера площадки (Wintergarten)
-    const pl = tower.platformLoop;
-    const inset = (p) => {
+    const ord = tower.platformLoop.map((p) => {
       const d = Math.hypot(p[0] - 2.2, p[1]) || 1;
       return [p[0] - ((p[0] - 2.2) / d) * 0.06, p[1] - (p[1] / d) * 0.06];
-    };
-    const chain = [[TW.xw, -1.0], ...pl.map(inset), [TW.xw, 1.0]];
-    // упорядочить по углу вокруг центра платформы
-    chain.sort((a, b) => Math.atan2(a[1], a[0] - 0.8) - Math.atan2(b[1], b[0] - 0.8));
-    const ord = chain.filter((p) => p[0] < TW.xw - 0.01);
+    });
     ord.sort((a, b) => b[1] - a[1]);
     const railPts = [[TW.xw - 0.05, ord[0][1]], ...ord, [TW.xw - 0.05, ord[ord.length - 1][1]]];
     let acc = 1;
@@ -1056,7 +1055,7 @@ export function createType9B() {
     [1, -1].forEach((sd) => {
       const cheek = prism([[-0.55, 0.08], [0.55, 0.08], [0.35, ty + 0.15], [-0.05, ty + 0.2], [-0.4, ty]], 0.06);
       p.push(cheek.translate(0, 0, sd * 0.3));
-      p.push(new THREE.TorusGeometry(0.16, 0.022, 6, 16).rotateY(Math.PI / 2).translate(-0.05, ty - 0.12, sd * 0.47).rotateY(0));
+      p.push(new THREE.TorusGeometry(0.16, 0.022, 6, 16).translate(-0.05, ty - 0.12, sd * 0.47));
       p.push(rod([-0.05, ty - 0.12, sd * 0.33], [-0.05, ty - 0.12, sd * 0.47], 0.025, 6));
       p.push(box(0.3, 0.06, 0.25, -0.6, 0.45, sd * 0.55)); // сиденье наводчика
       p.push(rod([-0.4, 0.15, sd * 0.33], [-0.6, 0.42, sd * 0.55], 0.03, 6));
@@ -1152,8 +1151,8 @@ export function createType9B() {
   }
   // кормовые горизонтальные рули за стабилизаторами
   [1, -1].forEach((sd) => {
-    const g = group(sd > 0 ? 'Stern_Plane_R' : 'Stern_Plane_L', ctrlG, STERN.hinge, STERN.y, sd * 0.3);
-    const f = foil({ root: [0.08, -1.05], tip: [0.08, -0.85], span: 2.75, tc: 0.12, y0: 0, nSpan: 3 });
+    const g = group(sd > 0 ? 'Stern_Plane_R' : 'Stern_Plane_L', ctrlG, STERN.hinge, STERN.y, sd * STERN.z0);
+    const f = foil({ root: [0.02, -1.1], tip: [0.02, -0.9], span: STERN.z1 - STERN.z0, tc: 0.12, y0: 0, nSpan: 2 });
     f.rotateX(sd > 0 ? Math.PI / 2 : -Math.PI / 2);
     mesh(f, M.dark, `${g.name}_Blade`, g);
   });

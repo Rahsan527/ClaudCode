@@ -57,9 +57,9 @@ function section(x) {
   const cam = 0.05 * (dw / 1.8);
   return { yd, kb, B, dw, yB, kw, nL, nU, cam };
 }
-const NL = 14;
-const NU = 12;
-const ND = 6;
+const NL = 18;
+const NU = 16;
+const ND = 8;
 // Правая половина шпангоута от киля к диаметральной плоскости палубы: [z, y]
 function halfProfile(x) {
   const s = section(x);
@@ -372,7 +372,7 @@ function makeAtlas(rnd) {
     // пятна и неровность краски
     for (let i = 0; i < 2600; i++) {
       const x = rnd() * W, y = rnd() * HH, w = 8 + rnd() * 70, h = 3 + rnd() * 26;
-      c.fillStyle = `rgba(${rnd() < 0.5 ? '0,0,0' : '255,255,255'},${0.015 + rnd() * 0.03})`;
+      c.fillStyle = `rgba(${rnd() < 0.5 ? '0,0,0' : '255,255,255'},${0.008 + rnd() * 0.014})`;
       c.fillRect(x, y, w, h);
     }
     // швы листов обшивки
@@ -392,7 +392,7 @@ function makeAtlas(rnd) {
       const X = col(x - w / 2), Y = row(y + h / 2), Wd = col(x + w / 2) - X, Ht = row(y - h / 2) - Y;
       c.fillStyle = fill;
       c.beginPath();
-      c.roundRect(X, Y, Wd, Ht, Math.min(Wd, Ht) / 2);
+      c.roundRect(X, Y, Wd, Ht, Math.min(Wd, Ht) / 3);
       c.fill();
     };
     for (let x = -31; x < 31.5; x += 0.72) {
@@ -432,7 +432,7 @@ function makeAtlas(rnd) {
     c.fillRect(0, T0, W, TH);
     for (let i = 0; i < 900; i++) {
       const x = rnd() * W, y = T0 + rnd() * TH, w = 6 + rnd() * 50, h = 3 + rnd() * 20;
-      c.fillStyle = `rgba(${rnd() < 0.5 ? '0,0,0' : '255,255,255'},${0.015 + rnd() * 0.03})`;
+      c.fillStyle = `rgba(${rnd() < 0.5 ? '0,0,0' : '255,255,255'},${0.006 + rnd() * 0.012})`;
       c.fillRect(x, y, w, h);
     }
     c.lineWidth = 2;
@@ -487,7 +487,7 @@ function makeDeck(rnd) {
 // КОРПУС
 
 function hullGeometry() {
-  const NS = 190;
+  const NS = 240;
   const xs = [];
   for (let i = 0; i <= NS; i++) {
     const s = i / NS;
@@ -579,7 +579,7 @@ function finishGroups(g) {
 // РУБКА
 
 // Контур рубки в плане: aft (корма) … fore (нос), полуширина W; u — доля периметра
-const TM = 28;
+const TM = 36;
 function towerOutline(A, F, W, y, rf = 1.4, ra = 2.2) {
   const pts = [];
   for (let i = 0; i <= TM; i++) {
