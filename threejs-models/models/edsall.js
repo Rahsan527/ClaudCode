@@ -669,7 +669,7 @@ export function createEdsall() {
     anti: std('Antifouling_Dark', 0x3a2622, 0.75, 0.1),
     bronze: std('Propeller_Bronze', 0xa47a45, 0.35, 0.9),
     wire: std('Rigging_Wire', 0x26282a, 0.55, 0.5),
-    canvas: std('Canvas_Floats', 0x8a8a74, 0.9, 0.0),
+    canvas: std('Canvas_Floats', 0x6c7166, 0.9, 0.0),
   };
   const group = (name, parent, x = 0, y = 0, z = 0) => {
     const g = new THREE.Group();
@@ -725,7 +725,7 @@ export function createEdsall() {
       m.strip(a.D, b.D);
     }
     // транец (корма) и форштевень — крышки сечений; UV транца — из слота надстроек
-    const TR = pack(2 * HL.B, 7.0);
+    const TR = pack(HL.B, 2.5); // транец окрашен ровно — хватает малой плотности
     houses.push({ name: 'Transom', transom: true, slot: TR, P: 2 * HL.B, y0: 0, y1: 7.0 });
     [0, rings.length - 1].forEach((k) => {
       const r = rings[k];
@@ -966,7 +966,7 @@ export function createEdsall() {
       [1, -1].forEach((sd) => parts.push(dk(bollard(), x, sd * deckHalf(x) * k)));
     });
     // вентиляторы-грибки
-    [[27.6, 2.1], [27.6, -2.1], [36.6, 0], [-16.6, 2.0], [-16.6, -2.0], [-29.2, 0], [-41.0, 0], [-4.4, 3.9], [-4.4, -3.9]].forEach(([x, z]) => {
+    [[27.6, 2.1], [27.6, -2.1], [36.6, 0], [-17.6, 3.7], [-17.6, -3.7], [-29.2, 0], [-41.0, 0], [-4.4, 3.9], [-4.4, -3.9]].forEach(([x, z]) => {
       parts.push(dk(lathe([[0.18, -0.05], [0.18, 0.6], [0.4, 0.65], [0.4, 0.76], [0.22, 0.84], [0, 0.86]], 14), x, z));
     });
     [[19.4, 1.7], [19.4, -1.7], [-14.2, 0]].forEach(([x, z]) => {
@@ -975,7 +975,7 @@ export function createEdsall() {
       parts.push(lathe([[0.16, yb - 0.04], [0.16, yb + 0.5], [0.36, yb + 0.55], [0.36, yb + 0.65], [0.2, yb + 0.72], [0, yb + 0.74]], 14).translate(x, 0, z));
     });
     // люки (комингсы)
-    [[28.5, 0, 1.3, 1.2], [-40.0, 0, 1.4, 1.2], [-17.0, 0, 1.0, 1.1], [3.8, 4.1, 0.9, 0.8], [3.8, -4.1, 0.9, 0.8]].forEach(([x, z, a, b]) => {
+    [[28.5, 0, 1.3, 1.2], [-40.0, 0, 1.4, 1.2], [3.8, 4.1, 0.9, 0.8], [3.8, -4.1, 0.9, 0.8]].forEach(([x, z, a, b]) => {
       parts.push(extrudeY(rrect(x - a / 2, x + a / 2, b / 2, 0.12, 0.12, 2).map(([px, pz]) => [px, pz + z]), onDeck, deckTop(x, z) + 0.42));
     });
     // кранцы первых выстрелов у орудий
@@ -1008,7 +1008,7 @@ export function createEdsall() {
     };
     [1, -1].forEach((sd) => {
       ladder(-10.6, deckTop(-10.6, 2.2), -8.45, Y01, sd * 2.2);
-      ladder(BR.x0 - 1.8, Y01, BR.x0 - 0.05, BR.y2 - 0.02, sd * 1.9, 0.55);
+      ladder(BR.x0 - 1.8, Y01, BR.x0 - 0.05, BR.y2 - 0.02, sd * 2.6, 0.55);
       ladder(AH.x1 + 2.0, deckTop(AH.x1 + 2.0, 1.6), AH.x1 + 0.05, AH.y1, sd * 1.6, 0.55);
     });
     // нактоуз, пелорусы, прожекторы на мостике
