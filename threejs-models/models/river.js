@@ -1523,7 +1523,7 @@ function paintAtlas(houses, SL, BH) {
     ctx.lineTo(x1, y1);
     ctx.stroke();
   };
-  const GREY = '#6c747a';
+  const GREY = '#80888e';
 
   // ---- БОРТ (v 0.5…1 → py 0…1024)
   const hullBot = S / 2;
@@ -1546,7 +1546,7 @@ function paintAtlas(houses, SL, BH) {
       }
     }
     if (r) {
-      C.fillStyle = '#5a2b24';
+      C.fillStyle = '#3e2420';
       C.fillRect(i, py(r.v), 1, hullBot - py(r.v));
     }
   }
@@ -1614,15 +1614,15 @@ function paintAtlas(houses, SL, BH) {
       if (rnd() < 0.3) streak(x, y - 0.25, 0.8 + rnd(), 0.16);
     }
   };
-  for (let x = 30.5; x > HL.XBRK + 0.8; x -= 2.7) {
-    if (x > 21 && x < 23.5) continue;
-    scut(x, yFc(x) - 1.05);
+  for (let x = 37.5; x > HL.XBRK + 0.9; x -= 2.8) {
+    if (x > 29 && x < 32) continue;
+    scut(x, yFc(x) - 1.1);
   }
-  for (let x = -6.5; x < 17; x += 3.4) scut(x, yMain(x) - 0.9);
-  for (let x = HL.XBRK - 1.8; x > -31; x -= 3.1) scut(x, yMain(x) - 1.0);
+  for (let x = -12.6; x < 33; x += 3.3) scut(x, yMain(x) - 0.85);
+  for (let x = HL.XBRK - 2.0; x > -37; x -= 3.3) scut(x, yMain(x) - 1.0);
   // клюзы
-  [36.6].forEach((x) => {
-    const y = yFc(x) - 0.42;
+  [42.5].forEach((x) => {
+    const y = yFc(x) - 0.45;
     hullShape(x, y, 0.75, 0.6, '#16181a', 'rgb(40,40,40)', 0.5, ['rgba(40,44,46,0.9)', 4]);
     streak(x, y - 0.35, 2.2, 0.35);
   });
@@ -1632,59 +1632,66 @@ function paintAtlas(houses, SL, BH) {
     if (rnd() < 0.5) streak(x, top - 0.12, 0.6 + rnd() * 1.8, 0.1 + rnd() * 0.1);
   }
   // марки углубления на форштевне и корме
-  [[38.0, 1], [-37.6, 1]].forEach(([x]) => {
-    for (let y = 1.0; y < 4.6; y += 0.6) hullShape(x, y, 0.32, 0.12, '#e8e8e2', 'rgb(140,140,140)', 0.1);
+  [[44.0, 1], [-43.6, 1]].forEach(([x]) => {
+    for (let y = 1.0; y < 5.6; y += 0.6) hullShape(x, y, 0.32, 0.12, '#e8e8e2', 'rgb(140,140,140)', 0.1);
   });
 
   // ---- ПАЛУБЫ (v 0.25…0.5 → py 1024…1536)
   const d0 = py(0.5), d1 = py(0.25);
-  C.fillStyle = '#5e5b54';
+  C.fillStyle = '#5a6064';
   C.fillRect(0, d0, S, d1 - d0);
-  const plank = 0.16;
-  for (let z = -ZD; z < ZD; z += plank) {
-    const ya = py(V_DECK(z + plank)), yb = py(V_DECK(z));
-    let x = UX0 - rnd() * 5;
+  // стальная палуба: пояса настила (вдоль) и стыки листов (поперёк), рифлёный узор
+  for (let z = -ZD + 0.9; z < ZD; z += 1.8) {
+    const y = py(V_DECK(z));
+    line(C, 0, y, S, y, 1.5, 'rgba(30,32,34,0.45)');
+    line(Hc, 0, y, S, y, 1.5, 'rgb(104,104,104)');
+    let x = UX0 - rnd() * 4;
+    const ya = py(V_DECK(z + 1.8)), yb = y;
     while (x < UX1) {
-      const len = 4 + rnd() * 3.5;
-      const t = 98 + Math.round(rnd() * 20);
-      C.fillStyle = `rgb(${t + 4},${t},${t - 10})`;
-      C.fillRect(px(U(x)), ya, px(U(x + len)) - px(U(x)), yb - ya);
-      line(C, px(U(x)), ya, px(U(x)), yb, 1.5, 'rgba(30,28,24,0.6)');
-      line(Hc, px(U(x)), ya, px(U(x)), yb, 1.5, 'rgb(96,96,96)');
-      x += len;
+      const X = px(U(x));
+      line(C, X, ya, X, yb, 1.5, 'rgba(30,32,34,0.4)');
+      line(Hc, X, ya, X, yb, 1.5, 'rgb(106,106,106)');
+      x += 4.5 + rnd() * 2.0;
     }
-    line(C, 0, yb, S, yb, 1.5, 'rgba(28,26,22,0.7)');
-    line(Hc, 0, yb, S, yb, 1.5, 'rgb(88,88,88)');
   }
-  for (let i = 0; i < 600; i++) {
-    C.fillStyle = rnd() < 0.5 ? 'rgba(255,250,240,0.04)' : 'rgba(0,0,0,0.05)';
-    C.fillRect(rnd() * S, d0 + rnd() * (d1 - d0), 20 + rnd() * 80, 3 + rnd() * 6);
+  for (let y = d0 + 2; y < d1; y += 6) {
+    for (let x = (y / 6) % 2 ? 3 : 0; x < S; x += 6) {
+      C.fillStyle = 'rgba(0,0,0,0.06)';
+      C.fillRect(x, y, 2, 1);
+    }
+  }
+  for (let i = 0; i < 700; i++) {
+    C.fillStyle = rnd() < 0.5 ? 'rgba(255,255,255,0.025)' : 'rgba(0,0,0,0.05)';
+    const r = 6 + rnd() * 30;
+    C.beginPath();
+    C.ellipse(rnd() * S, d0 + rnd() * (d1 - d0), r * 1.6, r * 0.6, 0, 0, Math.PI * 2);
+    C.fill();
   }
   // ватервейс (стальная окраска у бортов)
   for (let i = 0; i < S; i++) {
     const x = xOfU((i + 0.5) / S);
     if (x < HL.XS - 0.2 || x > HL.XE + 0.2) continue;
     const W = deckHalf(Math.min(HL.XE, Math.max(HL.XS, x)));
-    C.fillStyle = '#585d61';
+    C.fillStyle = '#4c5155';
     const yA = py(V_DECK(W)), yB = py(V_DECK(W - 0.3));
     C.fillRect(i, Math.min(yA, yB) - 2, 1, Math.abs(yB - yA) + 2);
     const yC = py(V_DECK(-W + 0.3)), yD = py(V_DECK(-W));
     C.fillRect(i, Math.min(yC, yD), 1, Math.abs(yD - yC) + 2);
   }
   // стальная полоса по линии среза полубака
-  C.fillStyle = '#585d61';
+  C.fillStyle = '#4c5155';
   C.fillRect(px(U(HL.XBRK - 0.1)), d0, px(U(HL.XBRK + 0.25)) - px(U(HL.XBRK - 0.1)), d1 - d0);
 
   // ---- НАДСТРОЙКИ (v 0…0.25)
   const t0 = py(0.25);
-  C.fillStyle = '#737b81';
+  C.fillStyle = '#80888e';
   C.fillRect(0, t0, S, S - t0);
   // слот крыш: стальная палуба цвета корпуса с линолеумом
   const fillSlot = (sl, color) => {
     C.fillStyle = color;
     C.fillRect(sl.px - 2, sl.py - 2, sl.pw + 4, sl.ph + 4);
   };
-  fillSlot(SL.roof, '#6a6f72');
+  fillSlot(SL.roof, '#5a6064');
   for (let i = 0; i < 40; i++) {
     C.fillStyle = rnd() < 0.5 ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.04)';
     C.fillRect(SL.roof.px + rnd() * SL.roof.pw, SL.roof.py + rnd() * SL.roof.ph, 10, 6);
@@ -1734,9 +1741,31 @@ function paintAtlas(houses, SL, BH) {
   };
   houses.forEach((h) => {
     const { X, Y, sl } = wallFrame(h);
+    if (h.lantern) {
+      // фонарь радара 271: стальное основание, остеклённый пояс с переплётом, крыша
+      rect(C, sl.px - 2, sl.py - 2, sl.pw + 4, sl.ph + 4, '#80888e');
+      const yg1 = Y(h.tGlass[1] * h.y1), yg0 = Y(h.tGlass[0] * h.y1);
+      const g = C.createLinearGradient(0, yg1, 0, yg0);
+      g.addColorStop(0, '#3a4a55');
+      g.addColorStop(0.5, '#25313a');
+      g.addColorStop(1, '#1c252c');
+      C.fillStyle = g;
+      C.fillRect(sl.px, yg1, sl.pw, yg0 - yg1);
+      rect(Hc, sl.px, yg1, sl.pw, yg0 - yg1, 'rgb(110,110,110)');
+      for (let i = 0; i <= 12; i++) {
+        const xx = sl.px + (i / 12) * sl.pw;
+        rect(C, xx - 3, yg1, 6, yg0 - yg1, '#80888e');
+        rect(Hc, xx - 3, yg1, 6, yg0 - yg1, 'rgb(150,150,150)');
+      }
+      [0.33, 0.66].forEach((t) => {
+        const yy = lerp(yg1, yg0, t);
+        rect(C, sl.px, yy - 2, sl.pw, 4, '#80888e');
+      });
+      return;
+    }
     if (h.funnel) {
       // труба: тёмный верхний пояс (копоть), обручи
-      C.fillStyle = '#737b81';
+      C.fillStyle = '#80888e';
       C.fillRect(sl.px, sl.py, sl.pw, sl.ph);
       const g = C.createLinearGradient(0, Y(h.y1), 0, Y(h.y1 - 1.6));
       g.addColorStop(0, 'rgba(30,30,30,0.9)');
@@ -1744,7 +1773,7 @@ function paintAtlas(houses, SL, BH) {
       g.addColorStop(1, 'rgba(30,30,30,0)');
       C.fillStyle = g;
       C.fillRect(sl.px, Y(h.y1), sl.pw, Y(h.y1 - 1.6) - Y(h.y1));
-      [11.6, 13.6, 15.1].forEach((y) => {
+      [13.0, 15.0, 16.8].forEach((y) => {
         rect(C, sl.px, Y(y) - 2, sl.pw, 4, 'rgba(60,64,66,0.6)');
         rect(Hc, sl.px, Y(y) - 2, sl.pw, 4, 'rgb(170,170,170)');
       });
@@ -1818,7 +1847,7 @@ function paintAtlas(houses, SL, BH) {
     const y0 = yMain(HL.XBRK), y1 = yFc(HL.XBRK) + 0.2;
     const X = (z) => sl.px + ((z + HL.B) / (2 * HL.B)) * sl.pw;
     const Y = (y) => sl.py + sl.ph * (1 - (y - y0) / (y1 - y0));
-    rect(C, sl.px - 2, sl.py - 2, sl.pw + 4, sl.ph + 4, '#737b81');
+    rect(C, sl.px - 2, sl.py - 2, sl.pw + 4, sl.ph + 4, '#80888e');
     [-1.4, 1.4].forEach((z) => {
       const x0 = X(z - 0.4), x1 = X(z + 0.4);
       rect(C, x0 - 2, Y(y0 + 2.0) - 2, x1 - x0 + 4, Y(y0 + 0.15) - Y(y0 + 2.0) + 4, '#4c5357');
