@@ -1059,7 +1059,9 @@ export function createTF1() {
       const z = sd * 2.25;
       const xa = HL.XBRK - 1.7, ya = deckTop(xa, z), xb = HL.XBRK - 0.04, yb = deckTop(HL.XBRK + 0.2, z);
       [-0.3, 0.3].forEach((dz) => {
-        parts.push(rod([xa, ya - 0.03, z + dz], [xb, yb - 0.02, z + dz], 0.035, 6, 'none'));
+        // тетива: верхний конец заглушён и доведён горизонтальной лапой в срез полубака (без открытого торца трубы)
+        parts.push(rod([xa, ya - 0.03, z + dz], [xb, yb - 0.02, z + dz], 0.035, 6, 'b'));
+        parts.push(rod([xb, yb - 0.02, z + dz], [HL.XBRK + 0.12, yb - 0.02, z + dz], 0.035, 6, 'a'));
         parts.push(rod([xa, ya + 0.9, z + dz], [xb, yb + 0.9, z + dz], 0.022, 6, 'both'));
         parts.push(rod([xa, ya, z + dz], [xa, ya + 0.9, z + dz], 0.022, 6, 'b'));
       });

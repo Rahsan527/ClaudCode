@@ -1026,7 +1026,7 @@ export function createRiver() {
       for (let j = 0; j < NS; j++) m.triN(cI, bottomI[j], bottomI[j + 1], V3(1, 0, 0));
       const cB = m.v(V3(-0.38 * r, h, 0), 0.5, 0.5);
       for (let j = 0; j < NS; j++) m.triN(cB, O[0][j], O[0][j + 1], V3(-1, 0, 0));
-      const stem = lathe([[r * 0.5, -0.05], [r * 0.5, h - 0.2 * r]], 12, { top: false });
+      const stem = lathe([[r * 0.5, -0.05], [r * 0.5, h - 0.2 * r]], 12, { top: true }); // верх стойки выходит за колено — закрыт
       return merge([m.build({ orient: false }), stem]);
     };
     [[7.6, 2.3, 1.4, 0.45], [7.6, -2.3, 1.4, 0.45], [-7.6, 1.6, 1.2, 0.4], [-7.6, -1.6, 1.2, 0.4], [-17.5, 2.6, 1.0, 0.35], [-17.5, -2.6, 1.0, 0.35]].forEach(([x, z, h, r]) => {
@@ -1065,7 +1065,7 @@ export function createRiver() {
       const z = sd * 3.3;
       const xa = HL.XBRK - 2.3, ya = deckTop(xa, z), xb = HL.XBRK - 0.05, yb = deckTop(HL.XBRK + 0.2, z);
       [-0.35, 0.35].forEach((dz) => {
-        parts.push(rod([xa, ya - 0.03, z + dz], [xb, yb - 0.02, z + dz], 0.04, 6, 'none'));
+        parts.push(rod([xa, ya - 0.03, z + dz], [xb, yb - 0.02, z + dz], 0.04, 6, 'b')); // верхний торец тетивы закрыт: сквозь неё не видно изнанку
         parts.push(rod([xa, ya + 0.95, z + dz], [xb, yb + 0.95, z + dz], 0.025, 6, 'both'));
         parts.push(rod([xa, ya, z + dz], [xa, ya + 0.95, z + dz], 0.025, 6, 'b'));
       });
