@@ -581,7 +581,7 @@ const merge = (list) => mergeVertices(mergeGeometries(list.map(clean)), 1e-5);
 // ---------------------------------------------------------------------------
 // АТЛАС: слоты надстроек в полосе v 0.005…0.245 (плотность ~26 px/м)
 
-const DENS = 44;
+const DENS = 34;
 function makePacker() {
   const S = ATLAS;
   let x = 6, y = Math.round((1 - 0.245) * S), rowH = 0;
