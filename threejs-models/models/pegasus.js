@@ -892,6 +892,21 @@ export function createPegasus() {
       anc.push(a);
     });
     mesh(merge(anc), M.dark, 'Anchors', hullG);
+    // размагничивающая обмотка по борту (1940 г.): петля вокруг корпуса под палубой
+    {
+      const pts = [];
+      const xs = [];
+      for (let x = -55.2; x <= 55.0; x += 1.6) xs.push(x);
+      xs.push(55.1);
+      const at = (x, sd) => {
+        const y = deckY(x) - 0.55;
+        return new THREE.Vector3(x, y, sd * (sideZ(x, y) + 0.09));
+      };
+      xs.forEach((x) => pts.push(at(x, 1)));
+      for (let i = xs.length - 1; i >= 0; i--) pts.push(at(xs[i], -1));
+      const curve = new THREE.CatmullRomCurve3(pts, true, 'centripetal');
+      mesh(new THREE.TubeGeometry(curve, 260, 0.08, 5, true), M.steel, 'Degaussing_Cable', hullG);
+    }
   }
 
   // ======================= НАДСТРОЙКИ
@@ -989,10 +1004,52 @@ export function createPegasus() {
     });
     // вентиляторы-раструбы у трубы
     const cowl = (x, z, y0, h, r, face) => {
-      const pipe = lathe([[r, y0 - 0.03], [r, y0 + h]], 12, { top: false });
-      const head = lathe([[0, -r * 1.7], [r * 1.25, -r * 1.55], [r * 1.75, -r * 0.8], [r * 1.9, 0], [r * 1.6, r * 0.2], [0, r * 0.25]], 12, { top: false });
-      head.rotateZ(Math.PI / 2).rotateY(face).translate(x, y0 + h + r * 0.8, z);
-      return [pipe.translate(x, 0, z), head];
+      const m = new Mesher();
+      const seg = 12;
+      const dir = new THREE.Vector3(Math.cos(face), 0, -Math.sin(face));
+      const rb = 1.3 * r;
+      const rings = [];
+      const ring = (c, t, rad) => {
+        // кольцо в плоскости, перпендикулярной касательной t
+        const a1 = new THREE.Vector3().crossVectors(t, dir).normalize();
+        if (a1.lengthSq() < 1e-6) a1.set(-dir.z, 0, dir.x);
+        const a2 = new THREE.Vector3().crossVectors(t, a1).normalize();
+        const ids = [];
+        for (let j = 0; j <= seg; j++) {
+          const ang = (j / seg) * Math.PI * 2;
+          ids.push(m.v(c.clone().addScaledVector(a1, rad * Math.cos(ang)).addScaledVector(a2, rad * Math.sin(ang)), j / seg, 0.5));
+        }
+        return ids;
+      };
+      const up = new THREE.Vector3(0, 1, 0);
+      const P0 = new THREE.Vector3(x, y0 - 0.03, z);
+      rings.push(ring(P0, up, r));
+      rings.push(ring(new THREE.Vector3(x, y0 + h, z), up, r));
+      const NB = 5;
+      let last = null, lastT = null;
+      for (let i = 1; i <= NB; i++) {
+        const th = ((Math.PI / 2) * i) / NB;
+        const c = new THREE.Vector3(x, y0 + h + rb * Math.sin(th), z).addScaledVector(dir, rb - rb * Math.cos(th));
+        const t = new THREE.Vector3(0, Math.cos(th), 0).addScaledVector(dir, Math.sin(th)).normalize();
+        const rad = r * (1 + 0.75 * smooth((i - 2) / (NB - 2)));
+        rings.push(ring(c, t, rad));
+        last = c;
+        lastT = t;
+      }
+      const R = r * 1.75;
+      rings.push(ring(last.clone().addScaledVector(lastT, 0.02), lastT, R * 0.86)); // кромка раструба
+      const deep = last.clone().addScaledVector(lastT, -0.45 * r);
+      rings.push(ring(deep, lastT, R * 0.8));
+      for (let k = 0; k < rings.length - 1; k++) m.strip(rings[k], rings[k + 1]);
+      const ci = m.v(deep.clone().addScaledVector(lastT, -0.05), 0.5, 0.5);
+      const lr = rings[rings.length - 1];
+      for (let j = 0; j < seg; j++) m.tri(ci, lr[j + 1], lr[j]);
+      const g = m.build({ orient: false });
+      // наружная стенка трубы смотрит от оси
+      const nA = g.attributes.normal, pA = g.attributes.position;
+      let sc = 0;
+      for (let i = 0; i < (seg + 1) * 2; i++) sc += nA.getX(i) * (pA.getX(i) - x) + nA.getZ(i) * (pA.getZ(i) - z);
+      return [flipIf(g, sc < 0)];
     };
     [[-23.0, 3.4, Math.PI], [-23.0, -3.4, Math.PI], [-31.5, 3.6, 0], [-31.5, -3.6, 0]].forEach(([x, z, a]) => f.push(...cowl(x, z, T2.y, 2.4, 0.45, a)));
     [[-40.0, 2.2, Math.PI], [-40.0, -2.2, Math.PI], [-48.6, 1.6, 0]].forEach(([x, z, a]) => f.push(...cowl(x, z, T1.y, 1.5, 0.33, a)));
@@ -1114,24 +1171,41 @@ export function createPegasus() {
       const g = latheX([[0, 0], [0.32, 0.4], [0.42, len * 0.3], [0.38, len * 0.7], [0.25, len - 0.3], [0, len]], 10);
       g.rotateZ(Math.atan2(b.y - a.y, b.x - a.x));
       g.translate(a.x, a.y + 0.36, 0);
-      // чехлы шлюпок
+      // шлюпки: корпус (сталь) и брезентовый чехол
       const covers = [g];
+      const hulls = [];
       BOATS.forEach(([bx, bz]) => {
         [1, -1].forEach((sd) => {
-          const rings = [];
-          for (let k = 0; k <= 12; k++) {
-            const s = -1 + (2 * k) / 12;
-            const w = Math.sqrt(Math.max(0.0004, 1 - Math.abs(s) ** (s > 0 ? 2.2 : 3.2))) * 0.95;
-            const ring = [];
-            for (let j = 0; j < 8; j++) {
-              const ang = Math.PI - (j / 7) * Math.PI;
-              ring.push(new THREE.Vector3(bx + s * 3.45, T1.y + 1.2 + Math.sin(ang) * 0.22 * (w + 0.05), sd * bz + Math.cos(ang) * w));
+          const yg = T1.y + 1.3;
+          const half = (upper) => {
+            const m = new Mesher();
+            const rows = [];
+            const J = 8;
+            for (let k = 0; k <= 14; k++) {
+              const sx = -1 + (2 * k) / 14;
+              const w = Math.max(0.03, Math.sqrt(Math.max(0, 1 - Math.abs(sx) ** (sx > 0 ? 2.0 : 3.0)))) * 1.05;
+              const dep = 0.95 * (1 - 0.25 * sx * sx);
+              const sheer = 0.18 * sx * sx;
+              const row = [];
+              for (let j = 0; j <= J; j++) {
+                const ang = upper ? Math.PI - (j / J) * Math.PI : Math.PI + (j / J) * Math.PI;
+                const yy = upper ? Math.sin(ang) * 0.24 * (w / 1.05 + 0.1) : Math.sin(ang) * dep * Math.min(1, w / 0.6);
+                row.push(m.v(new THREE.Vector3(bx + sx * 3.45, yg + sheer + yy, sd * bz + Math.cos(ang) * w), k / 14, j / J));
+              }
+              rows.push(row);
             }
-            rings.push(ring);
-          }
-          covers.push(loftRings(rings));
+            for (let k = 0; k < rows.length - 1; k++) m.strip(rows[k], rows[k + 1]);
+            const gg = m.build({ orient: false });
+            const nA = gg.attributes.normal, pA = gg.attributes.position;
+            let sc = 0;
+            for (let i = 0; i < pA.count; i++) sc += nA.getY(i) * (pA.getY(i) - yg) + nA.getZ(i) * (pA.getZ(i) - sd * bz);
+            return flipIf(gg, sc < 0);
+          };
+          covers.push(half(true));
+          hulls.push(half(false));
         });
       });
+      mesh(merge(hulls), M.steel, 'Boat_Hulls', mastG);
       mesh(merge(covers), M.canvas, 'Canvas_Covers', mastG);
     }
 
@@ -1297,7 +1371,19 @@ export function createPegasus() {
   {
     const g = group('Rudder', propG, RUD.x, (RUD.y0 + RUD.y1) / 2, 0);
     const half = (RUD.y1 - RUD.y0) / 2;
-    const f = foil({ root: [0.18, -2.15], tip: [0.18, -2.25], span: 2 * half, tc: 0.13, y0: -half, nSpan: 4 });
+    const rings = [];
+    for (let k = 0; k <= 8; k++) {
+      const sy = k / 8;
+      const y = -half + 2 * half * sy;
+      const ch = (1.55 + 0.7 * Math.sqrt(clamp01(sy / 0.22))) * (1 - 0.12 * smooth((sy - 0.8) / 0.2));
+      const ring = [];
+      const ts = [];
+      for (let j = 0; j <= 10; j++) ts.push(0.5 - 0.5 * Math.cos((Math.PI * j) / 10));
+      for (const t of ts) ring.push(new THREE.Vector3(0.18 - t * ch, y, Math.max(0.01, naca(t) * 0.12 * ch)));
+      for (let j = 9; j >= 1; j--) ring.push(new THREE.Vector3(0.18 - ts[j] * ch, y, -Math.max(0.01, naca(ts[j]) * 0.12 * ch)));
+      rings.push(ring);
+    }
+    const f = loftRings(rings);
     const stock = lathe([[0.2, -half - 0.05], [0.2, half + 1.0], [0, half + 1.05]], 10, { bottom: true });
     const pintle = [-1.5, 0.2, 1.8].map((y) => box(0.5, 0.2, 0.42, -0.05, y, 0, []));
     const geo = merge([f, stock, ...pintle]);

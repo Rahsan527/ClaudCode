@@ -458,6 +458,29 @@ function offsetPath(path, d) {
   });
 }
 const wallPoly = (path, th) => [...path, ...offsetPath(path, th).reverse()];
+// Лофт многоугольников [[x, z], ...] одинаковой длины по уровням [{ poly, y }], крышки снизу и сверху
+function loftPoly(levels) {
+  const m = new Mesher();
+  const n = levels[0].poly.length;
+  const sgn = polyArea(levels[0].poly) > 0 ? 1 : -1;
+  const rows = levels.map(({ poly, y }) => poly.map(([x, z]) => m.v(V3(x, y, z), 0.5, 0.5)));
+  for (let k = 0; k < levels.length - 1; k++) {
+    const P0 = levels[k].poly;
+    for (let i = 0; i < n; i++) {
+      const j = (i + 1) % n;
+      const out = V3(sgn * (P0[j][1] - P0[i][1]), 0, -sgn * (P0[j][0] - P0[i][0]));
+      const A = rows[k][i], B = rows[k][j], C = rows[k + 1][j], D = rows[k + 1][i];
+      m.triN(A, B, C, out);
+      m.triN(A, C, D, out);
+    }
+  }
+  [0, levels.length - 1].forEach((k, e) => {
+    const tris = THREE.ShapeUtils.triangulateShape(levels[k].poly.map(([x, z]) => new THREE.Vector2(x, z)), []);
+    const ids = levels[k].poly.map(([x, z]) => m.v(V3(x, levels[k].y, z), 0.5, 0.5));
+    tris.forEach(([a, b, c]) => m.triN(ids[a], ids[b], ids[c], V3(0, e ? 1 : -1, 0)));
+  });
+  return m.build({ orient: false });
+}
 
 // Лофт замкнутых колец с крышками
 function loftRings(rings, uvFn = () => [0.5, 0.5], { caps = true } = {}) {
@@ -739,15 +762,11 @@ export function createGrimsby() {
   {
     const parts = [];
     // дейдвуд
-    const top = [];
-    for (let x = -14; x >= -36.0; x -= 1.0) top.push([x, keelY(x) + 0.25]);
-    const poly = [[-14, 0.0], [-30.5, 0.0], [-34.5, 0.25], [-36.05, 0.45], [-36.05, keelY(-36.05) + 0.3], ...top.reverse().slice(1)];
     // контур: низ вперёд-назад, затем верх назад-вперёд
     const bottom = [[-12, 0.18], [-14, 0.0], [-30.5, 0.0], [-34.5, 0.25], [-36.05, 0.45], [-36.05, keelY(-36.05) + 0.35]];
     const upper = [];
     for (let x = -35.5; x <= -12.5; x += 1.0) upper.push([x, keelY(x) + 0.2]);
-    parts.push(prism([...bottom, ...upper], 0.32));
-    void poly;
+    parts.push(prism([...bottom, ...upper], 0.26));
     [1, -1].forEach((sd) => {
       const z = sd * PROP.z;
       parts.push(latheX([[0.12, -32.2], [0.12, -23.0]], 10, { top: false, bottom: false }).translate(0, PROP.y, z)); // вал
@@ -757,7 +776,12 @@ export function createGrimsby() {
       const r1 = sideAt(xb, keelY(xb) + 0.25);
       const zin = r1 ? Math.min(r1.z, 1.2) : 0.8;
       parts.push(rod([xb, PROP.y, z], [xb + 0.2, keelY(xb) + 0.6, sd * Math.max(0.2, zin - 0.3)], 0.07, 8, 'none'));
-      parts.push(rod([xb, PROP.y, z], [xb + 0.2, PROP.y + 1.45, sd * (PROP.z + 0.9)], 0.07, 8, 'none'));
+      {
+        const yh = keelY(xb) + 0.35;
+        const rh = sideAt(xb + 0.3, yh);
+        const zh = rh ? rh.z - 0.08 : PROP.z;
+        parts.push(rod([xb, PROP.y, z], [xb + 0.3, yh, sd * Math.max(zh, PROP.z + 0.25)], 0.07, 8, 'none'));
+      }
       // скуловой киль: пластина вдоль скулы
       const rings = [];
       for (let x = -15; x <= 13; x += 2) {
@@ -965,12 +989,44 @@ export function createGrimsby() {
     });
     // вентиляторы-раструбы
     const cowl = (h, r) => {
-      const stem = lathe([[r * 0.55, -0.05], [r * 0.55, h]], 12, { top: false });
-      const bell = latheX([[r * 0.55, 0], [r * 0.62, r * 0.25], [r * 0.85, r * 0.6], [r, r * 0.8]], 14, { top: false })
-        .translate(0, h, 0);
-      const elbow = lathe([[r * 0.55, 0], [r * 0.57, r * 0.2], [r * 0.4, r * 0.6], [0, r * 0.62]], 12, { top: true }).translate(0, h - 0.05, 0);
-      const inner = latheX([[r * 0.93, r * 0.79], [r * 0.5, r * 0.4], [0, r * 0.3]], 14, { top: false }).translate(0, h, 0);
-      return merge([stem, bell, elbow, inner]);
+      const m = new Mesher();
+      const NS = 14;
+      const ring = (x, R) => {
+        const ids = [];
+        for (let j = 0; j <= NS; j++) {
+          const a = (j / NS) * Math.PI * 2;
+          ids.push(m.v(V3(x, h + R * Math.cos(a), R * Math.sin(a)), j / NS, 0.5));
+        }
+        return ids;
+      };
+      const outer = [[-0.25 * r, 0.42 * r], [0, 0.58 * r], [0.35 * r, 0.68 * r], [0.62 * r, 0.86 * r], [0.8 * r, r]];
+      const t = 0.035;
+      const O = outer.map(([x, R]) => ring(x, R));
+      const I = outer.slice(2).map(([x, R]) => ring(x, R - t)).reverse();
+      const quadOut = (A, B, inward) => {
+        for (let j = 0; j < NS; j++) {
+          const c = m.P(A[j]);
+          const want = V3(0, c.y - h, c.z).multiplyScalar(inward ? -1 : 1);
+          m.triN(A[j], B[j], B[j + 1], want);
+          m.triN(A[j], B[j + 1], A[j + 1], want);
+        }
+      };
+      for (let k = 0; k < O.length - 1; k++) quadOut(O[k], O[k + 1], false);
+      for (let k = 0; k < I.length - 1; k++) quadOut(I[k], I[k + 1], true);
+      // кромка раструба
+      const rim = O[O.length - 1], rin = I[0];
+      for (let j = 0; j < NS; j++) {
+        m.triN(rim[j], rin[j], rin[j + 1], V3(1, 0, 0));
+        m.triN(rim[j], rin[j + 1], rim[j + 1], V3(1, 0, 0));
+      }
+      // дно раструба и задний купол
+      const bottomI = I[I.length - 1];
+      const cI = m.v(V3(outer[2][0], h, 0), 0.5, 0.5);
+      for (let j = 0; j < NS; j++) m.triN(cI, bottomI[j], bottomI[j + 1], V3(1, 0, 0));
+      const cB = m.v(V3(-0.38 * r, h, 0), 0.5, 0.5);
+      for (let j = 0; j < NS; j++) m.triN(cB, O[0][j], O[0][j + 1], V3(-1, 0, 0));
+      const stem = lathe([[r * 0.5, -0.05], [r * 0.5, h - 0.2 * r]], 12, { top: false });
+      return merge([m.build({ orient: false }), stem]);
     };
     [[6.5, 2.0, 1.4, 0.45], [6.5, -2.0, 1.4, 0.45], [-10.3, 2.9, 1.1, 0.38], [-10.3, -2.9, 1.1, 0.38], [-19.5, 1.5, 1.0, 0.35], [-19.5, -1.5, 1.0, 0.35]].forEach(([x, z, h, r]) => {
       const g = cowl(h, r);
@@ -1279,10 +1335,12 @@ export function createGrimsby() {
     p.push(box(0.12, 0.3, 0.06, -1.2, ty + 0.3, -0.22));
     p.push(rod([0.35, ty + 0.14, 0.42], [-0.35, ty + 0.14, 0.42], 0.045, 8));
     // щит: П-образная стенка, скошенные передние углы, крыша над передней частью
-    const path = [[-0.75, -1.05], [0.75, -1.05], [1.15, -0.7], [1.2, 0], [1.15, 0.7], [0.75, 1.05], [-0.75, 1.05]];
-    p.push(extrudeY(wallPoly(path, 0.045), 0.35, 2.4, { uvBottom: () => [0.5, 0.5] }));
-    const roof = [[-0.15, -1.03], [0.74, -1.03], [1.13, -0.69], [1.17, 0], [1.13, 0.69], [0.74, 1.03], [-0.15, 1.03]];
-    p.push(extrudeY(roof, 2.31, 2.35, { uvBottom: () => [0.5, 0.5] }));
+    const sp = (f) => [[-0.8, -1.05], [f - 0.42, -1.05], [f - 0.05, -0.68], [f, 0], [f - 0.05, 0.68], [f - 0.42, 1.05], [-0.8, 1.05]];
+    p.push(loftPoly([{ poly: wallPoly(sp(1.2), 0.045), y: 0.4 }, { poly: wallPoly(sp(1.2), 0.045), y: 1.55 }, { poly: wallPoly(sp(0.92), 0.045), y: 2.15 }]));
+    const roof = sp(0.93).map(([x, z]) => [Math.max(x, -0.15), z * 0.985]).filter((q, i, a) => i === 0 || q[0] !== a[i - 1][0] || q[1] !== a[i - 1][1]);
+    p.push(extrudeY(roof, 2.07, 2.11, { uvBottom: () => [0.5, 0.5] }));
+    // прицельные окна в щите — тёмные не нужны, щит одного материала; козырёк над амбразурой
+    p.push(box(0.3, 0.05, 0.5, 1.22, ty + 0.36, 0));
     return merge(p);
   };
   {

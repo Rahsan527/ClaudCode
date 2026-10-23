@@ -590,32 +590,53 @@ function roundRect(x0, x1, z0, z1, r, seg = 3) {
 
 // Рубка-надстройка: стенки по контуру от y0 до y0 + h, UV стен в полосе band атласа, крыша (по желанию) — UV палубы
 function house(poly, y0, h, { band = 0, roof = true, u0 = 0.004, yBot = null, holes = [] } = {}) {
-  const m = new Mesher();
-  const n = poly.length;
+  const v2 = (q) => q.map(([x, z]) => new THREE.Vector2(x, z));
+  const ccw = (q) => (THREE.ShapeUtils.isClockWise(v2(q)) ? [...q].reverse() : q);
+  const outer = ccw(poly);
+  const n = outer.length;
   const yb = yBot ?? y0;
+  // стены: обход контура против часовой (вид сверху в осях x, z) -> strip(низ, верх) смотрит наружу при
+  // площади > 0 (см. sweepPath); проверяем по первому треугольнику
+  const w = new Mesher();
   let per = 0;
   const B = [], T = [];
   for (let i = 0; i <= n; i++) {
-    const p = poly[i % n];
-    if (i > 0) per += Math.hypot(p[0] - poly[i - 1][0], p[1] - poly[i - 1][1]);
+    const p = outer[i % n];
+    if (i > 0) per += Math.hypot(p[0] - outer[i - 1][0], p[1] - outer[i - 1][1]);
     const u = u0 + per * KU_WALL;
-    B.push(m.v(V3(p[0], yb, p[1]), u, V_WALL(band, yb - y0)));
-    T.push(m.v(V3(p[0], y0 + h, p[1]), u, V_WALL(band, h)));
+    B.push(w.v(V3(p[0], yb, p[1]), u, V_WALL(band, yb - y0)));
+    T.push(w.v(V3(p[0], y0 + h, p[1]), u, V_WALL(band, h)));
   }
-  m.strip(B, T);
+  w.strip(B, T);
+  const wg = w.build({ orient: false });
+  {
+    const idx = wg.index.array, pos = wg.attributes.position;
+    const a = V3().fromBufferAttribute(pos, idx[0]), b = V3().fromBufferAttribute(pos, idx[1]), c = V3().fromBufferAttribute(pos, idx[2]);
+    const nrm = b.clone().sub(a).cross(c.clone().sub(a));
+    const cx = outer.reduce((s, p) => s + p[0], 0) / n, cz = outer.reduce((s, p) => s + p[1], 0) / n;
+    const mid = a.clone().add(b).add(c).divideScalar(3);
+    if (nrm.x * (mid.x - cx) + nrm.z * (mid.z - cz) < 0) {
+      for (let i = 0; i < idx.length; i += 3) [idx[i + 1], idx[i + 2]] = [idx[i + 2], idx[i + 1]];
+      wg.computeVertexNormals();
+    }
+  }
+  const out = [wg];
   if (roof) {
-    const v2 = (q) => q.map(([x, z]) => new THREE.Vector2(x, z));
-    const ccw = (q) => (THREE.ShapeUtils.isClockWise(v2(q)) ? [...q].reverse() : q);
-    const outer = ccw(poly);
+    const r = new Mesher();
     const hl = holes.map((q) => [...ccw(q)].reverse());
     const tris = THREE.ShapeUtils.triangulateShape(v2(outer), hl.map(v2));
     const all = [...outer, ...hl.flat()];
-    const R = all.map(([x, z]) => m.v(V3(x, y0 + h, z), U(x), V_DECK(z)));
-    tris.forEach(([a, b, c]) => m.tri(R[a], R[b], R[c]));
+    const R = all.map(([x, z]) => r.v(V3(x, y0 + h, z), U(x), V_DECK(z)));
+    tris.forEach(([a, b, c]) => {
+      // нормаль вверх: (b - a) × (c - a) по y > 0
+      const [ax, az] = all[a], [bx, bz] = all[b], [cx, cz] = all[c];
+      const ny = (bz - az) * (cx - ax) - (bx - ax) * (cz - az);
+      if (ny > 0) r.tri(R[a], R[b], R[c]);
+      else r.tri(R[a], R[c], R[b]);
+    });
+    out.push(r.build({ orient: false }));
   }
-  const g = m.build({ orient: false });
-  const cx = poly.reduce((s, p) => s + p[0], 0) / n, cz = poly.reduce((s, p) => s + p[1], 0) / n;
-  return { g: orientOut(g, V3(cx, y0 + h * 0.5, cz)), per };
+  return { g: merge(out), per };
 }
 
 // ---------------------------------------------------------------------------
@@ -1469,6 +1490,18 @@ export function createShoreham() {
     [1, -1].forEach((sd) => parts.push(box(0.4, 0.45, 0.25, 16.8, yPlat + 0.7, sd * 4.18)));
     // тумба прожектора
     parts.push(lathe([[0.32, -0.05], [0.22, 0.25], [0.18, 0.55], [0.26, 0.6], [0, 0.62]], 14).translate(SL.x, SL.y - 0.62, 0));
+    // флагштоки: гюйсшток на форштевне, кормовой флагшток
+    parts.push(lathe([[0.05, fcDeckY(41.9) - 0.05], [0.03, fcDeckY(41.9) + 3.2], [0.05, fcDeckY(41.9) + 3.25], [0, fcDeckY(41.9) + 3.3]], 8).translate(41.9, 0, 0));
+    parts.push(lathe([[0.06, mainDeckY(-41.0) - 0.05], [0.035, mainDeckY(-41.0) + 4.2], [0.06, mainDeckY(-41.0) + 4.25], [0, mainDeckY(-41.0) + 4.3]], 8).translate(-41.0, 0, 0));
+    // счетверённый 0,5-дюймовый пулемёт на кожухе машинного отделения
+    {
+      const x = -12.0, y = mainDeckY(-8) + 0.12 + 1.25;
+      parts.push(lathe([[0.3, -0.03], [0.22, 0.5], [0.3, 0.55], [0.3, 0.62], [0, 0.63]], 14).translate(x, y, 0));
+      parts.push(box(0.45, 0.42, 0.62, x, y + 0.85, 0));
+      [-0.21, -0.07, 0.07, 0.21].forEach((z) => parts.push(rod([x + 0.2, y + 0.92, z], [x + 1.45, y + 0.98, z], 0.025, 6)));
+      parts.push(box(0.12, 0.35, 0.9, x - 0.3, y + 0.85, 0));
+      [-0.42, 0.42].forEach((z) => parts.push(box(0.35, 0.05, 0.3, x - 0.35, y + 0.6, z)));
+    }
     // паропровод сирены по передней кромке трубы
     parts.push(
       tubePath(
@@ -1558,6 +1591,46 @@ export function createShoreham() {
       mesh(hg.translate(BOAT.x, BOAT.y, sd * BOAT.z), M.boat, `Boat_Hull_${tag}`, boatsG);
       mesh(cg.translate(BOAT.x, BOAT.y, sd * BOAT.z), M.canvas, `Boat_Cover_${tag}`, boatsG);
     });
+    // спасательные плоты Карлея на стенках кормовой рубки и мостика (вертикальные овальные кольца)
+    {
+      const rafts = [];
+      const raft = () => {
+        const curve = new THREE.EllipseCurve(0, 0, 1.15, 0.55, 0, Math.PI * 2);
+        const pts = curve.getPoints(20).slice(0, -1).map((p) => V3(p.x, p.y, 0));
+        const rings = [];
+        const r = 0.13;
+        for (let j = 0; j < 8; j++) {
+          const a = (j / 8) * Math.PI * 2;
+          rings.push(a);
+        }
+        const m = new Mesher();
+        const ids = pts.map((p, i) => {
+          const q = pts[(i + 1) % pts.length], o = pts[(i - 1 + pts.length) % pts.length];
+          const t = q.clone().sub(o).normalize();
+          const nIn = V3(-t.y, t.x, 0); // наружу от центра для обхода против часовой
+          return rings.map((a) => m.v(p.clone().addScaledVector(nIn, -Math.cos(a) * r).add(V3(0, 0, Math.sin(a) * r)), i / pts.length, a / 6.3));
+        });
+        for (let i = 0; i < ids.length; i++) m.strip(ids[i], ids[(i + 1) % ids.length], true);
+        const g = m.build({ orient: false });
+        // ориентация по первому треугольнику: наружу от осевой линии кольца
+        const idx = g.index.array, pos = g.attributes.position;
+        const a = V3().fromBufferAttribute(pos, idx[0]), b = V3().fromBufferAttribute(pos, idx[1]), c = V3().fromBufferAttribute(pos, idx[2]);
+        const nn = b.clone().sub(a).cross(c.clone().sub(a));
+        const mid = a.clone().add(b).add(c).divideScalar(3);
+        const ax = pts[0];
+        if (nn.dot(mid.clone().sub(ax)) < 0) {
+          for (let i = 0; i < idx.length; i += 3) [idx[i + 1], idx[i + 2]] = [idx[i + 2], idx[i + 1]];
+          g.computeVertexNormals();
+        }
+        return g;
+      };
+      const yA = mainDeckY(-22) + 0.12;
+      [1, -1].forEach((sd) => {
+        [-24.6, -21.6].forEach((x) => rafts.push(raft().translate(x, yA + 1.05, sd * (2.3 + 0.15))));
+        rafts.push(raft().translate(14.0, yBr + 1.2, sd * (BR.hw + 0.15)));
+      });
+      mesh(merge(rafts), M.canvas, 'Carley_Floats', boatsG);
+    }
   }
 
   // ======================= МАЧТЫ И ТАКЕЛАЖ
