@@ -453,7 +453,7 @@ function prism(poly, th, open = []) {
     const j = (i + 1) % n;
     m.quad(front[i], back[i], back[j], front[j]);
   }
-  return m.build();
+  return solid(m);
 }
 
 // Лофт замкнутых колец с крышками
@@ -1030,7 +1030,7 @@ export function createRevenge() {
       groups.forEach((g, i) => geo.addGroup(g.start, g.count, i));
       mat = groups.map((g) => M[g.key]);
     } else mat = M[groups[0].key];
-    delete geo.userData.groups;
+    geo.userData = {};
     const mm = new THREE.Mesh(geo, mat);
     mm.name = name;
     geo.name = name;
@@ -1094,7 +1094,7 @@ export function createRevenge() {
     for (let x = -83; x <= -50.01; x += 3) top.push([x, bottomAt(x, 0) + 0.3]);
     top.push([-50, 0.6]);
     const poly = [...sk, ...top];
-    parts.push(prism(poly, 0.7, [sk.length - 1 + 0, ...top.map((_, i) => sk.length + i)].filter((i) => i >= sk.length)).rotateX(0));
+    parts.push(prism(poly, 0.7, top.slice(0, -1).map((_, i) => sk.length + i)));
     // скуловые кили
     [1, -1].forEach((sd) => {
       const pts = [];
@@ -1210,12 +1210,12 @@ export function createRevenge() {
     walls(m, B3, 25.53, 27.3);
     slab(m, rrect(28.1, 31.2, 2.5, 0.8), B3, 27.3, 27.5, 'grey');
     // кормовой командно-дальномерный пост (на шлюпочной палубе)
-    const AC = rrect(-27.0, -24.6, 2.2, 0.8);
+    const AC = rrect(-25.7, -23.3, 1.6, 0.6);
     m.use('grey');
     walls(m, AC, BOAT - 0.02, 22.4);
     m.use('dark');
     walls(m, AC, 22.4, 22.8);
-    slab(m, rrect(-27.2, -24.4, 2.4, 0.9), AC, 22.8, 23.0, 'grey');
+    slab(m, rrect(-25.9, -23.1, 1.8, 0.7), AC, 22.8, 23.0, 'grey');
     mesh(m, 'Superstructure_Main', supG);
   }
   // дымовая труба
@@ -1270,7 +1270,7 @@ export function createRevenge() {
     [4.2, 1.5, -1.5, -4.2].forEach((z) => light(2.3, 26.28, z));
     // прожекторы на крыльях мостика и на кормовом посту
     [1, -1].forEach((sd) => light(30.0, 22.88, sd * 8.6));
-    [1, -1].forEach((sd) => light(-25.8, 22.98, sd * 1.4));
+    [1, -1].forEach((sd) => light(-24.5, 22.98, sd * 1.1));
     mesh(m, 'Searchlights', supG);
   }
 
@@ -1412,7 +1412,6 @@ export function createRevenge() {
     const vent = () => lathe([[0.35, -0.08], [0.35, 0.9], [0.62, 1.0], [0.5, 1.15], [0, 1.18]], 14);
     [[66, 9], [66, -9], [-62, 6], [-62, -6], [-70, 3.5], [-70, -3.5], [44, 9.5], [44, -9.5]].forEach(([x, z]) => m.add(at(vent(), x, z)));
     [[-66, 0], [-73, 0], [-88, 0]].forEach(([x, z]) => m.add(at(boxNB(2.6, 0.75, 1.8, 0, -0.08, 0), x, z)));
-    [[64, 0], [-26.2 - 3.5, 0]].forEach(([x]) => m.add(at(boxNB(2.0, 0.6, 2.4, 0, -0.08, 0), x === -29.7 ? -33.0 : x, 0)));
     // гюйсшток и флагшток
     m.use('dark');
     m.add(rod([94.0, deckSurf(94) - 0.05, 0], [94.0, 26.0, 0], 0.08, 6));

@@ -765,9 +765,9 @@ export function createGrimsby() {
     const parts = [];
     // дейдвуд
     // контур: низ вперёд-назад, затем верх назад-вперёд
-    const bottom = [[-12, 0.18], [-14, 0.0], [-30.5, 0.0], [-34.5, 0.25], [-36.05, 0.45], [-36.05, keelY(-36.05) + 0.35]];
+    const bottom = [[-12, 0.18], [-14, 0.0], [-25.0, 0.0], [-27.6, 0.3], [-29.6, 0.95], [-30.9, keelY(-30.9) + 0.3]];
     const upper = [];
-    for (let x = -35.5; x <= -12.5; x += 1.0) upper.push([x, keelY(x) + 0.2]);
+    for (let x = -30.4; x <= -12.5; x += 0.9) upper.push([x, keelY(x) + 0.2]);
     parts.push(prism([...bottom, ...upper], 0.26));
     [1, -1].forEach((sd) => {
       const z = sd * PROP.z;
