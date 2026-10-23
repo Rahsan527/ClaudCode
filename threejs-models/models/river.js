@@ -818,8 +818,8 @@ export function createRiver() {
   const CAS = { x0: -6.8, x1: 5.0, hw: 2.7, y1: 11.0 };
   const FUN = { x: -0.8, rx: 1.7, rz: 1.2, rake: 0.1, top: 17.6 };
   const OE = [
-    { x: 12.9, z: 4.35, y: BR.plat },
-    { x: 12.9, z: -4.35, y: BR.plat },
+    { x: 12.9, z: 3.85, y: BR.plat },
+    { x: 12.9, z: -3.85, y: BR.plat },
   ];
   OE.push({ x: -9.6, z: 3.55, y: deckTop(-9.6, 3.55) - 0.02 }, { x: -9.6, z: -3.55, y: deckTop(-9.6, 3.55) - 0.02 });
   {
@@ -950,7 +950,7 @@ export function createRiver() {
       w.push(rod([MM.x, 16.0, 0.2 * sd], fd(-10.8, sd * (deckHalf(-10.8) - 0.3)), 0.02, 5, 'none'));
       w.push(rod([FM.x, 21.75, sd * 3.3], [MM.x, 16.45, sd * 1.9], 0.014, 4, 'none'));
     });
-    w.push(rod([FM.x + 0.1, 23.3, 0], [44.6, deckTop(44.6) + 1.2, 0], 0.022, 5, 'none')); // штаг
+    w.push(rod([FM.x + 0.1, 23.3, 0], [44.4, deckTop(44.4) + 0.05, 0], 0.022, 5, 'none')); // штаг
     w.push(rod([MM.x - 0.08, 18.8, 0], [-45.0, deckTop(-45.0) + 3.3, 0], 0.018, 5, 'none')); // ахтерштаг к флагштоку
     mesh(merge(w), M.wire, 'Rigging', supG);
   }
@@ -1044,7 +1044,7 @@ export function createRiver() {
       parts.push(extrudeY(rrect(x - a / 2, x + a / 2, b / 2, 0.12, 0.12, 2).map(([px, pz]) => [px, pz + z]), y0, deckTop(x, z) + 0.42));
     });
     // кранцы первых выстрелов у орудий
-    [[GF.x - 2.4, 2.7], [GF.x - 2.4, -2.7], [GA.x - 3.0, 2.6], [GA.x - 3.0, -2.6]].forEach(([x, z]) => {
+    [[GF.x - 2.4, 2.7], [GF.x - 2.4, -2.7], [-13.6, 3.6], [-13.6, -3.6]].forEach(([x, z]) => {
       parts.push(box(1.1, 0.75, 0.6, x, deckTop(x, z) + 0.32, z, { noBottom: true }));
     });
     // тумба носового орудия
@@ -1059,7 +1059,7 @@ export function createRiver() {
       parts.push(extrudeY(outer, o.y - 0.04, o.y + 1.05, { holes: [inner] }));
     });
     // тумбы «Эрликонов»
-    OE.forEach((o) => parts.push(lathe([[0.22, o.y - 0.03], [0.2, o.y + 0.6], [0.14, o.y + 0.7]], 12, { top: true }).translate(o.x, 0, o.z)));
+    OE.forEach((o) => parts.push(lathe([[0.22, o.y - 0.03], [0.2, o.y + 0.35], [0.14, o.y + 0.45]], 12, { top: false }).translate(o.x, 0, o.z)));
     // трапы со среза полубака на ют
     [1, -1].forEach((sd) => {
       const z = sd * 3.3;
@@ -1159,8 +1159,8 @@ export function createRiver() {
         const zr = sd * (deckHalf(xr) - 1.3);
         const yr = deckTop(xr, zr);
         [-0.35, 0.35].forEach((dz) => dc.push(box(0.9, 0.3, 0.08, xr, yr + 0.13, zr + dz, { noBottom: true })));
-        [0, 1].forEach((k) => dc.push(charge().rotateY(Math.PI / 2).rotateY(Math.PI / 2).translate(xr + (k - 0.5) * 0.62, yr + 0.55, zr)));
-        dc.push(charge().rotateY(Math.PI / 2).rotateY(Math.PI / 2).translate(xr, yr + 1.08, zr));
+        [0, 1].forEach((k) => dc.push(charge().rotateY(Math.PI / 2).translate(xr + (k - 0.5) * 0.62, yr + 0.55, zr)));
+        dc.push(charge().rotateY(Math.PI / 2).translate(xr, yr + 1.08, zr));
       });
     });
     // кормовые стеллажи у юта (запас бомб)
@@ -1323,7 +1323,7 @@ export function createRiver() {
       onWall(2.4, 9.9, sd * CAS.hw, sd);
       onWall(17.2, 10.0, sd * BR.hw, sd);
       // наклонные стеллажи у юта
-      const x = -16.6, z = sd * (deckHalf(-16.6) - 0.45);
+      const x = -16.6, z = sd * (deckHalf(-16.6) - 0.8);
       const g = carley(2.4, 1.2).rotateX((sd * Math.PI) / 2 - sd * 0.45).translate(x, deckTop(x, z) + 0.75, z);
       floats.push(g);
     });
