@@ -765,6 +765,57 @@ function buildCanopy() {
   return m.build({ orient: false });
 }
 
+// Окно бомбардира в носу: тонкая линза на обшивке (лицевая сторона на 12 мм над обшивкой)
+function noseX(y, z) {
+  let lo = 7.5, hi = XH1;
+  for (let i = 0; i < 40; i++) {
+    const mid = (lo + hi) / 2;
+    if (hullZ(mid, y) > z) lo = mid;
+    else hi = mid;
+  }
+  return (lo + hi) / 2;
+}
+function buildBombWindow() {
+  const m = new Mesher();
+  const NY = 6, NZ = 8, y0 = 1.44, y1 = 1.78, zw = 0.3;
+  const P = (y, z) => V3(noseX(y, Math.abs(z)), y, z);
+  const nrm = (y, z) => {
+    const e = 0.01;
+    const a = P(y + e, z).sub(P(y - e, z)), b = P(y, z + e).sub(P(y, z - e));
+    const n = new THREE.Vector3().crossVectors(a, b).normalize();
+    return n.x < 0 ? n.negate() : n;
+  };
+  const grid = (off) => {
+    const ids = [];
+    for (let i = 0; i <= NY; i++) {
+      const row = [];
+      for (let j = 0; j <= NZ; j++) {
+        const y = lerp(y0, y1, i / NY), z = lerp(-zw, zw, j / NZ);
+        row.push(m.v(P(y, z).addScaledVector(nrm(y, z), off), 0.25 * (j / NZ), 0.125 * (i / NY)));
+      }
+      ids.push(row);
+    }
+    return ids;
+  };
+  const F = grid(0.012), B = grid(-0.02);
+  for (let i = 0; i < NY; i++) for (let j = 0; j < NZ; j++) m.quad(F[i][j], F[i][j + 1], F[i + 1][j + 1], F[i + 1][j]);
+  const rim = [];
+  for (let j = 0; j < NZ; j++) rim.push([0, j]);
+  for (let i = 0; i < NY; i++) rim.push([i, NZ]);
+  for (let j = NZ; j > 0; j--) rim.push([NY, j]);
+  for (let i = NY; i > 0; i--) rim.push([i, 0]);
+  for (let k = 0; k < rim.length; k++) {
+    const [i0, j0] = rim[k], [i1, j1] = rim[(k + 1) % rim.length];
+    m.quad(F[i0][j0], B[i0][j0], B[i1][j1], F[i1][j1]);
+  }
+  let g = m.build({ orient: false });
+  const n = g.attributes.normal;
+  let sx = 0;
+  for (let i = 0; i < n.count; i++) sx += n.getX(i);
+  if (sx < 0) g = m.build({ orient: false, flip: true });
+  return g;
+}
+
 // Блистер стрелка: полуэллипсоид на борту
 function buildBlister() {
   const cx = -4.55, cy = 2.12, rx = 0.8, ry = 0.62;
@@ -901,7 +952,7 @@ function paintAtlas() {
         const y = lerp(T.pts[k][0], T.pts[k + 1][0], f);
         const z = lerp(T.pts[k][1], T.pts[k + 1][1], f);
         let colr = COL.white;
-        if (q > QS + 0.3 * (1 - QS) && (x < 8.95 || y > 1.92 + 0.6 * (x - 8.95) * 0)) colr = camo(x, z);
+        if (q > QS + 0.3 * (1 - QS) && x < 9.1) colr = camo(x, z);
         // грязь у ватерлинии и днища
         if (y < 1.15) colr = mix(colr, [170, 178, 168], 0.18 * smooth((1.15 - y) / 0.6) + 0.06 * noise(u, v));
         let h = 0.5;
@@ -917,11 +968,6 @@ function paintAtlas() {
         if (q > QB && q < QS + 0.2 * (1 - QS)) {
           const r = roundelC1(Math.hypot(x + 2.45, y - 1.82) / 0.62);
           if (r) colr = r;
-        }
-        // окно бомбардира на носу
-        if (x > 9.3 && y > 1.42 && y < 1.8 && z < 0.4 && q < 0.85) {
-          colr = Math.abs(z - 0.0) < 0.025 || Math.abs(y - 1.62) < 0.02 ? COL.edsg : COL.glass;
-          h = 0.45;
         }
         // люк швартовки перед турелью
         if (x > 8.95 && x < 9.22 && q > 0.8 && z < 0.3) {
@@ -1210,7 +1256,7 @@ export function createCatalina() {
   {
     const turret = lathe([[0.56, 1.6], [0.585, 2.2], [0.56, 2.52], [0.45, 2.77], [0.25, 2.92], [0, 2.97]], 24, { uvScale: [1, 0.375] }).translate(8.4, 0, 0);
     const bl = buildBlister();
-    mesh(merge([buildCanopy(), turret, bl, mirrorZ(bl)]), M.glass, 'Glazing', air);
+    mesh(merge([buildCanopy(), turret, bl, mirrorZ(bl), buildBombWindow()]), M.glass, 'Glazing', air);
   }
 
   // двигатели (передний картер и цилиндры), пулемёт, кнехт, антенны РЛС ASV, провода
@@ -1307,7 +1353,7 @@ export function createCatalina() {
     const pts = [];
     for (let i = 0; i <= 12; i++) {
       const t = i / 12;
-      pts.push(A.clone().lerp(B, t).add(V3(0, -0.28 * Math.sin(Math.PI * t), 0)));
+      pts.push(A.clone().lerp(B, t).add(V3(0, -0.18 * Math.sin(Math.PI * t), 0)));
     }
     const line = tube(pts, 0.016, 6, [0.4, 0.26]);
     const prof = [[0, 0.62], [0.18, 0.66], [0.29, 0.78], [0.33, 0.95], [0.29, 1.1], [0.16, 1.2], [0.06, 1.22], [0.06, 1.3], [0, 1.31]];
