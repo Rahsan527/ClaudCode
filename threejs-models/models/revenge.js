@@ -172,7 +172,9 @@ const REG = {
 const regU = (R, x) => 0.005 + (0.99 * (x - R.x0)) / XU;
 const regX = (R, u) => R.x0 + ((u - 0.005) / 0.99) * XU;
 const regV = (R, arc) => R.v0 + ((R.v1 - R.v0) * arc) / GIRTH;
-const MISC_UV = [0.5, 0.12];
+const MISC_UV = [0.5, 0.222];
+// полоса стен надстроек в атласе: v 0.03…0.2 — 2.8 м высоты, u — периметр до WALL_PER м
+const WB0 = 0.03, WB1 = 0.2, WALL_H = 2.8, WALL_PER = 175;
 const uvDeck = (x, z) => [clamp01((x + XU) / (2 * XU)), clamp01((z + ZU) / (2 * ZU))];
 
 // Шпангоут, проходящий через точку борта (x, y) с учётом наклона штевней
@@ -584,14 +586,18 @@ function ellipse(cx, cz, rx, rz, n = 24) {
 const UVC = () => [0.5, 0.5];
 const fnY = (y) => (typeof y === 'function' ? y : () => y);
 // Стенки по контуру (наружу), y0/y1 — числа или функции (x, z)
-function walls(m, loop, y0, y1, inward = false) {
+function walls(m, loop, y0, y1, inward = false, band = null) {
   const L = ccw(loop);
   const n = L.length;
   const Y0 = fnY(y0), Y1 = fnY(y1);
-  const A = L.map(([x, z]) => m.v(V3(x, Y0(x, z), z), 0.5, 0.5));
-  const B = L.map(([x, z]) => m.v(V3(x, Y1(x, z), z), 0.5, 0.5));
+  const pts = band === null ? L : [...L, L[0]];
+  let per = 0;
+  const us = pts.map((p, i) => (i > 0 ? (per += Math.hypot(p[0] - pts[i - 1][0], p[1] - pts[i - 1][1])) : 0));
+  const uv = (i, y) => (band === null ? [0.5, 0.5] : [0.005 + (0.99 * us[i]) / WALL_PER, WB0 + (WB1 - WB0) * clamp01((y - band) / WALL_H)]);
+  const A = pts.map(([x, z], i) => m.v(V3(x, Y0(x, z), z), ...uv(i, Y0(x, z))));
+  const B = pts.map(([x, z], i) => m.v(V3(x, Y1(x, z), z), ...uv(i, Y1(x, z))));
   for (let i = 0; i < n; i++) {
-    const j = (i + 1) % n;
+    const j = band === null ? (i + 1) % n : i + 1;
     if (!inward) m.quad(A[i], B[i], B[j], A[j]);
     else m.quad(A[i], A[j], B[j], B[i]);
   }
@@ -835,6 +841,40 @@ function paintHullAtlas() {
     }
     C.restore();
     Hc.restore();
+  }
+  // стены надстроек: иллюминаторы и двери
+  {
+    const sx = (0.99 * S) / WALL_PER, sy = ((WB1 - WB0) * S) / WALL_H;
+    const X = (p) => px(0.005) + p * sx, Y = (h) => py(WB0 + ((WB1 - WB0) * h) / WALL_H);
+    const g = C.createLinearGradient(0, Y(0), 0, Y(0.6));
+    g.addColorStop(0, 'rgba(50,48,42,0.3)');
+    g.addColorStop(1, 'rgba(50,48,42,0)');
+    C.fillStyle = g;
+    C.fillRect(0, Y(0.6), S, Y(0) - Y(0.6));
+    line(C, 0, Y(2.45), S, Y(2.45), 2, 'rgba(20,24,26,0.18)');
+    for (let p = 1.0; p < WALL_PER; p += 2.3) {
+      if ((p % 12.5) > 3.0 && (p % 12.5) < 5.2) continue;
+      for (const ctx of [C, Hc]) {
+        ctx.beginPath();
+        ctx.ellipse(X(p), Y(1.6), 0.21 * sx, 0.21 * sy, 0, 0, Math.PI * 2);
+        ctx.fillStyle = ctx === C ? '#1b1f22' : 'rgb(70,70,70)';
+        ctx.fill();
+        ctx.strokeStyle = ctx === C ? 'rgba(180,186,190,0.5)' : 'rgb(90,90,90)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      }
+    }
+    for (let p = 4.0; p < WALL_PER; p += 12.5) {
+      C.fillStyle = '#5d6468';
+      C.fillRect(X(p - 0.42), Y(1.95), 0.84 * sx, Y(0.05) - Y(1.95));
+      C.strokeStyle = 'rgba(25,28,30,0.8)';
+      C.lineWidth = 2;
+      C.strokeRect(X(p - 0.42), Y(1.95), 0.84 * sx, Y(0.05) - Y(1.95));
+      Hc.fillStyle = 'rgb(112,112,112)';
+      Hc.fillRect(X(p - 0.42), Y(1.95), 0.84 * sx, Y(0.05) - Y(1.95));
+      C.fillStyle = '#2a2e31';
+      C.fillRect(X(p + 0.22), Y(1.0), 2, 6);
+    }
   }
   // прочее (торцы, переборка полубака): ровная краска
   const N = heightToNormal(hgt, S, S, 2.0 / 255);
@@ -1249,8 +1289,8 @@ export function createRevenge() {
     const m = new Mesher();
     // надстройка на полубаке (батарейная/шлюпочная палуба)
     const L0 = rrect(-26, 41.5, 8.2, 1.2);
-    m.use('grey');
-    walls(m, L0, onDeck, BOAT - 0.3);
+    m.use('hull');
+    walls(m, L0, onDeck, BOAT - 0.3, false, FC);
     slab(m, rrect(-26.3, 41.8, 8.5, 1.4), L0, BOAT - 0.3, BOAT, 'grey', 'teak');
     // боевая рубка
     const CT = ellipse(38.2, 0, 2.9, 2.5, 28);
@@ -1261,8 +1301,8 @@ export function createRevenge() {
     slab(m, ellipse(38.2, 0, 3.15, 2.75, 28), CT, 21.95, 22.2, 'grey');
     // мостик: 1-й ярус (флагманский)
     const B1 = rrect(24.0, 35.0, 6.0, 1.8);
-    m.use('grey');
-    walls(m, B1, BOAT - 0.02, 22.6);
+    m.use('hull');
+    walls(m, B1, BOAT - 0.02, 22.6, false, BOAT);
     slab(m, rrect(23.6, 35.4, 7.2, 1.6), B1, 22.6, 22.9, 'grey');
     // 2-й ярус с крыльями
     const B2 = rrect(24.6, 34.4, 4.8, 1.6);
@@ -1293,8 +1333,8 @@ export function createRevenge() {
     m.add(lathe([[0.7, 28.28], [0.7, 29.3], [0.45, 29.5], [0, 29.55]], 14).translate(32.4, 0, 0));
     // кормовой командно-дальномерный пост (на шлюпочной палубе)
     const AC = rrect(-25.7, -23.3, 1.6, 0.6);
-    m.use('grey');
-    walls(m, AC, BOAT - 0.02, 22.4);
+    m.use('hull');
+    walls(m, AC, BOAT - 0.02, 22.4, false, BOAT);
     m.use('dark');
     walls(m, AC, 22.4, 22.8);
     slab(m, rrect(-25.9, -23.1, 1.8, 0.7), AC, 22.8, 23.0, 'grey');
