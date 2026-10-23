@@ -708,11 +708,37 @@ function fitOutline(x0, x1, hwFn, n = 28) {
   for (let i = n - 1; i >= 1; i--) pts.push([xs[i], -pts[i][1]]);
   return pts;
 }
+// Убрать точки контура, лежащие на прямой между соседями (иначе вырожденные треугольники крыши)
+function dropCollinear(pts, tol = 0.01) {
+  let out = pts.slice();
+  let changed = true;
+  while (changed && out.length > 4) {
+    changed = false;
+    for (let i = 0; i < out.length; i++) {
+      const a = out[(i - 1 + out.length) % out.length], b = out[i], c = out[(i + 1) % out.length];
+      const lx = c[0] - a[0], lz = c[1] - a[1];
+      const d = Math.abs((b[0] - a[0]) * lz - (b[1] - a[1]) * lx) / (Math.hypot(lx, lz) || 1);
+      if (d < tol) {
+        out.splice(i, 1);
+        changed = true;
+        break;
+      }
+    }
+  }
+  return out;
+}
 const hwT1 = (x) => Math.min(6.6, sideZ(x, deckY(x)) - 0.75);
 
+function flipIf(g, bad) {
+  if (!bad) return g;
+  const idx = g.index.array;
+  for (let i = 0; i < idx.length; i += 3) [idx[i + 1], idx[i + 2]] = [idx[i + 2], idx[i + 1]];
+  g.computeVertexNormals();
+  return g;
+}
 function deckhouse({ x0, x1, hw, r = 0.8, yTop, base, band = BAND_ACC, roof = true, outline = null }) {
   const m = new Mesher();
-  const pts = outline || roundRect(x0, x1, hw, r);
+  const pts = outline ? outline.slice() : dropCollinear(roundRect(x0, x1, hw, r));
   pts.push(pts[0]);
   let per = 0;
   const bot = [], topR = [];
@@ -723,25 +749,29 @@ function deckhouse({ x0, x1, hw, r = 0.8, yTop, base, band = BAND_ACC, roof = tr
     topR.push(m.v(new THREE.Vector3(x, yTop, z), UP(per % PERMAX), V_BAND(band, yTop - yb)));
   });
   m.strip(bot, topR);
-  if (roof) {
-    const ring = pts.slice(0, -1);
-    const v2 = ring.map(([x, z]) => new THREE.Vector2(x, z));
-    const tris = THREE.ShapeUtils.triangulateShape(v2, []);
-    const ids = ring.map(([x, z]) => m.v(new THREE.Vector3(x, yTop, z), U(x), V_DECK(z)));
-    tris.forEach(([a, b, c]) => m.tri(ids[a], ids[b], ids[c]));
-  }
-  const g = m.build({ orient: false });
-  // наружу: нормаль стен от центра
-  const n = g.attributes.normal, p = g.attributes.position;
+  const walls = m.build({ orient: false });
+  // стены наружу: нормаль от центра
+  const n = walls.attributes.normal, p = walls.attributes.position;
   const cx = (x0 + x1) / 2;
   let score = 0;
   for (let i = 0; i < n.count; i++) score += n.getX(i) * (p.getX(i) - cx) + n.getZ(i) * p.getZ(i);
-  if (score < 0) {
-    const idx = g.index.array;
-    for (let i = 0; i < idx.length; i += 3) [idx[i + 1], idx[i + 2]] = [idx[i + 2], idx[i + 1]];
-    g.computeVertexNormals();
+  flipIf(walls, score < 0);
+  if (!roof) return walls;
+  const mr = new Mesher();
+  const ring = pts.slice(0, -1);
+  const ids = ring.map(([x, z]) => mr.v(new THREE.Vector3(x, yTop, z), U(x), V_DECK(z)));
+  if (outline) {
+    // контур fitOutline: правый борт 0…n, левый — в обратном порядке; крыша — полосой поперёк
+    const nn = ring.length / 2;
+    const Pi = (i) => (i === 0 ? 0 : i === nn ? nn : 2 * nn - i);
+    for (let i = 0; i < nn; i++) mr.quad(ids[i], ids[i + 1], ids[Pi(i + 1)], ids[Pi(i)]);
+  } else {
+    const tris = THREE.ShapeUtils.triangulateShape(ring.map(([x, z]) => new THREE.Vector2(x, z)), []);
+    tris.forEach(([a, b, c]) => mr.tri(ids[a], ids[b], ids[c]));
   }
-  return g;
+  const top = mr.build({ orient: false });
+  flipIf(top, top.attributes.normal.getY(0) < 0);
+  return merge([walls, top]);
 }
 
 // Леерное ограждение по ломаной [[x, z], ...] на высоте y (функция или число)
@@ -1275,9 +1305,9 @@ export function createPegasus() {
     mesh(geo, M.paint, 'Rudder_Blade', g);
   }
 
-  // Анимация: винт правого вращения, 1 оборот за 0.8 с, 9 ключей, петля замкнута
+  // Анимация: винт правого вращения, 1 оборот за 1 с, 9 ключей, петля замкнута
   {
-    const T = 0.8;
+    const T = 1.0;
     const n = 8;
     const times = [];
     const vals = [];

@@ -589,7 +589,7 @@ function roundRect(x0, x1, z0, z1, r, seg = 3) {
 }
 
 // Рубка-надстройка: стенки по контуру от y0 до y0 + h, UV стен в полосе band атласа, крыша (по желанию) — UV палубы
-function house(poly, y0, h, { band = 0, roof = true, u0 = 0.004, yBot = null } = {}) {
+function house(poly, y0, h, { band = 0, roof = true, u0 = 0.004, yBot = null, holes = [] } = {}) {
   const m = new Mesher();
   const n = poly.length;
   const yb = yBot ?? y0;
@@ -604,9 +604,13 @@ function house(poly, y0, h, { band = 0, roof = true, u0 = 0.004, yBot = null } =
   }
   m.strip(B, T);
   if (roof) {
-    const pts = poly.map(([x, z]) => new THREE.Vector2(x, z));
-    const tris = THREE.ShapeUtils.triangulateShape(pts, []);
-    const R = poly.map(([x, z]) => m.v(V3(x, y0 + h, z), U(x), V_DECK(z)));
+    const v2 = (q) => q.map(([x, z]) => new THREE.Vector2(x, z));
+    const ccw = (q) => (THREE.ShapeUtils.isClockWise(v2(q)) ? [...q].reverse() : q);
+    const outer = ccw(poly);
+    const hl = holes.map((q) => [...ccw(q)].reverse());
+    const tris = THREE.ShapeUtils.triangulateShape(v2(outer), hl.map(v2));
+    const all = [...outer, ...hl.flat()];
+    const R = all.map(([x, z]) => m.v(V3(x, y0 + h, z), U(x), V_DECK(z)));
     tris.forEach(([a, b, c]) => m.tri(R[a], R[b], R[c]));
   }
   const g = m.build({ orient: false });
@@ -1137,10 +1141,22 @@ export function createShoreham() {
   const yBr = fcY(15) - 0.0; // основание мостика
   const yPlat = yBr + BR.h1 + BR.h2; // палуба ходового мостика
   const FUNNEL = { x: 3.2, a: 1.8, b: 1.22, rake: Math.tan((9 * Math.PI) / 180) };
-  const yFun0 = fcY(3) + 0.9 - 0.03;
+  const yFun0 = fcY(3) + 0.9;
   const SL = { x: 12.85, y: yPlat + 0.62 }; // прожектор на кормовой части ходового мостика
   {
     const parts = [];
+    const funnelRing = (y, sc) => {
+      const NS = 40;
+      const pts = [];
+      const cx = FUNNEL.x - (y - yFun0) * FUNNEL.rake;
+      for (let j = 0; j <= NS; j++) {
+        const a = (j / NS) * Math.PI * 2;
+        const c = Math.cos(a), s = Math.sin(a);
+        const ex = 2 / 2.6;
+        pts.push(V3(cx + sc * FUNNEL.a * Math.sign(c) * Math.abs(c) ** ex * (c > 0 ? 0.92 : 1), y, sc * FUNNEL.b * Math.sign(s) * Math.abs(s) ** ex));
+      }
+      return pts;
+    };
     let u0 = 0.004;
     const addHouse = (poly, y0, h, opt = {}) => {
       const yb = opt.onDeck ? Math.min(...poly.map(([x, z]) => deckY(x, z))) - 0.03 : y0;
@@ -1149,17 +1165,19 @@ export function createShoreham() {
       parts.push(r.g);
     };
     // мостик: нижний ярус (на полубаке), рулевая рубка, площадка с фальшбортом
-    addHouse(roundRect(BR.x0, BR.x1, -BR.hw, BR.hw, 0.6), yBr, BR.h1, { band: 0, onDeck: true });
-    addHouse(roundRect(BR.wx0, BR.wx1, -BR.whw, BR.whw, 0.5), yBr + BR.h1, BR.h2 - 0.18, { band: 1, roof: false });
+    const whPoly = roundRect(BR.wx0, BR.wx1, -BR.whw, BR.whw, 0.5);
+    addHouse(roundRect(BR.x0, BR.x1, -BR.hw, BR.hw, 0.6), yBr, BR.h1, { band: 0, onDeck: true, holes: [whPoly] });
+    addHouse(whPoly, yBr + BR.h1, BR.h2 - 0.18, { band: 1, roof: false });
     // площадка: плита с крыльями
     const plat = roundRect(12.2, 18.5, -4.1, 4.1, 0.9, 4);
     addHouse(plat, yPlat - 0.18, 0.18, { band: 0, yBot: yPlat - 0.18 });
     // низ плиты
     {
       const mm = new Mesher();
-      const pts = plat.map(([x, z]) => new THREE.Vector2(x, z));
-      const tr = THREE.ShapeUtils.triangulateShape(pts, []);
-      const R = plat.map(([x, z]) => mm.v(V3(x, yPlat - 0.18, z), U(x), V_DECK(z)));
+      const ccw = (q) => (THREE.ShapeUtils.isClockWise(q.map(([x, z]) => new THREE.Vector2(x, z))) ? [...q].reverse() : q);
+      const outer = ccw(plat), hole = [...ccw(whPoly)].reverse();
+      const tr = THREE.ShapeUtils.triangulateShape(outer.map(([x, z]) => new THREE.Vector2(x, z)), [hole.map(([x, z]) => new THREE.Vector2(x, z))]);
+      const R = [...outer, ...hole].map(([x, z]) => mm.v(V3(x, yPlat - 0.18, z), U(x), V_DECK(z)));
       tr.forEach(([a, b, c]) => mm.tri(R[a], R[c], R[b]));
       parts.push(orientOut(mm.build({ orient: false }), V3(15, yPlat, 0)));
     }
@@ -1179,23 +1197,13 @@ export function createShoreham() {
     // кормовая рубка под платформой орудия
     addHouse(roundRect(-26.5, -18.0, -2.3, 2.3, 0.6), mainDeckY(-22) + 0.12, 2.1, { band: 0, onDeck: true });
     // рубка у трубы (вентиляционная шахта / котельный кожух)
-    addHouse(roundRect(-0.9, 7.3, -2.0, 2.0, 0.5), fcY(3), 0.9, { band: 0, onDeck: true });
+    addHouse(roundRect(-0.9, 7.3, -2.0, 2.0, 0.5), fcY(3), 0.9, { band: 0, onDeck: true, holes: [funnelRing(fcY(3) + 0.9, 1).slice(0, -1).map((p) => [p.x, p.z])] });
 
     // труба: наклонные кольца-овалы; кромка, внутренняя стенка, тёмное дно
     {
       const fm = new Mesher();
       const NS = 40;
-      const ring = (y, sc) => {
-        const pts = [];
-        const cx = FUNNEL.x - (y - yFun0) * FUNNEL.rake;
-        for (let j = 0; j <= NS; j++) {
-          const a = (j / NS) * Math.PI * 2;
-          const c = Math.cos(a), s = Math.sin(a);
-          const ex = 2 / 2.6;
-          pts.push(V3(cx + sc * FUNNEL.a * Math.sign(c) * Math.abs(c) ** ex * (c > 0 ? 0.92 : 1), y, sc * FUNNEL.b * Math.sign(s) * Math.abs(s) ** ex));
-        }
-        return pts;
-      };
+      const ring = funnelRing;
       const yTop = yFun0 + FUN.h;
       const levels = [
         [yFun0, 1, FUN.h * 0],
