@@ -302,6 +302,16 @@ function rod(a, b, r, seg = 6, caps = 'both') {
   return g;
 }
 const box = (sx, sy, sz, x = 0, y = 0, z = 0) => new THREE.BoxGeometry(sx, sy, sz).translate(x, y, z);
+// Ящик без дна (стоит на палубе): нижняя грань не нужна
+function boxOpen(sx, sy, sz, x = 0, y = 0, z = 0) {
+  const g = new THREE.BoxGeometry(sx, sy, sz);
+  const idx = Array.from(g.index.array);
+  const ny = g.groups[3];
+  idx.splice(ny.start, ny.count);
+  g.setIndex(idx);
+  g.clearGroups();
+  return g.translate(x, y, z);
+}
 
 // Трубка вдоль ломаной с крышками на концах (без внутренних торцов на стыках)
 function tubePath(points, r, seg = 6, { capStart = true, capEnd = true } = {}) {
@@ -366,10 +376,10 @@ function tubePath(points, r, seg = 6, { capStart = true, capEnd = true } = {}) {
 }
 
 // Призма: многоугольник в плоскости XY, толщина по Z (центр z = 0)
-function prism(poly, th) {
+function prism(poly, th, { skip = null } = {}) {
   const m = new Mesher();
-  const pts = poly.map(([x, y]) => new THREE.Vector2(x, y));
-  if (THREE.ShapeUtils.isClockWise(pts)) pts.reverse();
+  let pts = poly.map(([x, y], i) => Object.assign(new THREE.Vector2(x, y), { src: i }));
+  if (THREE.ShapeUtils.isClockWise(pts)) pts = pts.reverse();
   let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
   pts.forEach((p) => {
     x0 = Math.min(x0, p.x);
@@ -388,6 +398,7 @@ function prism(poly, th) {
   const n = pts.length;
   for (let i = 0; i < n; i++) {
     const j = (i + 1) % n;
+    if (skip && skip(pts[i].src, pts[j].src)) continue;
     const a = m.v(V3(pts[i].x, pts[i].y, th / 2), i / n, 0);
     const b = m.v(V3(pts[j].x, pts[j].y, th / 2), (i + 1) / n, 0);
     const c = m.v(V3(pts[j].x, pts[j].y, -th / 2), (i + 1) / n, 1);
@@ -1149,9 +1160,10 @@ export function createShoreham() {
         const x = lerp(-21, -38.4, i / 10);
         const yk = sec(x).yk;
         lo.push([x, yk - 0.32 * (i / 10) ** 1.5 - 0.02]);
-        hi.push([x, yk + 0.5]);
+        hi.push([x, yk + 0.06]);
       }
-      parts.push(prism([...lo, ...hi.reverse()], 0.26));
+      // верхняя грань (внутри корпуса) не строится
+      parts.push(prism([...lo, ...hi.reverse()], 0.26, { skip: (a, b) => a > 10 && b > 10 }));
     }
     mesh(merge(parts), M.bottom, 'Hull_Appendages', hullG);
   }
@@ -1265,7 +1277,7 @@ export function createShoreham() {
     parts.push(atDeck(lathe([[0.42, -0.08], [0.42, 0.1], [0.3, 0.15], [0.26, 0.45], [0.34, 0.5], [0.3, 0.58], [0, 0.62]], 20), 35.4));
     const bollard = () => {
       const p = () => lathe([[0.13, -0.08], [0.12, 0.34], [0.17, 0.38], [0.17, 0.42], [0, 0.44]], 12);
-      return merge([p().translate(0.3, 0, 0), p().translate(-0.3, 0, 0), box(0.9, 0.12, 0.34, 0, -0.02, 0)]);
+      return merge([p().translate(0.3, 0, 0), p().translate(-0.3, 0, 0), boxOpen(0.9, 0.12, 0.34, 0, 0.0, 0)]);
     };
     [
       [31.5, 0.62, 1],
@@ -1285,7 +1297,7 @@ export function createShoreham() {
       const x = 37.6;
       const z = sd * 1.25;
       parts.push(atDeck(lathe([[0.32, -0.08], [0.3, 0.18], [0.22, 0.22], [0.22, 0.16], [0, 0.15]], 16), x, z));
-      parts.push(atDeck(box(0.9, 0.3, 0.32, 0, 0.1, 0), 36.6, sd * 0.85));
+      parts.push(atDeck(boxOpen(0.9, 0.3, 0.32, 0, 0.1, 0), 36.6, sd * 0.85));
       // ограждения клюзов на борту: кольца-окантовки
       const r = sideAt(HAWSE.x, HAWSE.y);
       const n = r.n.clone();
@@ -1358,9 +1370,9 @@ export function createShoreham() {
     {
       const x = -28.6;
       const y = mainDeckY(x) + CAMBER;
-      [1, -1].forEach((sd) => parts.push(prism([[-0.55, -0.05], [0.55, -0.05], [0.4, 1.05], [-0.4, 1.05]], 0.12).translate(x, y, sd * 0.85)));
+      [1, -1].forEach((sd) => parts.push(prism([[-0.55, -0.05], [0.55, -0.05], [0.4, 1.05], [-0.4, 1.05]], 0.12, { skip: (i, j) => i + j === 1 }).translate(x, y, sd * 0.85)));
       parts.push(latheZ([[0.35, -0.79], [0.55, -0.79], [0.55, -0.7], [0.4, -0.68], [0.4, 0.68], [0.55, 0.7], [0.55, 0.79], [0.35, 0.79]], 18).translate(x, y + 0.75, 0));
-      parts.push(box(1.0, 0.7, 0.8, x + 1.05, y + 0.3, 0)); // двигатель лебёдки
+      parts.push(boxOpen(1.0, 0.7, 0.8, x + 1.05, y + 0.3, 0)); // двигатель лебёдки
     }
     // шлюпбалки трала (П-образные кормовые стрелы) на раковинах
     [1, -1].forEach((sd) => {
@@ -1368,14 +1380,14 @@ export function createShoreham() {
       const ze = edgeZ(x, mainDeckY(x)) - 0.25;
       const y0 = deckY(x, ze) - 0.08;
       const pts = [V3(x, y0, sd * ze), V3(x, y0 + 2.7, sd * ze), V3(x - 0.5, y0 + 3.4, sd * (ze + 0.5)), V3(x - 0.9, y0 + 3.1, sd * (ze + 0.9))];
-      parts.push(tubePath(pts, 0.1, 8));
+      parts.push(tubePath(pts, 0.1, 8, { capStart: false }));
       parts.push(rod([x + 1.2, deckY(x + 1.2, ze - 0.4) - 0.05, sd * (ze - 0.4)], [x, y0 + 2.5, sd * ze], 0.06, 6));
       // блок на ноке
       parts.push(new THREE.TorusGeometry(0.16, 0.05, 6, 12).translate(x - 0.95, y0 + 2.85, sd * (ze + 0.95)));
       // тралящие щиты-«отводители» (Oropesa) на палубе у кормовой рубки
       const float = latheX([[0, -1.1], [0.18, -0.85], [0.26, -0.3], [0.26, 0.5], [0.15, 0.95], [0, 1.1]], 12);
       parts.push(float.translate(-33.8, mainDeckY(-33.8) + 0.42, sd * 2.6));
-      [-0.6, 0.6].forEach((dx) => parts.push(box(0.12, 0.3, 0.5, -33.8 + dx, mainDeckY(-33.8) + 0.12, sd * 2.6)));
+      [-0.6, 0.6].forEach((dx) => parts.push(boxOpen(0.12, 0.3, 0.5, -33.8 + dx, mainDeckY(-33.8) + 0.12, sd * 2.6)));
       // отводитель (кайт) — рама у стрелы
       parts.push(box(0.9, 0.6, 0.08, -37.3, mainDeckY(-37.3) + 0.5, sd * (edgeZ(-37.3, mainDeckY(-37.3)) - 0.45)));
     });
@@ -1469,7 +1481,7 @@ export function createShoreham() {
           }
           void a;
         }
-        parts.push(tubePath(pts, 0.085, 8));
+        parts.push(tubePath(pts, 0.085, 8, { capStart: false }));
         // блок и тали
         const tip = pts[pts.length - 1];
         parts.push(rod([tip.x, tip.y - 0.05, tip.z], [tip.x, BOAT.y + BOAT.D * 0.5, tip.z], 0.03, 5));
@@ -1480,7 +1492,7 @@ export function createShoreham() {
       [-16.8, 3.3],
       [-16.8, -3.3],
       [-28.6, 3.4],
-    ].forEach(([x, z]) => parts.push(atDeck(box(1.1, 0.7, 0.6, 0, 0.3, 0), x, z)));
+    ].forEach(([x, z]) => parts.push(atDeck(boxOpen(1.1, 0.7, 0.6, 0, 0.3, 0), x, z)));
     // пост наблюдения, нактоуз и дальномер на мостике
     parts.push(lathe([[0.2, -0.05], [0.14, 0.95], [0.22, 1.05], [0, 1.25]], 14).translate(15.4, yPlat, 0));
     parts.push(lathe([[0.18, -0.05], [0.15, 0.85], [0.2, 0.9], [0, 0.95]], 12).translate(14.2, yPlat, 0));

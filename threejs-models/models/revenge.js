@@ -1077,12 +1077,21 @@ export function createRevenge() {
 
   // подводные выступы: валы, кронштейны, дейдвуд, скуловые кили
   const PROPS = [
-    { name: 'Propeller_1', x: -70.0, y: 2.25, z: 7.6, sd: 1 },
-    { name: 'Propeller_2', x: -77.5, y: 2.95, z: 3.1, sd: 1 },
-    { name: 'Propeller_3', x: -77.5, y: 2.95, z: -3.1, sd: -1 },
-    { name: 'Propeller_4', x: -70.0, y: 2.25, z: -7.6, sd: -1 },
+    { name: 'Propeller_1', x: -64.0, z: 7.4, sd: 1 },
+    { name: 'Propeller_2', x: -74.0, z: 3.0, sd: 1 },
+    { name: 'Propeller_3', x: -74.0, z: -3.0, sd: -1 },
+    { name: 'Propeller_4', x: -64.0, z: -7.4, sd: -1 },
   ];
   const PROP_R = 1.45;
+  // ось винта — на 0,45 м ниже днища над верхней половиной диска
+  for (const p of PROPS) {
+    let y = Infinity;
+    for (let a = 0; a <= Math.PI + 1e-6; a += Math.PI / 12) {
+      const b = bottomAt(p.x, p.z + PROP_R * Math.cos(a));
+      if (b !== null) y = Math.min(y, b - PROP_R * Math.sin(a));
+    }
+    p.y = +(y - 0.45).toFixed(2);
+  }
   const RUD = { x: -85.2, y0: 1.7 };
   RUD.y1 = bottomAt(RUD.x - 0.4, 0) - 0.12;
   const debug = { props: [], rudderTop: RUD.y1 };
@@ -1103,7 +1112,7 @@ export function createRevenge() {
         if (b !== null && b < p.y - 0.4) break;
         xe += 0.5;
       }
-      debug.props.push({ name: p.name, clear: +clear.toFixed(2), shaftIn: xe });
+      debug.props.push({ name: p.name, y: p.y, clear: +clear.toFixed(2), shaftIn: xe });
       parts.push(rod([p.x + 0.6, p.y, p.z], [xe, p.y, p.z], 0.24, 12, true));
       // кронштейн (A-образный)
       const xb = p.x + 1.6;
@@ -1214,28 +1223,38 @@ export function createRevenge() {
     m.use('dark');
     walls(m, CT, 21.6, 21.95);
     slab(m, ellipse(38.2, 0, 3.15, 2.75, 28), CT, 21.95, 22.2, 'grey');
-    // мостик: 1-й ярус с крыльями
-    const B1 = rrect(27.4, 34.8, 5.2, 1.6);
+    // мостик: 1-й ярус (флагманский)
+    const B1 = rrect(24.0, 35.0, 6.0, 1.8);
     m.use('grey');
     walls(m, B1, BOAT - 0.02, 22.6);
-    slab(m, rrect(27.0, 35.2, 9.6, 1.0), B1, 22.6, 22.9, 'grey');
-    // 2-й ярус: рулевая рубка с окнами
-    const B2 = rrect(28.0, 34.2, 4.2, 1.6);
+    slab(m, rrect(23.6, 35.4, 7.2, 1.6), B1, 22.6, 22.9, 'grey');
+    // 2-й ярус с крыльями
+    const B2 = rrect(24.6, 34.4, 4.8, 1.6);
     m.use('grey');
-    walls(m, B2, 22.9, 24.2);
+    walls(m, B2, 22.9, 24.6);
     m.use('dark');
-    walls(m, B2, 24.2, 24.9);
+    walls(m, B2, 24.6, 25.2);
     m.use('grey');
-    walls(m, B2, 24.9, 25.3);
-    const CP = rrect(27.6, 34.9, 6.0, 1.2);
-    slab(m, CP, B2, 25.3, 25.55, 'grey');
-    // открытый компасный мостик: фальшборт
+    walls(m, B2, 25.2, 25.6);
+    slab(m, rrect(24.2, 35.0, 9.8, 1.0), B2, 25.6, 25.9, 'grey');
+    // 3-й ярус: рулевая рубка
+    const B3 = rrect(25.6, 33.8, 3.8, 1.4);
     m.use('grey');
-    bulwark(m, CP, rrect(27.72, 34.78, 5.88, 1.08), 25.55, 26.65);
-    // штурманская рубка на компасном мостике
-    const B3 = rrect(28.3, 31.0, 2.3, 0.7);
-    walls(m, B3, 25.53, 27.3);
-    slab(m, rrect(28.1, 31.2, 2.5, 0.8), B3, 27.3, 27.5, 'grey');
+    walls(m, B3, 25.9, 26.9);
+    m.use('dark');
+    walls(m, B3, 26.9, 27.6);
+    m.use('grey');
+    walls(m, B3, 27.6, 28.0);
+    const CP = rrect(25.0, 34.5, 5.4, 1.2);
+    slab(m, CP, B3, 28.0, 28.3, 'grey');
+    // открытый компасный мостик: фальшборт, штурманская рубка, визир
+    m.use('grey');
+    bulwark(m, CP, rrect(25.12, 34.38, 5.28, 1.08), 28.3, 29.4);
+    const B4 = rrect(25.6, 28.6, 2.4, 0.7);
+    walls(m, B4, 28.28, 30.0);
+    slab(m, rrect(25.4, 28.8, 2.6, 0.8), B4, 30.0, 30.2, 'grey');
+    m.use('grey');
+    m.add(lathe([[0.7, 28.28], [0.7, 29.3], [0.45, 29.5], [0, 29.55]], 14).translate(32.4, 0, 0));
     // кормовой командно-дальномерный пост (на шлюпочной палубе)
     const AC = rrect(-25.7, -23.3, 1.6, 0.6);
     m.use('grey');
@@ -1296,7 +1315,7 @@ export function createRevenge() {
     };
     [4.2, 1.5, -1.5, -4.2].forEach((z) => light(2.3, 26.28, z));
     // прожекторы на крыльях мостика и на кормовом посту
-    [1, -1].forEach((sd) => light(30.0, 22.88, sd * 8.6));
+    [1, -1].forEach((sd) => light(30.0, 25.88, sd * 8.6));
     [1, -1].forEach((sd) => light(-24.5, 22.98, sd * 1.1));
     mesh(m, 'Searchlights', supG);
   }
@@ -1307,27 +1326,27 @@ export function createRevenge() {
     const m = new Mesher();
     m.use('grey');
     // треногая фок-мачта
-    m.add(rod([26.0, BOAT - 0.02, 0], [26.0, 43.6, 0], 0.55, 14, true));
-    [1, -1].forEach((sd) => m.add(rod([19.5, BOAT - 0.02, sd * 4.6], [25.6, 43.6, sd * 0.4], 0.42, 12, true)));
+    m.add(rod([22.5, BOAT - 0.02, 0], [22.5, 43.6, 0], 0.55, 14, true));
+    [1, -1].forEach((sd) => m.add(rod([16.5, BOAT - 0.02, sd * 4.6], [22.1, 43.6, sd * 0.4], 0.42, 12, true)));
     // марс (пост управления огнём)
-    slab(m, rrect(23.0, 30.0, 3.6, 1.0), null, 43.6, 44.0, 'grey');
-    const T = rrect(23.6, 29.4, 3.0, 1.0);
+    slab(m, rrect(19.5, 26.5, 3.6, 1.0), null, 43.6, 44.0, 'grey');
+    const T = rrect(20.1, 25.9, 3.0, 1.0);
     m.use('grey');
     walls(m, T, 44.0, 45.3);
     m.use('dark');
     walls(m, T, 45.3, 46.0);
     m.use('grey');
     walls(m, T, 46.0, 46.3);
-    slab(m, rrect(23.4, 29.6, 3.2, 1.1), T, 46.3, 46.5, 'grey');
+    slab(m, rrect(19.9, 26.1, 3.2, 1.1), T, 46.3, 46.5, 'grey');
     // директор
-    const DCT = rrect(25.0, 27.8, 1.5, 0.6);
+    const DCT = rrect(21.5, 24.3, 1.5, 0.6);
     m.use('grey');
     walls(m, DCT, 46.48, 47.8);
     flatFace(m, DCT, [], 47.8, true);
-    [1, -1].forEach((sd) => m.add(rod([26.4, 47.2, sd * 1.45], [26.4, 47.2, sd * 2.7], 0.25, 10)));
+    [1, -1].forEach((sd) => m.add(rod([22.9, 47.2, sd * 1.45], [22.9, 47.2, sd * 2.7], 0.25, 10)));
     // стеньга и рей
-    m.add(rod([26.4, 47.78, 0], [26.4, 58.0, 0], 0.2, 10));
-    m.add(rod([26.4, 53.0, -5.5], [26.4, 53.0, 5.5], 0.1, 6));
+    m.add(rod([22.9, 47.78, 0], [22.9, 58.0, 0], 0.2, 10));
+    m.add(rod([22.9, 53.0, -5.5], [22.9, 53.0, 5.5], 0.1, 6));
     // грот-мачта: тренога с площадкой
     m.add(rod([-20.5, BOAT - 0.02, 0], [-20.5, 29.0, 0], 0.45, 14, true));
     m.add(rod([-20.5, 29.3, 0], [-20.5, 37.5, 0], 0.38, 12, true));
@@ -1346,11 +1365,11 @@ export function createRevenge() {
   {
     const parts = [];
     const w = (a, b) => parts.push(rod(a, b, 0.035, 4));
-    w([26.4, 57.5, 0], [94.0, 26.0, 0]);
+    w([22.9, 57.5, 0], [94.0, 26.0, 0]);
     w([-20.5, 44.5, 0], [-93.4, 21.5, 0]);
-    [1, -1].forEach((sd) => w([26.4, 52.9, sd * 5.3], [-20.5, 40.9, sd * 4.0]));
+    [1, -1].forEach((sd) => w([22.9, 52.9, sd * 5.3], [-20.5, 40.9, sd * 4.0]));
     [1, -1].forEach((sd) => {
-      w([26.0, 44.0, sd * 3.2], [19.5, BOAT + 0.1, sd * 7.4]);
+      w([22.5, 43.7, sd * 3.3], [12.5, BOAT + 0.1, sd * 7.6]);
       w([-20.5, 37.0, sd * 0.3], [-24.0, BOAT + 0.1, sd * 7.0]);
     });
     mesh(one('dark', parts), 'Rigging', mastG);

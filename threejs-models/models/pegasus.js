@@ -929,9 +929,9 @@ export function createPegasus() {
     // крылья мостика: консоли от второго яруса к бортам
     const wings = [];
     [1, -1].forEach((sd) => {
-      const w = box(3.4, 0.22, 2.75, T3.x0 + 1.9, T2.y - 0.11, sd * (T2.hw + 1.375), [sd > 0 ? '-z' : '+z']);
+      const w = box(2.2, 0.22, 2.75, -20.0, T2.y - 0.11, sd * (T2.hw + 1.375), [sd > 0 ? '-z' : '+z']);
       wings.push(w);
-      wings.push(rod([T3.x0 + 1.9, T1.y, sd * 6.1], [T3.x0 + 1.9, T2.y - 0.22, sd * 6.1], 0.09, 6, false));
+      wings.push(rod([-20.0, T1.y, sd * 6.1], [-20.0, T2.y - 0.22, sd * 6.1], 0.09, 6, false));
     });
     const wingsG = merge(wings);
     uvAt(wingsG, 0.5, V_FUN - 0.003);
@@ -992,7 +992,7 @@ export function createPegasus() {
     f.push(...railing(roundRect(T2.x0 + 0.12, T2.x1 - 0.12, T2.hw - 0.12, 0.78), T2.y, { step: 1.8, closed: true }));
     f.push(...railing(roundRect(T3.x0 + 0.1, T3.x1 - 0.1, T3.hw - 0.1, 0.5), T3.y, { step: 1.2, closed: true, h: 0.9 }));
     [1, -1].forEach((sd) => {
-      const xa = T3.x0 + 0.25, xb = T3.x0 + 3.55, zo = sd * (T2.hw + 2.65), zi = sd * (T2.hw - 0.05);
+      const xa = -21.0 + 0.15, xb = -19.0 - 0.15, zo = sd * (T2.hw + 2.65), zi = sd * (T2.hw - 0.05);
       f.push(...railing([[xa, zi], [xa, zo], [xb, zo], [xb, zi]], T2.y, { step: 1.2 }));
       // трапы между ярусами
       const lad = (x, y0, y1, z) => {
@@ -1064,7 +1064,7 @@ export function createPegasus() {
     f.push(lathe([[0.16, -0.3], [0.16, 0.5], [0, 0.6]], 8).translate(FUN.x + 0.95, FUN.y1 - 2.6, 0));
     // прожекторы на крыльях мостика и компас
     [1, -1].forEach((sd) => {
-      f.push(lathe([[0.28, 0], [0.32, 0.25], [0.38, 0.5], [0.38, 0.9], [0, 0.95]], 12).translate(T3.x0 + 2.9, T2.y, sd * (T2.hw + 2.0)));
+      f.push(lathe([[0.28, 0], [0.32, 0.25], [0.38, 0.5], [0.38, 0.9], [0, 0.95]], 12).translate(-20.0, T2.y, sd * (T2.hw + 2.0)));
     });
     f.push(lathe([[0.22, 0], [0.16, 0.8], [0.26, 0.95], [0, 1.15]], 12).translate(-19.8, T3.y + 1.0, 0));
     // шлюпбалки

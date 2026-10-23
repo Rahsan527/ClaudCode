@@ -934,7 +934,9 @@ export function createGrimsby() {
     // гик-стрела для тральных буёв
     mm.push(rod([MM.x - 0.3, 8.6, 0], [MM.x - 7.5, 10.3, 0], 0.08, 8));
     mm.push(lathe([[0.26, AH.y1 - 0.05], [0.26, AH.y1 + 0.35], [0, AH.y1 + 0.36]], 12, { top: false }).translate(MM.x, 0, 0));
-    // площадка прожектора за трубой
+    // гюйсшток на носу и флагшток на корме
+    mm.push(lathe([[0.06, deckTop(39.55) - 0.05], [0.035, deckTop(39.55) + 3.2], [0.07, deckTop(39.55) + 3.25], [0, deckTop(39.55) + 3.32]], 8, { top: false }).translate(39.55, 0, 0));
+    mm.push(lathe([[0.07, deckTop(-39.55) - 0.05], [0.04, deckTop(-39.55) + 4.2], [0.08, deckTop(-39.55) + 4.25], [0, deckTop(-39.55) + 4.33]], 8, { top: false }).translate(-39.55, 0, 0));
     mesh(merge([...parts, ...mm]), M.grey, 'Masts', supG);
     // штаги, ванты, антенны
     const w = [];
