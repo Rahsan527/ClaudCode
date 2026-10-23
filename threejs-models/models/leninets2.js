@@ -29,20 +29,20 @@ const V = (x, y, z) => new THREE.Vector3(x, y, z);
 // ОБВОДЫ КОРПУСА (поперечное сечение как функция x)
 
 const sternT = (x) => smooth((-22 - x) / (-22 - XS));
-const yT = (x) => 2.0 + 0.55 * smooth((x - 22) / (XB - 22)) - 0.45 * smooth((-24 - x) / (-24 - XS));
+const yT = (x) => 2.0 + 0.55 * smooth((x - 22) / (XB - 22)) - 0.55 * smooth((-24 - x) / (-24 - XS));
 function dw(x) {
   if (x > 24) {
     const u = clamp01((x - 24) / (XB - 24));
     return 0.1 + 1.4 * Math.sqrt(Math.max(0, 1 - u * u));
   }
-  return 1.5 - 0.45 * smooth((-24 - x) / (-24 - XS));
+  return 1.5 - 0.62 * smooth((-24 - x) / (-24 - XS));
 }
 function hw(x) {
   if (x > 16) {
     const u = clamp01((x - 16) / (XB - 16));
     return Math.max(0.1, 3.6 * Math.max(0, 1 - u ** 2.1) ** 0.55);
   }
-  if (x < -14) return 1.3 + 2.3 * (1 - smooth((-14 - x) / (-14 - XS)));
+  if (x < -14) return 1.05 + 2.55 * (1 - smooth((-14 - x) / (-14 - XS)));
   return 3.6;
 }
 function yB(x) {
@@ -50,7 +50,7 @@ function yB(x) {
     const u = clamp01((x - 28) / (XB - 28));
     return -DRAFT + (yT(XB) - 0.3 + DRAFT) * u ** 2.3;
   }
-  if (x < -22) return -DRAFT + 3.08 * sternT(x);
+  if (x < -22) return -DRAFT + 2.6 * sternT(x);
   return -DRAFT;
 }
 function section(x) {
@@ -169,13 +169,16 @@ class Mesher {
       this.quad(A[j], B[j], B[k], A[k]);
     }
   }
-  fan(points, uvFn) {
+  fan(points, uvFn, reverse = false) {
     const c = new THREE.Vector3();
     points.forEach((p) => c.add(p));
     c.divideScalar(points.length);
     const ci = this.v(c, ...uvFn(c));
     const ids = points.map((p) => this.v(p, ...uvFn(p)));
-    for (let j = 0; j < ids.length; j++) this.tri(ci, ids[j], ids[(j + 1) % ids.length]);
+    for (let j = 0; j < ids.length; j++) {
+      if (reverse) this.tri(ci, ids[(j + 1) % ids.length], ids[j]);
+      else this.tri(ci, ids[j], ids[(j + 1) % ids.length]);
+    }
   }
   build({ orient = true, boxUV = false } = {}) {
     const g = new THREE.BufferGeometry();
@@ -400,17 +403,17 @@ function hullTextures() {
     c.fillStyle = color;
     c.fillRect(0, vy(v1), W, vy(v0) - vy(v1));
   };
-  band(0, 0.42, '#2b2e30');
-  band(0.42, 0.68, '#7a8186');
-  band(0.68, 0.82, '#7f868b');
-  band(0.82, 1.0, '#5f6468');
+  band(0, 0.42, '#26292b');
+  band(0.42, 0.68, '#646b70');
+  band(0.68, 0.82, '#687075');
+  band(0.82, 1.0, '#4f5457');
   // мягкая неровность окраски
   const rnd = (() => { let s = 7; return () => ((s = (s * 16807) % 2147483647) / 2147483647); })();
-  for (let i = 0; i < 900; i++) {
+  for (let i = 0; i < 400; i++) {
     const x = rnd() * W;
     const y = rnd() * H;
     const r = 20 + rnd() * 90;
-    c.fillStyle = `rgba(${rnd() < 0.5 ? '0,0,0' : '255,255,255'},${0.015 + rnd() * 0.02})`;
+    c.fillStyle = `rgba(${rnd() < 0.6 ? '0,0,0' : '200,205,210'},${0.006 + rnd() * 0.012})`;
     c.beginPath();
     c.ellipse(x, y, r * 2, r, 0, 0, Math.PI * 2);
     c.fill();
@@ -648,13 +651,13 @@ export function createLeninets2() {
     const ids = rings.map((r) => r.map(({ p, v }) => m.v(p, ...uvT(p, v))));
     for (let k = 0; k < ids.length - 1; k++) m.strip(ids[k], ids[k + 1]);
     // пол мостика — палубный настил
-    m.fan(inner.map(([x, z]) => V(x, FLOOR, z)), (p) => [uOf(p.x), 0.9 + 0.05 * (p.z / TW)]);
-    const fence = m.build();
+    m.fan(inner.map(([x, z]) => V(x, FLOOR, z)), (p) => [uOf(p.x), 0.9 + 0.05 * (p.z / TW)], true);
+    const fence = m.build({ orient: false });
     // ориентация: проверим по точке снаружи (нормаль у носа должна смотреть в +X)
     mesh(fence, M.hull, 'Tower_Fence', hullG);
   }
   // Тумба (ограждение) перископов на мостике
-  const SCOPE_TOP = 5.12;
+  const SCOPE_TOP = 5.3;
   const PX1 = 1.15;
   const PX2 = -0.55;
   {
@@ -677,8 +680,8 @@ export function createLeninets2() {
     const rings = [ring(FLOOR - 0.02, 1), ring(4.6, 0.97), ring(SCOPE_TOP, 0.9)];
     const ids = rings.map((r, k) => r.map((p) => m.v(p, uOf(p.x), [0.47, 0.55, 0.62][k])));
     for (let k = 0; k < ids.length - 1; k++) m.strip(ids[k], ids[k + 1]);
-    m.fan(rings[2], (p) => [uOf(p.x), 0.63]);
-    mesh(m.build(), M.hull, 'Periscope_Standard', hullG);
+    m.fan(rings[2], (p) => [uOf(p.x), 0.63], true);
+    mesh(m.build({ orient: false }), M.hull, 'Periscope_Standard', hullG);
   }
 
   // =========================================================================
@@ -710,9 +713,9 @@ export function createLeninets2() {
   {
     const yb = yT(XB);
     const poly = [
-      [36.6, yb - 0.25], [XB - 0.15, yb - 0.25], [XB + 0.25, yb + 0.25], [XB - 0.05, yb + 0.3],
-      [XB + 0.1, yb + 0.65], [XB - 0.25, yb + 0.68], [XB - 0.15, yb + 1.0], [XB - 0.55, yb + 1.0],
-      [XB - 0.5, yb + 1.3], [XB - 1.0, yb + 1.45], [37.4, yb + 0.35],
+      [XB - 2.8, yb - 0.25], [XB - 0.1, yb - 0.25], [XB + 0.1, yb + 0.1], [XB - 0.15, yb + 0.2],
+      [XB - 0.25, yb + 0.55], [XB - 0.5, yb + 0.62], [XB - 0.6, yb + 0.95], [XB - 0.85, yb + 1.02],
+      [XB - 1.0, yb + 1.45], [XB - 1.35, yb + 1.5], [XB - 1.6, yb + 0.6], [XB - 2.8, yb - 0.1],
     ];
     fit.push(plate(poly, 0.08));
   }
@@ -724,7 +727,7 @@ export function createLeninets2() {
   const POST_S = V(-36.5, yT(-36.5) + 1.1, 0);
   fit.push(rod(V(POST_S.x, deckY(POST_S.x, 0) - 0.05, 0), POST_S, 0.06, 0.04, 8));
   // антенна-леер: сетепрорезатель → носовая мачта, кормовая мачта → кормовая стойка
-  const CUT_TOP = V(XB - 0.95, yT(XB) + 1.4, 0);
+  const CUT_TOP = V(XB - 1.15, yT(XB) + 1.45, 0);
   fit.push(rod(CUT_TOP, MAST_F, 0.018, 0.018, 6));
   fit.push(rod(MAST_A, POST_S, 0.018, 0.018, 6));
   // поручни мостика (кормовая площадка 45-мм)
@@ -760,7 +763,7 @@ export function createLeninets2() {
   // ПОДВОДНАЯ ЧАСТЬ: кормовой дейдвуд (скег), валы, кронштейны, ограждения винтов,
   // крышки носовых торпедных аппаратов (Hull_Black)
   const PROP_X = -35.55;
-  const PROP_Y = -2.05;
+  const PROP_Y = -2.15;
   const PROP_Z = 1.72;
   const PROP_R = 0.8;
   const RUD_X = -37.15;
@@ -770,7 +773,7 @@ export function createLeninets2() {
     const poly = [];
     const x0 = -23.5;
     const x1 = RUD_X + 0.12;
-    const yBot = (x) => lerp(-DRAFT, -3.12, smooth((x0 - x) / (x0 - x1)) ** 0.8);
+    const yBot = (x) => lerp(-DRAFT, -3.0, smooth((x0 - x) / (x0 - x1)) ** 0.8);
     for (let k = 0; k <= 16; k++) {
       const x = lerp(x0, x1, k / 16);
       poly.push([x, Math.min(yBot(x), yB(x) - 0.02)]);
@@ -781,7 +784,7 @@ export function createLeninets2() {
     }
     under.push(plate(poly, 0.2));
     // пятка (подпятник руля)
-    under.push(box(V(RUD_X - 0.1, -3.14, 0), 0.5, 0.1, 0.2));
+    under.push(box(V(RUD_X - 0.1, -3.02, 0), 0.5, 0.1, 0.2));
   }
   for (const s of [1, -1]) {
     const z = s * PROP_Z;
@@ -874,7 +877,7 @@ export function createLeninets2() {
   // =========================================================================
   // ПЕРИСКОПЫ: выдвигаются по Y от верха тумбы
   const scopes = group('Periscopes');
-  for (const [name, x, len, rHead] of [['Periscope_1', PX1, 0.85, 0.075], ['Periscope_2', PX2, 0.7, 0.1]]) {
+  for (const [name, x, len, rHead] of [['Periscope_1', PX1, 0.7, 0.075], ['Periscope_2', PX2, 0.6, 0.1]]) {
     const pv = group(name, scopes, x, SCOPE_TOP, 0);
     const g = revolveX([[0, 0.11], [len - 0.25, 0.11], [len - 0.15, rHead + 0.02], [len, rHead], [len + 0.06, 0]], 14);
     g.rotateZ(Math.PI / 2);
@@ -921,7 +924,7 @@ export function createLeninets2() {
   {
     const yTop = yB(RUD_X) - 0.06;
     const pv = group('Rudder', ctrl, RUD_X, yTop, 0);
-    const h = yTop + 3.06;
+    const h = yTop + 2.94;
     const g = foil({
       le: () => 0.12,
       te: (f) => -1.75 + 0.1 * f,
@@ -954,9 +957,9 @@ export function createLeninets2() {
   // КОРМОВЫЕ КРЫШКИ МИННЫХ ТРУБ (выход мин ПЛ-100), шарнир — вертикальная ось у наружной кромки
   const mines = group('Mine_Ports');
   {
-    const yc = 0.12;
-    const r = 0.42;
-    const zc = 0.62;
+    const yc = 0.1;
+    const r = 0.36;
+    const zc = 0.5;
     for (const [nm, s] of [['Mine_Door_R', 1], ['Mine_Door_L', -1]]) {
       const hz = s * (zc + r + 0.04);
       const pv = group(nm, mines, XS - 0.035, yc, hz);
