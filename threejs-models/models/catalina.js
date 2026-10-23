@@ -7,7 +7,6 @@ import { mergeGeometries, mergeVertices } from 'three/addons/utils/BufferGeometr
 // Окраска Coastal Command: белые борта и низ, верх — Extra Dark Sea Grey / Dark Slate Grey,
 // опознавательные знаки RAF (тип B сверху крыла, C1 на борту, флэш на киле), без номеров и кодов.
 // Подвижные части — отдельные группы с нулевым поворотом в покое и началом на оси движения.
-// Перед лодкой — швартовый конец с буем (группа Mooring_Gear, её можно скрыть в полёте).
 
 const ATLAS = 2048;
 const XH0 = -8.75; // корма лодки
@@ -189,30 +188,6 @@ function strut(a, b, cw, th, uv = [0.1, 0.258], seg = 10) {
     return ids;
   };
   m.strip(ring(A), ring(B), true);
-  return m.build({ orient: false, flip: true });
-}
-
-// Труба по ломаной (открытые концы)
-function tube(points, r, seg = 8, uv = [0.4, 0.26]) {
-  const m = new Mesher();
-  const rings = [];
-  let prevN = null;
-  for (let i = 0; i < points.length; i++) {
-    const P = points[i];
-    const d = (i < points.length - 1 ? points[i + 1].clone().sub(P) : P.clone().sub(points[i - 1])).normalize();
-    let n1 = prevN ? prevN.clone().addScaledVector(d, -prevN.dot(d)) : V3(0, 1, 0).addScaledVector(d, -d.y);
-    if (n1.length() < 1e-4) n1 = V3(0, 0, 1);
-    n1.normalize();
-    prevN = n1;
-    const n2 = new THREE.Vector3().crossVectors(d, n1);
-    const ids = [];
-    for (let j = 0; j < seg; j++) {
-      const f = (j / seg) * Math.PI * 2;
-      ids.push(m.v(P.clone().addScaledVector(n1, r * Math.cos(f)).addScaledVector(n2, r * Math.sin(f)), ...uv));
-    }
-    rings.push(ids);
-  }
-  for (let i = 0; i < rings.length - 1; i++) m.strip(rings[i], rings[i + 1], true);
   return m.build({ orient: false, flip: true });
 }
 
@@ -1106,7 +1081,7 @@ function paintAtlas() {
     put(px, py, finish(mix(colr, [60, 62, 64], 0.15 * ln), u, v), h);
   });
 
-  // ---- МЕЛОЧИ: стойки (белые), трос, буй (полосы)
+  // ---- МЕЛОЧИ: стойки (белые)
   region(0.0, 1.0, 0.25, 0.27, (u, v, px, py) => {
     let colr = COL.white;
     if (u > 0.3 && u < 0.5) colr = COL.rope;
@@ -1262,7 +1237,7 @@ export function createCatalina() {
   // двигатели (передний картер и цилиндры), пулемёт, кнехт, антенны РЛС ASV, провода
   {
     const parts = [buildEngineFace(PROP.z), buildEngineFace(-PROP.z)];
-    parts.push(rod([8.75, 2.52, 0], [9.78, 2.5, 0], 0.022, 8)); // носовой пулемёт
+    parts.push(rod([8.75, 2.52, 0], [9.58, 2.5, 0], 0.022, 8)); // носовой пулемёт
     parts.push(lathe([[0.05, 1.72], [0.045, 1.98], [0.075, 2.0], [0.075, 2.05], [0, 2.07]], 12).translate(9.28, 0, 0)); // кнехт
     // «Stickleback» — мачты ASV на гребне кормы
     [-3.85, -4.45, -5.05, -5.65].forEach((x) => {
@@ -1346,24 +1321,6 @@ export function createCatalina() {
       mesh(pg.clone(), M.prop, `${g.name}_Blades`, g);
       props[sd > 0 ? 'R' : 'L'] = g;
     });
-  }
-
-  // ======================= ШВАРТОВКА: конец от носового кнехта к бую (можно скрыть в полёте)
-  {
-    const moor = group('Mooring_Gear', root);
-    const A = V3(9.28, 2.0, 0), B = V3(11.35, 1.22, 0);
-    const pts = [];
-    for (let i = 0; i <= 12; i++) {
-      const t = i / 12;
-      pts.push(A.clone().lerp(B, t).add(V3(0, -0.18 * Math.sin(Math.PI * t), 0)));
-    }
-    const line = tube(pts, 0.016, 6, [0.4, 0.26]);
-    const prof = [[0, 0.62], [0.18, 0.66], [0.29, 0.78], [0.33, 0.95], [0.29, 1.1], [0.16, 1.2], [0.06, 1.22], [0.06, 1.3], [0, 1.31]];
-    const buoy = lathe(prof, 20, { uvFixed: null });
-    const p = buoy.attributes.position, uv = buoy.attributes.uv;
-    for (let i = 0; i < p.count; i++) uv.setXY(i, 0.5 + 0.49 * clamp01((p.getY(i) - 0.62) / 0.69), 0.26);
-    buoy.translate(11.35, 0, 0);
-    mesh(merge([line, buoy]), M.paint, 'Mooring_Line_Buoy', moor);
   }
 
   // Анимация: оба винта вращаются в одну сторону (по часовой, если смотреть сзади), 1 оборот за 0.5 с
