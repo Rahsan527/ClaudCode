@@ -670,6 +670,11 @@ function netTexture() {
 const ELEV_FWD = [34, 54];
 const ELEV_AFT = [-53, -33];
 const ELEV_Z0 = 17.2; // внутренняя кромка бортовых самолётоподъёмников
+const ELEV_FLOOR = 7.5; // пол шахты (низ хода платформы), от ватерлинии; ход платформы — 9 м
+const ELEV_GAP = 0.12; // зазор платформы до стенок шахты (стенки и платформа не лежат в одной плоскости)
+// Столбцы сетки корпуса, которые приходятся точно на торцы лифтов (вырез в обшивке под шахту)
+const HULL_N = 300;
+const HULL_ANCHORS = [[95, ELEV_AFT[0]], [115, ELEV_AFT[1]], [183, ELEV_FWD[0]], [203, ELEV_FWD[1]]];
 const TAKEOFF = [
   [[58, 5], [152, 1.5]],
   [[58, -9], [152, -1.5]],
@@ -737,6 +742,7 @@ const STATIC_NAMES = {
   'Boats|Hull_Paint_Atlas': 'Boat_Cabins',
   'Boats|Dark_Metal': 'Boat_Davits',
   'Equipment|Light_Grey': 'Whip_Antennas_Railings',
+  'Elevator_Wells|Hull_Paint_Atlas': 'Elevator_Wells',
 };
 
 // UV по режиму детали: 'keep' — своя развёртка, 'swatch:<цвет>' — точка образца в атласе, иначе 0.5
@@ -889,7 +895,7 @@ export function createKuznetsov() {
   // Часть корпуса между рядами высот rows; первый ряд может быть килевой линией (полуширина 0).
   // UV — сразу в атлас окраски: у каждого борта своя полоса, транец — по высоте.
   const hullGeometry = (rows) => {
-    const N = 300;
+    const N = HULL_N;
     const C = N + 1;
     const pos = [];
     const uv = [];
@@ -900,7 +906,8 @@ export function createKuznetsov() {
         const xs = sternX(r.y);
         const xe = stemX(r.y);
         for (let i = 0; i <= N; i++) {
-          const x = xs + ((xe - xs) * i) / N;
+          // столбцы привязаны к торцам лифтов: вырез под шахту идёт точно по рёбрам сетки
+          const x = interp([[0, xs], ...HULL_ANCHORS, [N, xe]], i);
           pos.push(x, r.y, r.keel ? 0 : side * hb(x, r.y));
           uv.push(...hullUV(x, r.y, side));
         }
@@ -908,6 +915,9 @@ export function createKuznetsov() {
       const tris = [];
       for (let j = 0; j < rows.length - 1; j++) {
         for (let i = 0; i < N; i++) {
+          // правый борт: вырез обшивки под шахтами лифтов — от пола шахты до верхней кромки корпуса
+          const inWell = (i >= HULL_ANCHORS[0][0] && i < HULL_ANCHORS[1][0]) || (i >= HULL_ANCHORS[2][0] && i < HULL_ANCHORS[3][0]);
+          if (side > 0 && inWell && rows[j].y >= ELEV_FLOOR - 1e-6) continue;
           const a = base + j * C + i;
           tris.push([a, a + 1, a + C + 1], [a, a + C + 1, a + C]);
         }
@@ -932,8 +942,9 @@ export function createKuznetsov() {
     return indexedGeometry(pos, index, uv);
   };
   const rows = (ys) => ys.map((y) => ({ y }));
-  mesh(hullGeometry([{ y: KEEL, keel: true }, ...rows([KEEL, -9.7, -9.2, -8.5, -7.6, -6.5, -5.3, -4.1, -2.9, -2, -1.2,
-    -0.5, 0.2, 1, 1.8, 3, 4.5, 6, 7.5, 9, 10.5, 12, 13.5, 14.5, TOP])]), M.paint, 'Hull_Sides', hullGroup, undefined, undefined, 'keep');
+  const HULL_YS = [KEEL, -9.7, -9.2, -8.5, -7.6, -6.5, -5.3, -4.1, -2.9, -2, -1.2,
+    -0.5, 0.2, 1, 1.8, 3, 4.5, 6, 7.5, 9, 10.5, 12, 13.5, 14.5, TOP];
+  mesh(hullGeometry([{ y: KEEL, keel: true }, ...rows(HULL_YS)]), M.paint, 'Hull_Sides', hullGroup, undefined, undefined, 'keep');
 
   // Бульб с ГАС «Полином»
   const dome = mesh(new THREE.SphereGeometry(1, 32, 16), RED, 'SonarDome', hullGroup, [126, -6.3, 0]);
@@ -1095,18 +1106,115 @@ export function createKuznetsov() {
   const mStb = DECK_XS.length - 1;
   const elevEdge = (k) => k < mStb && inElevator(DECK_XS[k], DECK_XS[k + 1]);
   mesh(ringLoft(ringTop, ringBottom, outward, elevEdge), GREY, 'FlightDeck_Edge', deckGroup);
-  mesh(ringLoft(ringBottom, ringHull, (x, y, z) => [x > 149 ? 1 : x < -146 ? -1 : 0, -0.4, Math.sign(z)]),
+  mesh(ringLoft(ringBottom, ringHull, (x, y, z) => [x > 149 ? 1 : x < -146 ? -1 : 0, -0.4, Math.sign(z)], elevEdge),
     GREY, 'FlightDeck_Sponsons', deckGroup);
 
-  // Бортовые самолётоподъёмники: платформа заполняет вырез настила (общие точки), толщина 1 м,
-  // начало — в центре платформы на уровне палубы, ход — вниз по Y
+  // Шахта бортового лифта: замкнутое тонкостенное тело (толщина 0,25 м). Лицевые стенки — к ДП, к торцам —
+  // и пол на нижнем уровне хода смотрят в шахту; со стороны борта шахта открыта. Верх стенок — точки
+  // выреза настила, торцы стенок — по точкам торца палубы, скоса спонсона и обшивки, пол — по ряду обшивки.
+  // Тыльная сторона и кромки толщины уходят внутрь корпуса и палубы, снаружи их не видно.
+  const buildWell = (x0, x1, ii) => {
+    const yF = ELEV_FLOOR;
+    const TH = 0.25;
+    const e = 1e-6;
+    const pos = [];
+    const ids = new Map();
+    const v = (p) => {
+      const k = p.map((c) => Math.round(c * 1e5)).join(',');
+      if (!ids.has(k)) {
+        ids.set(k, pos.length / 3);
+        pos.push(...p);
+      }
+      return ids.get(k);
+    };
+    const S = [];
+    const face = (tris, dir) => {
+      for (const [a, b, c] of tris) {
+        const P = (i) => new THREE.Vector3(pos[i * 3], pos[i * 3 + 1], pos[i * 3 + 2]);
+        const n = P(b).sub(P(a)).cross(P(c).sub(P(a)));
+        if (n.length() < 1e-8) continue;
+        S.push(n.dot(new THREE.Vector3(...dir)) >= 0 ? [a, b, c] : [a, c, b]);
+      }
+    };
+    // полоса между двумя ломаными вдоль X (разное число точек)
+    const strip = (A, B, dir) => {
+      const t = [];
+      let i = 0;
+      let j = 0;
+      while (i < A.length - 1 || j < B.length - 1) {
+        const ax = i < A.length - 1 ? pos[A[i + 1] * 3] : Infinity;
+        const bx = j < B.length - 1 ? pos[B[j + 1] * 3] : Infinity;
+        if (ax <= bx) {
+          t.push([A[i], A[i + 1], B[j]]);
+          i++;
+        } else {
+          t.push([A[i], B[j + 1], B[j]]);
+          j++;
+        }
+      }
+      face(t, dir);
+    };
+    const xsIn = ii.map((i) => DECK_XS[i]);
+    const top = ii.map((i) => v(deckPt(i, DECK_C1)));
+    const inBot = xsIn.map((x) => v([x, yF, ELEV_Z0]));
+    const nOut = HULL_ANCHORS[1][0] - HULL_ANCHORS[0][0];
+    const outBot = Array.from({ length: nOut + 1 }, (_, k) => {
+      const x = x0 + ((x1 - x0) * k) / nOut;
+      return v([x, yF, hb(x, yF)]);
+    });
+    strip(top, inBot, [0, 0, 1]); // стенка к ДП
+    strip(inBot, outBot, [0, 1, 0]); // пол
+    // торцевые стенки: контур в плоскости x = X
+    for (const [i, X, dir] of [[ii[0], x0, 1], [ii[ii.length - 1], x1, -1]]) {
+      const loop = [];
+      for (let c = DECK_C1; c < NC; c++) loop.push(deckPt(i, c));
+      const edge = deckHalf(X, 1);
+      loop.push([X, deckY(X) - 1.0, edge]);
+      const h = skirtHullPoint(X, edge);
+      loop.push(h);
+      for (const y of HULL_YS.filter((y) => y >= yF - e && y < h[1] - 1e-3).reverse()) loop.push([X, y, hb(X, y)]);
+      loop.push([X, yF, ELEV_Z0]);
+      const vi = loop.map(v);
+      const tris = THREE.ShapeUtils.triangulateShape(loop.map(([, y, z]) => new THREE.Vector2(z, y)), []);
+      face(tris.map(([a, b, c]) => [vi[a], vi[b], vi[c]]), [dir, 0, 0]);
+    }
+    // граница лица — рёбра, которые встречаются в одном треугольнике
+    const dirEdges = new Set();
+    for (const [a, b, c] of S) for (const [p, q] of [[a, b], [b, c], [c, a]]) dirEdges.add(`${p},${q}`);
+    const border = [];
+    for (const [a, b, c] of S) for (const [p, q] of [[a, b], [b, c], [c, a]]) if (!dirEdges.has(`${q},${p}`)) border.push([p, q]);
+    // тыльная сторона: те же точки, сдвинутые внутрь материала
+    const n = pos.length / 3;
+    for (let k = 0; k < n; k++) {
+      const [x, y, z] = [pos[k * 3], pos[k * 3 + 1], pos[k * 3 + 2]];
+      const ox = x <= x0 + e ? -TH : x >= x1 - e ? TH : 0;
+      const oy = y >= DECK - e || Math.abs(y - yF) < e ? -TH : 0;
+      pos.push(x + ox, y + oy, z - TH);
+    }
+    const index = [];
+    for (const [a, b, c] of S) index.push(a, b, c, a + n, c + n, b + n);
+    for (const [a, b] of border) index.push(a, a + n, b + n, a, b + n, b);
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    g.setIndex(index);
+    const flat = g.toNonIndexed();
+    flat.computeVertexNormals();
+    return flat;
+  };
+
+  // Бортовые самолётоподъёмники: платформа в вырезе настила с зазором 0,12 м, толщина 1 м,
+  // начало — в центре платформы на уровне палубы, ход — вниз по Y на 9 м до пола шахты
   const elevators = [];
   for (const [[x0, x1], tag] of [[ELEV_FWD, 'Fwd'], [ELEV_AFT, 'Aft']]) {
     const ii = [];
     for (let i = 0; i < nx; i++) if (DECK_XS[i] >= x0 - 1e-6 && DECK_XS[i] <= x1 + 1e-6) ii.push(i);
     const cs = [];
     for (let c = DECK_C1; c < NC; c++) cs.push(c);
-    const P = ii.map((i) => cs.map((c) => deckPt(i, c)));
+    // платформа меньше выреза на зазор у ДП и у торцов; у борта — по кромке палубы
+    const P = ii.map((i) => {
+      const x = clamp(DECK_XS[i], x0 + ELEV_GAP, x1 - ELEV_GAP);
+      return cs.map((c) => (c === DECK_C1 ? [x, deckY(x), ELEV_Z0 + ELEV_GAP] : [x, deckY(x), colZ(x, c)]));
+    });
     const pos = [];
     const uv = [];
     const index = [];
@@ -1152,6 +1260,7 @@ export function createKuznetsov() {
     const eg = movable(`Elevator_${tag}`, deckGroup, [xc, DECK, zc]);
     part(mesh(geo, M.deck, `Elevator_${tag}_Platform`, eg, [-xc, -DECK, -zc], undefined, 'keep'), 'Platform');
     elevators.push(eg.name);
+    mesh(buildWell(x0, x1, ii), GREY, `Elevator_Well_${tag}`, deckGroup).userData.bucket = 'Elevator_Wells';
   }
 
   // Оптическая система посадки «Луна» на левом борту
@@ -1480,5 +1589,6 @@ export function createKuznetsov() {
   ship.userData.waterline = shift.y; // высота ватерлинии над килем
   ship.userData.centerlineZ = shift.z; // где диаметральная плоскость после центровки по габаритам
   ship.userData.movingParts = { radars: radars.map((r) => r.name), propellers: propellers.map((p) => p.name), elevators };
+  ship.userData.elevatorTravel = DECK - 1 - ELEV_FLOOR; // ход лифтов вниз до пола шахты, м
   return ship;
 }
