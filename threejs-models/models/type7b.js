@@ -520,31 +520,46 @@ function paintAtlas(rnd) {
   return { col, nrm };
 }
 
-// Деревянный настил: доски вдоль корпуса. Развёртка на всю палубу без повтора: texture.repeat
-// при сборке в Blender экспортируется как обязательное (extensionsRequired) KHR_texture_transform.
+// Деревянный настил: доски вдоль корпуса, бесшовный тайл, повтор вдоль палубы — texture.repeat
+// (KHR_texture_transform). Один тайл — LEN / DECK_REPEAT ≈ 8.2 м палубы.
+const DECK_REPEAT = 8;
 function paintPlanks(rnd) {
-  const W = 2048, Hh = 512;
+  const W = 1024, Hh = 512;
   const cv = makeCanvas(W, Hh);
   const c = cv.getContext('2d');
   c.fillStyle = '#6b6862';
   c.fillRect(0, 0, W, Hh);
   const planks = 26; // поперёк палубы 3.6 м (≈ 0.14 м)
   const ph = Hh / planks;
+  const pxPerM = W / (LEN / DECK_REPEAT);
   for (let p = 0; p < planks; p++) {
-    let x = -rnd() * 180;
-    while (x < W) {
-      const len = 110 + rnd() * 90; // 3.5…6.4 м
+    // длины досок в ряду, в сумме ровно один тайл; ряд сдвинут на случайную величину
+    const lens = [];
+    let rest = W;
+    while (rest > 0) {
+      let len = (3.4 + rnd() * 2.8) * pxPerM;
+      if (rest - len < 2.5 * pxPerM) len = rest;
+      lens.push(len);
+      rest -= len;
+    }
+    let x = rnd() * W;
+    for (const len of lens) {
       const g = 92 + rnd() * 26;
-      c.fillStyle = `rgb(${g + 6},${g + 3},${g - 4})`;
-      c.fillRect(x, p * ph, len, ph);
-      // волокна
-      for (let i = 0; i < 10; i++) {
-        c.fillStyle = `rgba(${rnd() < 0.5 ? '60,55,48' : '170,165,150'},${0.06 + rnd() * 0.08})`;
-        c.fillRect(x, p * ph + rnd() * ph, len, 0.6 + rnd() * 1.2);
+      const grain = [];
+      for (let i = 0; i < 10; i++) grain.push([rnd() < 0.5 ? '60,55,48' : '170,165,150', 0.06 + rnd() * 0.08, rnd() * ph, 0.6 + rnd() * 1.2]);
+      for (const off of [0, -W]) { // кусок, вышедший за край, — с другой стороны
+        const x0 = x + off;
+        c.fillStyle = `rgb(${g + 6},${g + 3},${g - 4})`;
+        c.fillRect(x0, p * ph, len, ph);
+        for (const [rgb, a, dy, hh] of grain) {
+          c.fillStyle = `rgba(${rgb},${a})`;
+          c.fillRect(x0, p * ph + dy, len, hh);
+        }
+        c.fillStyle = 'rgba(28,26,22,0.85)'; // торцевой стык
+        c.fillRect(x0, p * ph, 2, ph);
       }
-      c.fillStyle = 'rgba(28,26,22,0.85)'; // торцевой стык
-      c.fillRect(x, p * ph, 2, ph);
       x += len;
+      if (x >= W) x -= W;
     }
     c.fillStyle = 'rgba(30,28,24,0.9)'; // паз между досками
     c.fillRect(0, p * ph, W, 1.6);
@@ -580,6 +595,8 @@ export function createType7B() {
     return t;
   };
   const planks = tex(paintPlanks(rnd), true);
+  planks.wrapS = THREE.RepeatWrapping;
+  planks.repeat.set(DECK_REPEAT, 1);
 
   const M = {
     paint: new THREE.MeshStandardMaterial({ name: 'Hull_Paint', map: tex(atlas.col, true), normalMap: tex(atlas.nrm, false), roughness: 0.62, metalness: 0.15 }),
