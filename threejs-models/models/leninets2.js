@@ -38,9 +38,9 @@ function dw(x) {
   return 1.5 - 0.62 * smooth((-24 - x) / (-24 - XS));
 }
 function hw(x) {
-  if (x > 16) {
-    const u = clamp01((x - 16) / (XB - 16));
-    return Math.max(0.1, 3.6 * Math.max(0, 1 - u ** 2.1) ** 0.55);
+  if (x > 12) {
+    const u = clamp01((x - 12) / (XB - 12));
+    return Math.max(0.1, 3.6 * Math.max(0, 1 - u ** 1.9) ** 0.68);
   }
   if (x < -14) return 1.05 + 2.55 * (1 - smooth((-14 - x) / (-14 - XS)));
   return 3.6;
@@ -65,13 +65,14 @@ function section(x) {
 const spow = (v, e) => Math.sign(v) * Math.abs(v) ** e;
 
 // Правая половина шпангоута: от ДП палубы вниз до киля. Возвращает точки [z, y, v].
-const N_A = 6;
-const N_B = 9;
+const N_A = 9;
+const N_B = 14;
 function halfSection(x) {
   const s = section(x);
   const pts = [];
   const d = s.dw;
-  pts.push([0, s.yT, 1.0], [0.35 * d, s.yT - 0.012, 0.95], [0.7 * d, s.yT - 0.03, 0.9], [0.93 * d, s.yT - 0.05, 0.86]);
+  pts.push([0, s.yT, 1.0], [0.25 * d, s.yT - 0.006, 0.96], [0.5 * d, s.yT - 0.016, 0.93], [0.75 * d, s.yT - 0.032, 0.89],
+    [0.93 * d, s.yT - 0.05, 0.86], [0.985 * d, s.yT - 0.075, 0.84]);
   pts.push([d, s.yT - 0.12, 0.82]);
   const wk = s.w * Math.max(0, 1 - Math.abs((s.yK - s.yM) / s.hU) ** s.nU) ** (1 / s.nU);
   pts.push([lerp(d, wk, 0.5) + 0.04, lerp(s.yT - 0.12, s.yK, 0.5), 0.75]);
@@ -339,7 +340,7 @@ function plate(poly, t, z0 = 0) {
 // Толщина симметричного профиля NACA 00xx
 const naca = (t) => 5 * (0.2969 * Math.sqrt(t) - 0.126 * t - 0.3516 * t * t + 0.2843 * t ** 3 - 0.1036 * t ** 4);
 // Перо: хорда вдоль X (передняя кромка le → задняя te), размах s ∈ [0,1] → точка через map(x, thick, s)
-function foil({ le, te, tc = 0.12, nS = 6, nC = 10, map }) {
+function foil({ le, te, tc = 0.12, nS = 6, nC = 14, map }) {
   const rings = [];
   for (let k = 0; k <= nS; k++) {
     const s = k / nS;
@@ -349,15 +350,15 @@ function foil({ le, te, tc = 0.12, nS = 6, nC = 10, map }) {
     const ring = [];
     const ts = [];
     for (let j = 0; j <= nC; j++) ts.push(0.5 - 0.5 * Math.cos((Math.PI * j) / nC));
-    for (const t of ts) ring.push(map(L - t * ch, Math.max(0.006, naca(t) * tc * ch * 0.5), s));
-    for (let j = nC - 1; j >= 1; j--) ring.push(map(L - ts[j] * ch, -Math.max(0.006, naca(ts[j]) * tc * ch * 0.5), s));
+    for (const t of ts) ring.push(map(L - t * ch, Math.max(0.006, naca(t) * tc * ch), s));
+    for (let j = nC - 1; j >= 1; j--) ring.push(map(L - ts[j] * ch, -Math.max(0.006, naca(ts[j]) * tc * ch), s));
     rings.push(ring);
   }
   return loftRings(rings);
 }
 
 // Лопасть гребного винта: ось вращения X, лопасть вдоль +Y; hand = ±1 — направление шага
-function propBlade({ r0, R, chord, pitch, hand, tc = 0.1, skew = 0.12, n = 8, m = 12 }) {
+function propBlade({ r0, R, chord, pitch, hand, tc = 0.1, skew = 0.12, n = 10, m = 18 }) {
   const rings = [];
   for (let k = 0; k <= n; k++) {
     const f = k / n;
@@ -576,9 +577,9 @@ export function createLeninets2() {
   const hullG = group('Hull');
   {
     const xs = [];
-    for (let x = XS; x < XS + 8; x += 0.3) xs.push(x);
-    for (let x = XS + 8; x < XB - 9; x += 0.8) xs.push(x);
-    for (let x = XB - 9; x < XB - 0.001; x += 0.25) xs.push(x);
+    for (let x = XS; x < XS + 10; x += 0.25) xs.push(x);
+    for (let x = XS + 10; x < XB - 12; x += 0.5) xs.push(x);
+    for (let x = XB - 12; x < XB - 0.001; x += 0.2) xs.push(x);
     xs.push(XB);
     const m = new Mesher();
     const rings = [];
@@ -612,7 +613,7 @@ export function createLeninets2() {
     return TW * (1 - 0.35 * u * u) * Math.max(0, 1 - u ** 3.2) ** 0.45;
   };
   // контур в плане: правый борт от носа к корме, затем левый обратно; inset — отступ внутрь
-  const NT = 30;
+  const NT = 44;
   const outline = (inset = 0, scale = 1) => {
     const pts = [];
     const xsOut = [];
@@ -669,7 +670,7 @@ export function createLeninets2() {
     };
     const ring = (y, s) => {
       const r = [];
-      const n = 16;
+      const n = 24;
       const xsS = [];
       for (let j = 0; j <= n; j++) xsS.push(lerp(2.3, -1.8, 0.5 - 0.5 * Math.cos((Math.PI * j) / n)));
       for (const x of xsS) r.push(V(x, y, sb(x) * s));
@@ -713,9 +714,9 @@ export function createLeninets2() {
   {
     const yb = yT(XB);
     const poly = [
-      [XB - 2.8, yb - 0.25], [XB - 0.1, yb - 0.25], [XB + 0.1, yb + 0.1], [XB - 0.15, yb + 0.2],
+      [XB - 0.9, yb - 0.25], [XB - 0.1, yb - 0.25], [XB + 0.1, yb + 0.1], [XB - 0.15, yb + 0.2],
       [XB - 0.25, yb + 0.55], [XB - 0.5, yb + 0.62], [XB - 0.6, yb + 0.95], [XB - 0.85, yb + 1.02],
-      [XB - 1.0, yb + 1.45], [XB - 1.35, yb + 1.5], [XB - 1.6, yb + 0.6], [XB - 2.8, yb - 0.1],
+      [XB - 1.0, yb + 1.45], [XB - 1.3, yb + 1.5], [XB - 1.2, yb + 1.0], [XB - 0.95, yb + 0.2],
     ];
     fit.push(plate(poly, 0.08));
   }
@@ -739,24 +740,21 @@ export function createLeninets2() {
     for (let i = 0; i < rail.length - 1; i++) fit.push(rod(rail[i], rail[i + 1], 0.025, 0.025, 6));
     for (let i = 0; i < rail.length; i += 3) fit.push(rod(V(rail[i].x, rimY(rail[i].x) - 0.01, rail[i].z), rail[i], 0.022, 0.022, 6));
   }
-  // носовые клюзы с якорями (якорь Холла, утоплен в клюз — показываем головку и лапы)
-  for (const s of [1, -1]) {
-    const x = 36.0;
-    const y = 1.15;
-    const z = hullZ(x, y);
-    const g = [];
-    g.push(box(V(0, 0, 0.11), 0.5, 0.75, 0.2));
-    g.push(box(V(0, -0.38, 0.13), 0.8, 0.18, 0.24));
-    g.push(box(V(-0.35, -0.3, 0.17), 0.14, 0.28, 0.14));
-    g.push(box(V(0.35, -0.3, 0.17), 0.14, 0.28, 0.14));
-    const a = merge(g);
-    if (s < 0) { a.scale(1, 1, -1); flipIndex(a); }
-    // повернуть вдоль борта (наклон обвода)
-    const z2 = hullZ(x + 0.5, y);
-    a.rotateY(-s * Math.atan2(z2 - z, 0.5));
-    a.translate(x, y, s * (z - 0.06));
-    fit.push(a);
+  // мостик: прожектор, нактоуз компаса, переговорная труба
+  fit.push(cyl(V(TF - 1.35, FLOOR + 0.45, 0), 0.06, 0.06, 0.9, 10));
+  fit.push(rod(V(TF - 1.55, FLOOR + 1.02, 0), V(TF - 1.05, FLOOR + 1.02, 0), 0.2, 0.2, 18));
+  fit.push(rod(V(TF - 1.05, FLOOR + 1.02, 0), V(TF - 1.0, FLOOR + 1.02, 0), 0.17, 0.0, 18, false));
+  fit.push(cyl(V(TF - 2.4, FLOOR + 0.5, 0.55), 0.18, 0.13, 1.0, 14));
+  fit.push(cyl(V(TF - 2.4, FLOOR + 1.08, 0.55), 0.2, 0.2, 0.16, 14));
+  // шахта подачи воздуха к дизелям за рубкой и грибовидные вентиляторы на палубе
+  fit.push(cyl(V(TA - 0.9, deckY(TA - 0.9, 0) + 0.5, 0), 0.22, 0.2, 1.1, 16));
+  fit.push(cyl(V(TA - 0.9, deckY(TA - 0.9, 0) + 1.1, 0), 0.34, 0.3, 0.16, 16));
+  for (const x of [16.0, -11.5, -19.0]) for (const z of [0.75, -0.75]) {
+    fit.push(cyl(V(x, deckY(x, z) + 0.18, z), 0.09, 0.09, 0.4, 10));
+    fit.push(cyl(V(x, deckY(x, z) + 0.42, z), 0.2, 0.08, 0.1, 12));
   }
+  // кормовой флагшток и носовой гюйсшток (сложены у палубы — короткие стойки)
+  fit.push(rod(V(XS + 0.6, deckY(XS + 0.6, 0) - 0.03, 0), V(XS + 0.45, deckY(XS + 0.6, 0) + 1.6, 0), 0.04, 0.025, 8));
   mesh(merge(fit), M.grey, 'Deck_Fittings', hullG);
 
   // =========================================================================
@@ -789,10 +787,8 @@ export function createLeninets2() {
   for (const s of [1, -1]) {
     const z = s * PROP_Z;
     // вал: от выхода из корпуса до ступицы
-    const xin = -27.5;
+    const xin = -26.5;
     under.push(rod(V(xin, PROP_Y + 0.05 * (PROP_Y > 0 ? 1 : 1), z), V(PROP_X + 0.32, PROP_Y, z), 0.13, 0.11, 12));
-    // мортира/выкружка вала
-    under.push(rod(V(xin - 0.5, PROP_Y + 0.45, s * (PROP_Z - 0.35)), V(-31.2, PROP_Y + 0.02, z), 0.32, 0.18, 12));
     // кронштейн гребного вала: две стойки
     const bx = PROP_X + 1.05;
     const hub = V(bx, PROP_Y, z);
@@ -810,6 +806,22 @@ export function createLeninets2() {
       V(-37.0, -1.6, s * 1.6),
       V(-37.35, -1.0, s * 0.62),
     ], 0.06, 8, 30));
+    // якорь Холла в клюзе (по борту, у верха обвода носа)
+    {
+      const x = 35.6;
+      const y = 1.05;
+      const poly = [[-0.07, 0.45], [0.07, 0.45], [0.07, -0.12], [0.3, -0.18], [0.36, -0.42], [0.22, -0.3],
+        [0.0, -0.4], [-0.22, -0.3], [-0.36, -0.42], [-0.3, -0.18], [-0.07, -0.12]];
+      const a = plate(poly, 0.1);
+      const ring = cyl(V(0, 0.48, 0), 0.24, 0.24, 0.08, 16, 'z');
+      const g = merge([a, ring]);
+      const z = hullZ(x, y);
+      const zf = hullZ(x + 0.4, y);
+      g.rotateY(-Math.atan2(zf - z, 0.4));
+      g.translate(x, y, z + 0.07);
+      if (s < 0) { g.scale(1, 1, -1); flipIndex(g); }
+      under.push(g);
+    }
     // крышки носовых торпедных аппаратов (по 3 на борт)
     for (const [x, y] of [[36.4, -0.45], [35.4, -1.35], [34.3, -2.25]]) {
       const zz = hullZ(x, y);

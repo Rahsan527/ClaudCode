@@ -28,7 +28,10 @@ function deckY(x) {
 function keelY(x) {
   let k = 0;
   if (x > 28) k = x < 34 ? 2 * ((x - 28) / 6) ** 3.4 : 2 + (x - 34) * 1.14;
-  else if (x < -20) k = 3.7 * ((-20 - x) / (-20 - XS)) ** 1.6;
+  else if (x < -20) {
+    const u = (-20 - x) / (-20 - XS);
+    k = 3.7 * u ** 1.6 + 2.0 * u ** 8;
+  }
   return Math.min(k, deckY(x) - 0.16);
 }
 function section(x) {
@@ -345,15 +348,15 @@ function canvasTex(w, h, draw) {
 // Атлас 2048²: верх (v 0.375…1) — борт корпуса в боковой проекции (x, y 0…10 м), низ (v 0…0.375) — рубка
 const ATLAS = 2048;
 const HULL_V0 = 0.375;
-const hullUV = (x, y) => [clamp01((x - XS) / LEN), HULL_V0 + (1 - HULL_V0) * clamp01(y / 10)];
+const hullUV = (x, y) => [clamp01((x - XS) / LEN), HULL_V0 + (1 - HULL_V0) * Math.min(0.99, Math.max(0.015, y / 10))];
 const TOWER_Y0 = 5.4;
 const TOWER_Y1 = 9.8;
 const towerV = (y) => HULL_V0 * clamp01((y - TOWER_Y0) / (TOWER_Y1 - TOWER_Y0)) * 0.999;
 
 const COL = {
-  upper: [163, 168, 170],
-  lower: [52, 56, 59],
-  tower: [170, 174, 176],
+  upper: [138, 144, 147],
+  lower: [48, 52, 55],
+  tower: [144, 149, 152],
 };
 function makeAtlas(rnd) {
   return canvasTex(ATLAS, ATLAS, (c, W) => {
@@ -437,11 +440,11 @@ function makeAtlas(rnd) {
     for (const y of [7.1, 8.2]) { c.beginPath(); c.moveTo(0, trow(y)); c.lineTo(W, trow(y)); c.stroke(); }
     for (let u = 0.04; u < 1; u += 0.083) { c.beginPath(); c.moveTo(u * W, trow(8.2)); c.lineTo(u * W, trow(6.2)); c.stroke(); }
     // шпигаты у основания рубки
-    for (let u = 0.03; u < 1; u += 0.024) {
-      if (Math.abs(u - 0.5) < 0.06 || u > 0.97) continue;
+    for (let u = 0.05; u < 1; u += 0.03) {
+      if (Math.abs(u - 0.5) < 0.08 || u > 0.96) continue;
       c.fillStyle = 'rgb(18,19,20)';
       c.beginPath();
-      c.roundRect(u * W - 9, trow(6.75), 18, trow(6.6) - trow(6.75), 6);
+      c.roundRect(u * W - 14, trow(6.72), 28, trow(6.62) - trow(6.72), 5);
       c.fill();
     }
     // окантовка кромки мостика
@@ -462,8 +465,8 @@ function makeDeck(rnd) {
       let x = -rnd() * 4;
       while (x < LEN) {
         const len = 3.5 + rnd() * 2.5;
-        const v = 112 + Math.round((rnd() - 0.5) * 22);
-        c.fillStyle = `rgb(${v},${v - 6},${v - 15})`;
+        const v = 96 + Math.round((rnd() - 0.5) * 14);
+        c.fillStyle = `rgb(${v},${v - 4},${v - 10})`;
         const X0 = (x / LEN) * W, X1 = ((x + len) / LEN) * W;
         c.fillRect(X0 + 1, y0 + 1.5, X1 - X0 - 2, plank * px - 3);
         for (let g = 0; g < 4; g++) {
@@ -595,17 +598,17 @@ function towerOutline(A, F, W, y, rf = 1.4, ra = 2.2) {
 function towerGeometry() {
   const L = [
     // y, aft, fore, halfWidth, rf, ra
-    [5.95, -6.1, 4.75, 1.45, 1.9, 2.8],
-    [6.6, -6.0, 4.6, 1.42, 1.8, 2.7],
-    [7.6, -5.8, 4.25, 1.33, 1.6, 2.5],
-    [8.2, -5.65, 3.95, 1.28, 1.5, 2.4],
-    [8.2, -2.5, 3.9, 1.23, 1.45, 0.9], // уступ: пол «зимнего сада»
-    [8.9, -2.55, 3.85, 1.22, 1.4, 0.9],
-    [9.35, -2.6, 3.98, 1.28, 1.45, 0.9],
-    [9.58, -2.65, 4.12, 1.34, 1.5, 0.9], // ветроотбойник
-    [9.58, -2.58, 4.03, 1.27, 1.45, 0.85], // внутренняя кромка
-    [9.3, -2.5, 3.85, 1.2, 1.4, 0.85],
-    [8.45, -2.42, 3.72, 1.14, 1.35, 0.85], // пол мостика
+    [5.95, -6.1, 4.75, 1.5, 1.9, 2.8],
+    [6.6, -6.0, 4.6, 1.46, 1.8, 2.7],
+    [7.6, -5.8, 4.3, 1.36, 1.6, 2.5],
+    [8.2, -5.65, 4.05, 1.3, 1.5, 2.4],
+    [8.2, -2.5, 4.0, 1.25, 1.45, 0.9], // уступ: пол «зимнего сада»
+    [9.0, -2.55, 3.88, 1.2, 1.4, 0.9],
+    [9.42, -2.6, 3.92, 1.21, 1.42, 0.9],
+    [9.58, -2.64, 4.12, 1.27, 1.5, 0.9], // ветроотбойник
+    [9.58, -2.58, 4.02, 1.2, 1.45, 0.85], // внутренняя кромка
+    [9.3, -2.5, 3.84, 1.14, 1.38, 0.85],
+    [8.45, -2.42, 3.72, 1.1, 1.35, 0.85], // пол мостика
   ];
   const rings = L.map(([y, a, f, w, rf, ra]) => towerOutline(a, f, w, y, rf, ra));
   const m = new Mesher();
@@ -707,7 +710,7 @@ export function createType9C() {
   const M = {
     paint: mat('Hull_Paint', 0xffffff, 0.72, 0.15, { map: makeAtlas(rnd) }),
     wood: mat('Deck_Wood', 0xffffff, 0.9, 0.0, { map: makeDeck(rnd) }),
-    grey: mat('Steel_Grey', 0xa3a8aa, 0.62, 0.25),
+    grey: mat('Steel_Grey', 0x8a9093, 0.62, 0.25),
     dark: mat('Steel_Dark_Grey', 0x34383b, 0.7, 0.25),
     black: mat('Metal_Black', 0x1b1c1d, 0.55, 0.4),
     bronze: mat('Propeller_Bronze', 0xa47c48, 0.35, 1.0),
@@ -813,7 +816,7 @@ export function createType9C() {
       [-33.6, 2.08, sg * 2.86],
     ], 0.07, 30, 10));
     // опора руля (кронштейн от кормы)
-    under.push(foil({ le0: 0.32, te0: -0.32, le1: 0.3, te1: -0.3, span: 1.85, tc: 0.18, nSpan: 3, nCh: 8 }).rotateX(sg * Math.PI / 2).translate(-35.75, 3.3, 0));
+    under.push(foil({ le0: 0.36, te0: -0.36, le1: 0.32, te1: -0.32, span: 1.85, tc: 0.2, nSpan: 3, nCh: 8 }).rotateX(sg * Math.PI / 2).translate(-35.72, 3.62, 0));
   }
   // стабилизатор кормовых горизонтальных рулей (сквозной)
   under.push(foil({ le0: 0.6, te0: -0.6, le1: 0.6, te1: -0.6, span: 5.8, y0: -2.9, tc: 0.1, nSpan: 6, nCh: 10 }).rotateX(Math.PI / 2).translate(-33.95, PROP.y, 0));
@@ -905,11 +908,11 @@ export function createType9C() {
   // рули: носовые горизонтальные (ось петли по Z), кормовые горизонтальные, вертикальные (баллер по Y)
   const ctrl = group('Control_Surfaces');
   {
-    const x = 30.4;
-    const y = 3.25;
-    const z0 = hullZ(x, y) - 0.1;
+    const x = 32.2;
+    const y = 4.0;
+    const z0 = hullZ(x, y) - 0.12;
     const tip = BEAM - 0.02;
-    const g = foil({ le0: 0.4, te0: -0.75, le1: 0.3, te1: -0.6, span: tip - z0, tc: 0.12, nSpan: 4, nCh: 10 }).rotateX(Math.PI / 2);
+    const g = foil({ le0: 0.42, te0: -0.95, le1: 0.32, te1: -0.72, span: tip - z0, tc: 0.12, nSpan: 4, nCh: 10 }).rotateX(Math.PI / 2);
     // после поворота размах идёт в −Z; разворачиваем в +Z
     const right = g;
     const R = finish(boxUV(strip(right)));
@@ -928,10 +931,10 @@ export function createType9C() {
     movable('Stern_Plane_L', ctrl, [x, y, -z0], Lg.translate(x, y, -z0), M.dark);
   }
   {
-    const x = -35.75;
-    const top = 3.32;
+    const x = -35.72;
+    const top = 3.62;
     for (const [nm, sg] of [['Rudder_R', 1], ['Rudder_L', -1]]) {
-      const g = finish(boxUV(strip(foil({ le0: 0.27, te0: -0.95, le1: 0.3, te1: -1.05, span: 2.3, y0: -2.3, tc: 0.13, nSpan: 4, nCh: 10 }))));
+      const g = finish(boxUV(strip(foil({ le0: 0.22, te0: -0.8, le1: 0.26, te1: -0.86, span: 2.25, y0: -2.25, tc: 0.13, nSpan: 4, nCh: 10 }))));
       movable(nm, ctrl, [x, top, sg * PROP.z], g.translate(x, top, sg * PROP.z), M.dark);
     }
   }
