@@ -1022,7 +1022,7 @@ function buildHull() {
   // точка Df[0] (правая кромка) = S[nm-1+NF], Df[ND] = P[nm-1+NF] — уже в контуре
   const zMax = Math.max(...outline.map((p) => Math.abs(p.z)));
   const y0 = Math.min(...outline.map((p) => p.y));
-  const ids = outline.map((p) => bm.v(V3(XB, p.y, p.z), 0.004 + (p.z + zMax) * KU_WALL, V_WALL(0, p.y - y0 + 0.55)));
+  const ids = outline.map((p) => bm.v(p, 0.004 + (p.z + zMax) * KU_WALL, V_WALL(0, p.y - y0 + 0.55)));
   const tris = THREE.ShapeUtils.triangulateShape(outline.map((p) => new THREE.Vector2(p.z, p.y)), []);
   tris.forEach(([a, b, c]) => {
     const A = outline[a], B = outline[b], Cc = outline[c];
