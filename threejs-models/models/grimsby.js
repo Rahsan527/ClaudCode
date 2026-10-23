@@ -313,6 +313,8 @@ function lathe(profile, seg = 20, { top = true, bottom = false } = {}) {
   };
   if (top) capAt(n - 1, true);
   if (bottom) capAt(0, false);
+  // обход выше получается внутрь — разворачиваем (нормали наружу)
+  for (let i = 0; i < m.idx.length; i += 3) [m.idx[i + 1], m.idx[i + 2]] = [m.idx[i + 2], m.idx[i + 1]];
   return m.build({ orient: false });
 }
 // То же, ось вращения +X (профиль [[r, x], ...])
@@ -1599,7 +1601,7 @@ function paintAtlas(houses, SL, BH) {
 
   // ---- ПАЛУБЫ (v 0.25…0.5 → py 1024…1536)
   const d0 = py(0.5), d1 = py(0.25);
-  C.fillStyle = '#6d6a62';
+  C.fillStyle = '#5e5b54';
   C.fillRect(0, d0, S, d1 - d0);
   const plank = 0.16;
   for (let z = -ZD; z < ZD; z += plank) {
@@ -1607,7 +1609,7 @@ function paintAtlas(houses, SL, BH) {
     let x = UX0 - rnd() * 5;
     while (x < UX1) {
       const len = 4 + rnd() * 3.5;
-      const t = 112 + Math.round(rnd() * 22);
+      const t = 98 + Math.round(rnd() * 20);
       C.fillStyle = `rgb(${t + 4},${t},${t - 10})`;
       C.fillRect(px(U(x)), ya, px(U(x + len)) - px(U(x)), yb - ya);
       line(C, px(U(x)), ya, px(U(x)), yb, 1.5, 'rgba(30,28,24,0.6)');

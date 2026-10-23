@@ -1070,7 +1070,7 @@ export function createShoreham() {
     bottom: std('Antifouling_Red', 0x4b2b25, 0.75, 0.1),
     bronze: std('Propeller_Bronze', 0xa07a45, 0.32, 0.9),
     wire: std('Rigging_Wire', 0x26282a, 0.55, 0.6),
-    canvas: std('Canvas_Cover', 0x9c9886, 0.9, 0.0),
+    canvas: std('Canvas_Cover', 0x7f7b6b, 0.9, 0.0),
     boat: std('Boat_Paint', 0x7f878c, 0.55, 0.05),
   };
   const group = (name, parent, x = 0, y = 0, z = 0) => {
@@ -1598,7 +1598,7 @@ export function createShoreham() {
         const curve = new THREE.EllipseCurve(0, 0, 1.15, 0.55, 0, Math.PI * 2);
         const pts = curve.getPoints(20).slice(0, -1).map((p) => V3(p.x, p.y, 0));
         const rings = [];
-        const r = 0.13;
+        const r = 0.16;
         for (let j = 0; j < 8; j++) {
           const a = (j / 8) * Math.PI * 2;
           rings.push(a);
@@ -1629,7 +1629,7 @@ export function createShoreham() {
         [-24.6, -21.6].forEach((x) => rafts.push(raft().translate(x, yA + 1.05, sd * (2.3 + 0.15))));
         rafts.push(raft().translate(14.0, yBr + 1.2, sd * (BR.hw + 0.15)));
       });
-      mesh(merge(rafts), M.canvas, 'Carley_Floats', boatsG);
+      mesh(merge(rafts), M.boat, 'Carley_Floats', boatsG);
     }
   }
 
