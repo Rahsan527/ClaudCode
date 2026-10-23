@@ -142,7 +142,12 @@ def fix_textures():
             img.pack()
 
 
-def place_on_ground(root):
+def place_on_ground(root, moving):
+    # Габариты меряем в позе покоя: на текущем кадре анимация уже повернула винты и крышки.
+    # Поворот подвижных частей в покое проверен и равен 0, поэтому ставим их в ноль.
+    for obj in moving:
+        obj.rotation_mode = 'QUATERNION'
+        obj.rotation_quaternion = (1, 0, 0, 0)
     bpy.context.view_layer.update()
     lo = Vector((math.inf,) * 3)
     hi = Vector((-math.inf,) * 3)
@@ -262,7 +267,7 @@ def main():
     apply_rotation_scale(moving, rest)
     clean_meshes(smooth_angle)
     fix_textures()
-    place_on_ground(root)
+    place_on_ground(root, moving)
     ends = [int(a.frame_range[1]) for a in bpy.data.actions]
     if ends:
         bpy.context.scene.frame_start, bpy.context.scene.frame_end = 1, max(ends)
