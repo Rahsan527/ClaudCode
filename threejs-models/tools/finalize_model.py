@@ -177,6 +177,30 @@ def remove_clutter():
     bpy.data.orphans_purge(do_recursive=True)
 
 
+def unrequire_extensions(glb):
+    """Экспортёр Blender 5.2 пишет KHR_texture_transform в extensionsRequired, а ТЗ требует пустой список.
+    Оба допустимых расширения необязательны: без них картинка лишь теряет повтор, поэтому убираем их
+    из extensionsRequired (в extensionsUsed они остаются)."""
+    data = bytearray(glb.read_bytes())
+    json_len = struct.unpack_from('<I', data, 12)[0]
+    gltf = json.loads(data[20:20 + json_len])
+    required = gltf.get('extensionsRequired', [])
+    rest = [e for e in required if e not in ('KHR_texture_transform', 'KHR_materials_emissive_strength')]
+    if rest == required:
+        return
+    if rest:
+        gltf['extensionsRequired'] = rest
+    else:
+        gltf.pop('extensionsRequired')
+    chunk = json.dumps(gltf, separators=(',', ':'), ensure_ascii=False).encode()
+    chunk += b' ' * (-len(chunk) % 4)
+    tail = data[20 + json_len:]
+    out = struct.pack('<III', 0x46546C67, 2, 12 + 8 + len(chunk) + len(tail))
+    out += struct.pack('<II', len(chunk), 0x4E4F534A) + chunk + tail
+    glb.write_bytes(out)
+    print(f'  extensionsRequired: убраны {sorted(set(required) - set(rest))}')
+
+
 def export(out_dir, name):
     bpy.ops.file.pack_all()
     blend = out_dir / f'{name}.blend'
@@ -197,6 +221,7 @@ def export(out_dir, name):
     miss = [k for k in want if k not in have]
     assert not miss, f'нет параметров экспорта {miss} — это не Blender 5.x?'
     bpy.ops.export_scene.gltf(**want)
+    unrequire_extensions(glb)
     zip_path = out_dir / f'{name}.zip'
     with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as z:
         z.write(glb, glb.name)

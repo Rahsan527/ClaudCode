@@ -520,20 +520,20 @@ function paintAtlas(rnd) {
   return { col, nrm };
 }
 
-// Деревянный настил: доски вдоль корпуса, тайлинг через texture.repeat
-const DECK_REPEAT = 16;
+// Деревянный настил: доски вдоль корпуса. Развёртка на всю палубу без повтора: texture.repeat
+// при сборке в Blender экспортируется как обязательное (extensionsRequired) KHR_texture_transform.
 function paintPlanks(rnd) {
-  const W = 1024, Hh = 512;
+  const W = 2048, Hh = 512;
   const cv = makeCanvas(W, Hh);
   const c = cv.getContext('2d');
   c.fillStyle = '#6b6862';
   c.fillRect(0, 0, W, Hh);
-  const planks = 24; // поперёк палубы (≈ 0.14 м)
+  const planks = 26; // поперёк палубы 3.6 м (≈ 0.14 м)
   const ph = Hh / planks;
   for (let p = 0; p < planks; p++) {
-    let x = -rnd() * W;
+    let x = -rnd() * 180;
     while (x < W) {
-      const len = W * (0.35 + rnd() * 0.45);
+      const len = 110 + rnd() * 90; // 3.5…6.4 м
       const g = 92 + rnd() * 26;
       c.fillStyle = `rgb(${g + 6},${g + 3},${g - 4})`;
       c.fillRect(x, p * ph, len, ph);
@@ -546,13 +546,9 @@ function paintPlanks(rnd) {
       c.fillRect(x, p * ph, 2, ph);
       x += len;
     }
-    // если доска пересекла край, хвост переносим в начало (бесшовный тайл)
     c.fillStyle = 'rgba(30,28,24,0.9)'; // паз между досками
     c.fillRect(0, p * ph, W, 1.6);
   }
-  // бесшовность по U: скопировать полосу края
-  const img = c.getImageData(0, 0, 16, Hh);
-  c.putImageData(img, W - 16, 0);
   return cv;
 }
 
@@ -584,8 +580,6 @@ export function createType7B() {
     return t;
   };
   const planks = tex(paintPlanks(rnd), true);
-  planks.wrapS = THREE.RepeatWrapping;
-  planks.repeat.set(DECK_REPEAT, 1);
 
   const M = {
     paint: new THREE.MeshStandardMaterial({ name: 'Hull_Paint', map: tex(atlas.col, true), normalMap: tex(atlas.nrm, false), roughness: 0.62, metalness: 0.15 }),
@@ -782,12 +776,12 @@ export function createType7B() {
     const back = [xa + 0.2, deckY(xa) + 0.25];
     for (let i = 1; i <= teeth; i++) {
       const t = i / teeth;
-      const px = lerp(tip[0], back[0], t), py = lerp(tip[1], back[1], t);
+      const bow = 0.06 * Math.sin(Math.PI * t); // слегка вогнутая кромка: корни зубьев не на одной прямой
+      const px = lerp(tip[0], back[0], t) - bow * 0.3, py = lerp(tip[1], back[1], t) - bow;
       const tp = lerp(tip[0], back[0], t - 0.5 / teeth), tq = lerp(tip[1], back[1], t - 0.5 / teeth);
       sh.lineTo(tp - 0.14, tq + 0.12);
       sh.lineTo(px, py);
     }
-    sh.lineTo(xa, deckY(xa) - 0.12);
     lightParts.push(new THREE.ExtrudeGeometry(sh, { depth: 0.07, bevelEnabled: false }).translate(0, 0, -0.035));
     NET_CUTTER_TOP.set(tip[0] - 0.05, tip[1] - 0.04, 0);
   }

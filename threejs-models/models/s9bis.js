@@ -601,7 +601,7 @@ function planHalf(x, P) {
   if (x < xa + ra) return hw * Math.max(0, 1 - (((xa + ra) - x) / ra) ** 2.4) ** (1 / 2.4);
   return hw;
 }
-const TOWER_M = 30; // точек на борт
+const TOWER_M = 36; // точек на борт
 function planRing(P, y) {
   const xs = [];
   for (let k = 0; k <= TOWER_M; k++) xs.push(P.xa + (P.xf - P.xa) * (0.5 + 0.5 * Math.cos((Math.PI * k) / TOWER_M)));
@@ -717,7 +717,7 @@ export function createS9bis() {
   // КОРПУС: лофт по шпангоутам
   const hullParts = [];
   {
-    const N = 240;
+    const N = 300;
     const xs = [];
     for (let i = 0; i <= N; i++) {
       const t = i / N;
@@ -825,6 +825,10 @@ export function createS9bis() {
     for (const x of [15.2, -12.5, -27.0]) {
       parts.push(revolveY([[deckY(x) - 0.03, 0.42], [deckY(x) + 0.12, 0.42], [deckY(x) + 0.14, 0.38], [deckY(x) + 0.17, 0.3]], 20, x, 0, { capStart: false }));
     }
+    // нактоуз магнитного компаса и прожектор на мостике
+    parts.push(revolveY([[Y_BRIDGE - 0.02, 0.16], [Y_BRIDGE + 0.85, 0.13], [Y_BRIDGE + 0.9, 0.2], [Y_BRIDGE + 1.05, 0.2], [Y_BRIDGE + 1.15, 0.12], [Y_BRIDGE + 1.18, 0.05]], 16, 3.2, 0, { capStart: false }));
+    parts.push(revolveY([[Y_BRIDGE - 0.02, 0.05], [Y_BRIDGE + 0.95, 0.05]], 8, 2.4, -0.55, { capStart: false, capEnd: false }));
+    parts.push(revolveX([[-0.16, 0.13], [-0.1, 0.17], [0.12, 0.17], [0.14, 0.15]], 16).translate(2.42, Y_BRIDGE + 1.1, -0.55));
     // рубочный люк на мостике
     parts.push(revolveY([[Y_BRIDGE - 0.02, 0.36], [Y_BRIDGE + 0.12, 0.36], [Y_BRIDGE + 0.15, 0.3]], 20, 1.6, 0, { capStart: false }));
     // кнехты (парные тумбы)
@@ -1041,8 +1045,8 @@ export function createS9bis() {
       pose(a) {
         const get = (n) => sub.getObjectByName(n);
         get('Rudder').rotation.y = 0.5 * a;
-        get('Bow_Plane_L').rotation.x = -1.4 * a;
-        get('Bow_Plane_R').rotation.x = 1.4 * a;
+        get('Bow_Plane_L').rotation.x = 1.4 * a;
+        get('Bow_Plane_R').rotation.x = -1.4 * a;
         get('Stern_Plane_L').rotation.z = 0.35 * a;
         get('Stern_Plane_R').rotation.z = 0.35 * a;
         get('Deck_Gun_100mm').rotation.y = 0.8 * a;

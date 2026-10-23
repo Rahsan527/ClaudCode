@@ -55,11 +55,11 @@ function sec(xn) {
     s = clamp01((H.xa0 - xn) / (H.xa0 - H.xEnd));
     W = H.W * Math.max(0, 1 - s ** 1.25) ** 1.25;
     wd = H.wd * Math.max(0, 1 - s ** 2.0) ** 0.75;
-    yk = 2.05 * s ** 1.45;
-    yw = H.yw + 0.2 * s;
+    yk = 3.45 * s ** 1.6;
+    yw = H.yw + 1.05 * s ** 1.5;
     yd = H.yd - 0.25 * s * s;
-    nb = 2.5 - 0.8 * s;
-    rake = 0.32 * s ** 2.5; // нижние точки уходят в нос — подрез кормы над винтами
+    nb = 2.5 - 0.9 * s;
+    rake = 0.25 * s ** 2; // нижние точки уходят в нос — подрез кормы над винтами
   }
   W = Math.max(W, 0.06);
   wd = Math.min(Math.max(wd, 0.05), W * 0.92);
@@ -840,7 +840,7 @@ export function createType9B() {
   // Подводные выступы: валы, кронштейны, стабилизаторы, ограждения винтов (тёмная сталь)
   const PROP = { x: -34.4, y: 2.05, z: 1.62, r: 0.95 };
   const STERN = { hinge: -35.85, y: 2.05, z0: 1.98, z1: 3.3 };
-  const RUD = { x: -37.35, y0: 1.2, y1: 2.9, z: PROP.z };
+  const RUD = { x: -37.5, y0: 1.2, y1: 2.9, z: PROP.z };
   {
     const parts = [];
     [1, -1].forEach((sd) => {
@@ -853,9 +853,8 @@ export function createType9B() {
       parts.push(rod([-32.9, PROP.y, z], [-32.6, PROP.y + 0.6, sd * zin], 0.07, 8));
       parts.push(rod([-32.9, PROP.y, z], [-33.1, PROP.y - 0.55, sd * Math.max(0.15, zin - 0.25)], 0.07, 8));
       // горизонтальный стабилизатор: внутренняя часть несёт руль направления, внешняя — кормовой горизонтальный руль
-      const stIn = foil({ root: [-35.05, RUD.x + 0.22], tip: [-35.15, RUD.x + 0.22], span: STERN.z0 - 0.02, tc: 0.14, y0: 0.0, nSpan: 2 });
-      const stOut = foil({ root: [-35.15, STERN.hinge + 0.05], tip: [-35.3, STERN.hinge + 0.05], span: STERN.z1 + 0.05 - STERN.z0, tc: 0.12, y0: STERN.z0 - 0.04, nSpan: 2 });
-      [stIn, stOut].forEach((st) => parts.push(st.rotateX(sd > 0 ? Math.PI / 2 : -Math.PI / 2).translate(0, STERN.y, 0)));
+      const stOut = foil({ root: [-35.15, STERN.hinge + 0.05], tip: [-35.3, STERN.hinge + 0.05], span: STERN.z1 + 0.05 - STERN.z0, tc: 0.08, y0: STERN.z0 - 0.04, nSpan: 2 });
+      parts.push(stOut.rotateX(sd > 0 ? Math.PI / 2 : -Math.PI / 2).translate(0, STERN.y, 0));
       // ограждение винта: труба от борта вокруг диска к концу стабилизатора
       const pts = [];
       const r0 = sideAt(-30.6, PROP.y);
@@ -871,8 +870,10 @@ export function createType9B() {
       const tube = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 16, 0.075, 8, false);
       parts.push(tube);
     });
+    // внутренняя часть стабилизатора — одно перо через диаметральную плоскость, несёт рули направления
+    parts.push(foil({ root: [-35.0, RUD.x + 0.22], tip: [-35.0, RUD.x + 0.22], span: 2 * (STERN.z0 - 0.02), tc: 0.08, y0: -(STERN.z0 - 0.02), nSpan: 4 }).rotateX(Math.PI / 2).translate(0, STERN.y, 0));
     // кормовой киль-плавник между валами
-    const skeg = prism([[-24, 0.3], [-31.5, 1.35], [-34.0, 1.9], [-33.8, 2.6], [-24, 1.4]], 0.18);
+    const skeg = prism([[-17.5, 0.04], [-24, 0.32], [-30, 0.85], [-34.5, 1.55], [-37.25, 1.86], [-37.25, 2.3], [-36.6, 3.55], [-33, 3.0], [-30, 2.2], [-24, 1.0], [-17.5, 0.35]], 0.2);
     parts.push(skeg);
     mesh(merge(parts), M.dark, 'Hull_Appendages', hullG);
   }
@@ -1133,7 +1134,7 @@ export function createType9B() {
     const r = sideAt(xh, yh);
     [1, -1].forEach((sd) => {
       const g = group(sd > 0 ? 'Bow_Plane_R' : 'Bow_Plane_L', ctrlG, xh, yh, sd * (r.z - 0.04));
-      const f = foil({ root: [0.42, -0.85], tip: [0.32, -0.6], span: 1.75, tc: 0.13, y0: 0, nSpan: 3 });
+      const f = foil({ root: [0.42, -0.85], tip: [0.32, -0.6], span: 3.36 - r.z, tc: 0.13, y0: 0, nSpan: 3 });
       f.rotateX(sd > 0 ? Math.PI / 2 : -Math.PI / 2);
       const hub = rod([0, 0, -sd * 0.12], [0, 0, sd * 0.08], 0.09, 12);
       mesh(merge([f, hub]), M.dark, `${g.name}_Blade`, g);
