@@ -868,8 +868,8 @@ export function createPegasus() {
     [1, -1].forEach((sd) => {
       const kz = B2 - RB + RB * Math.SQRT1_2;
       const ky = RB - RB * Math.SQRT1_2;
-      const bk = box(40, 0.07, 0.5, 0, 0, 0, [], null).rotateX(sd * Math.PI / 4);
-      bk.translate(-2, ky - 0.18, sd * (kz + 0.18));
+      const bk = box(26, 0.07, 0.5, 0, 0, 0, [], null).rotateX(sd * Math.PI / 4);
+      bk.translate(2, ky - 0.18, sd * (kz + 0.18));
       parts.push(bk);
     });
     const g = merge(parts);
@@ -937,47 +937,52 @@ export function createPegasus() {
     uvAt(wingsG, 0.5, V_FUN - 0.003);
     mesh(wingsG, M.paint, 'Bridge_Wings', supG);
 
-    // дымовая труба: высокая, с наклоном, чёрный верх, внутри — ниша
+    // дымовая труба: высокая, с наклоном; чёрный верх — отдельной сеткой, внутри — ниша
     {
-      const m = new Mesher();
       const seg = 28;
-      const ringAt = (y, s, v, inner = false) => {
+      const ringAt = (m, y, sc, v) => {
         const ids = [];
         for (let j = 0; j <= seg; j++) {
           const a = (j / seg) * Math.PI * 2;
           const cx = FUN.x - FUN.rake * (y - FUN.y0);
-          ids.push(m.v(new THREE.Vector3(cx + FUN.a * s * Math.cos(a), y, -FUN.b * s * Math.sin(a)), 0.005 + 0.99 * (j / seg), v));
+          ids.push(m.v(new THREE.Vector3(cx + FUN.a * sc * Math.cos(a), y, -FUN.b * sc * Math.sin(a)), 0.005 + 0.99 * (j / seg), v));
         }
-        return inner ? ids.reverse() : ids;
+        return ids;
+      };
+      const outward = (g, ymax) => {
+        const n = g.attributes.normal, p = g.attributes.position;
+        let sc = 0;
+        for (let i = 0; i < p.count; i++) {
+          const cx = FUN.x - FUN.rake * (p.getY(i) - FUN.y0);
+          if (p.getY(i) < ymax) sc += n.getX(i) * (p.getX(i) - cx) + n.getZ(i) * p.getZ(i);
+        }
+        return flipIf(g, sc < 0);
       };
       const yB = FUN.y1 - 1.3;
-      const rows = [
-        ringAt(FUN.y0 - 0.03, 1, V_FUN - 0.004),
-        ringAt(FUN.y0 + 2, 1, V_FUN - 0.002),
-        ringAt(yB, 1, V_FUN + 0.004),
-      ];
-      for (let k = 0; k < rows.length - 1; k++) m.strip(rows[k], rows[k + 1]);
-      const t0 = ringAt(yB, 1, V_FUN_TOP - 0.003);
-      const t1 = ringAt(FUN.y1, 1, V_FUN_TOP + 0.003);
-      const l1 = ringAt(FUN.y1, 0.9, V_FUN_TOP + 0.004);
-      const i0 = ringAt(FUN.y1 - 1.6, 0.9, V_FUN_TOP - 0.004);
-      m.strip(t0, t1);
-      m.strip(t1, l1);
-      m.strip(l1, i0);
+      const mb = new Mesher();
+      const rows = [FUN.y0 - 0.03, FUN.y0 + 2, 19.5, 22.5, yB].map((y, k, arr) => ringAt(mb, y, 1, lerp(V_FUN - 0.004, V_FUN + 0.004, k / (arr.length - 1))));
+      for (let k = 0; k < rows.length - 1; k++) mb.strip(rows[k], rows[k + 1]);
+      mesh(outward(mb.build({ orient: false }), yB + 1), M.paint, 'Funnel', supG);
+      const mc = new Mesher();
+      const t0 = ringAt(mc, yB, 1, 0);
+      const t1 = ringAt(mc, FUN.y1, 1, 0.4);
+      const l1 = ringAt(mc, FUN.y1, 0.9, 0.5);
+      const i0 = ringAt(mc, FUN.y1 - 1.6, 0.9, 1);
+      mc.strip(t0, t1);
+      mc.strip(t1, l1);
+      mc.strip(l1, i0);
       const cx = FUN.x - FUN.rake * (FUN.y1 - 1.6 - FUN.y0);
-      const c = m.v(new THREE.Vector3(cx, FUN.y1 - 1.6, 0), 0.5, V_FUN_TOP);
-      for (let j = 0; j < seg; j++) m.tri(c, i0[j], i0[j + 1]);
-      const g = m.build({ orient: false });
-      // проверка: нормали наружной стены от оси
-      const n = g.attributes.normal, p = g.attributes.position;
+      const c = mc.v(new THREE.Vector3(cx, FUN.y1 - 1.6, 0), 0.5, 1);
+      for (let j = 0; j < seg; j++) mc.tri(c, i0[j], i0[j + 1]);
+      const cap = mc.build({ orient: false });
+      // ориентация по наружному поясу (первые два кольца)
+      const n = cap.attributes.normal, p = cap.attributes.position;
       let sc = 0;
-      for (let i = 0; i < p.count; i++) if (p.getY(i) < yB - 0.1) sc += n.getX(i) * (p.getX(i) - FUN.x) + n.getZ(i) * p.getZ(i);
-      if (sc < 0) {
-        const idx = g.index.array;
-        for (let i = 0; i < idx.length; i += 3) [idx[i + 1], idx[i + 2]] = [idx[i + 2], idx[i + 1]];
-        g.computeVertexNormals();
+      for (let i = 0; i < 2 * (seg + 1); i++) {
+        const cxx = FUN.x - FUN.rake * (p.getY(i) - FUN.y0);
+        sc += n.getX(i) * (p.getX(i) - cxx) + n.getZ(i) * p.getZ(i);
       }
-      mesh(g, M.paint, 'Funnel', supG);
+      mesh(flipIf(cap, sc < 0), M.dark, 'Funnel_Cap', supG);
     }
 
     // стальные детали надстроек: леера, вентиляторы-раструбы, свисток, прожектор, нактоуз, трапы

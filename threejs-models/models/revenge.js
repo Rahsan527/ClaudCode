@@ -59,18 +59,18 @@ function sec(xn) {
     s = clamp01((xn - 36) / (XF - 36));
     W = B0 * Math.max(0, 1 - s ** 1.5);
     wd = BD * Math.max(0, 1 - s ** 2.2) ** 0.75;
-    yk = 9.2 * s ** 5;
+    yk = 3.5 * s ** 30;
     nb = 6.5 - 4.4 * s;
     yw = WL - 0.6 + 1.2 * s * s;
     rake = -0.05 * s * s;
   } else if (xn < -44) {
     s = clamp01((-44 - xn) / (-44 - XS));
-    W = B0 * Math.max(0, 1 - s ** 1.6) ** 0.85;
+    W = B0 * Math.max(0, 1 - s ** 2.0) ** 0.8;
     wd = BD * Math.max(0, 1 - s ** 3.2) ** 0.5;
-    yk = 10.6 * s ** 1.7;
+    yk = 7.2 * s ** 2.2;
     nb = 6.5 - 3.4 * s;
-    yw = WL - 0.6 + 2.4 * s;
-    rake = 0.3 * s * s;
+    yw = WL - 0.6 + 2.6 * s * s;
+    rake = 0.15 * s * s;
     up = s;
   }
   W = Math.max(W, 0.08);
@@ -97,7 +97,12 @@ function secPt(c, q) {
   return V3(c.xn + c.rake * (c.yd - y), y, z);
 }
 
+const DENSE = new Map();
 function secDense(c, n = 300) {
+  const key = c.xn + '|' + n;
+  const hit = DENSE.get(key);
+  if (hit) return hit;
+  if (DENSE.size > 4000) DENSE.clear();
   const pts = [];
   let arc = 0, w = 0, prev = null, pd = null;
   for (let i = 0; i <= n; i++) {
@@ -117,6 +122,7 @@ function secDense(c, n = 300) {
     pts.push({ q, p, arc, w });
     prev = p;
   }
+  DENSE.set(key, pts);
   return pts;
 }
 
@@ -215,10 +221,18 @@ function sideNormal(x, y) {
 }
 // Высота днища в точке (x, z) — для проверки зазоров винтов и руля
 function bottomAt(x, z) {
+  z = Math.abs(z);
   let best = null, bd = Infinity;
-  for (let xn = x - 4; xn <= x + 2; xn += 0.05) {
+  for (let xn = x - 2; xn <= x + 2; xn += 0.05) {
     const c = sec(xn);
     const D = secDense(c, 200);
+    if (z <= D[0].p.z) {
+      if (Math.abs(D[0].p.x - x) < bd) {
+        bd = Math.abs(D[0].p.x - x);
+        best = D[0].p.y;
+      }
+      continue;
+    }
     for (let i = 0; i < D.length - 1; i++) {
       const a = D[i].p, b = D[i + 1].p;
       if ((a.z - z) * (b.z - z) <= 0 && b.z !== a.z) {
@@ -734,9 +748,22 @@ function paintHullAtlas() {
       }
     }
     // швы обшивки: продольные (по обводу) и стыки листов
-    for (let a = 1.3; a < GIRTH; a += 1.75) {
-      line(C, 0, V(a), S, V(a), 1.5, 'rgba(20,24,26,0.16)');
-      line(Hc, 0, V(a), S, V(a), 1.5, 'rgb(108,108,108)');
+    for (let i = 0; i < S; i += 2) {
+      const x = regX(R, (i + 1) / S);
+      if (x < XS - 2 || x > XF + 1) continue;
+      for (let y = 1.2; y < 20; y += 1.9) {
+        const a = arcAt(x, y);
+        if (!a) continue;
+        C.fillStyle = 'rgba(20,24,26,0.14)';
+        C.fillRect(i, V(a) - 0.75, 2, 1.5);
+        Hc.fillStyle = 'rgb(108,108,108)';
+        Hc.fillRect(i, V(a) - 0.75, 2, 1.5);
+      }
+    }
+    // днище: продольные пазы по обводу
+    for (let a = 1.6; a < 12; a += 1.8) {
+      line(C, 0, V(a), S, V(a), 1.5, 'rgba(20,24,26,0.12)');
+      line(Hc, 0, V(a), S, V(a), 1.5, 'rgb(110,110,110)');
     }
     for (let x = R.x0 + 2.2; x < R.x0 + XU; x += 5.4 + rnd() * 1.4) {
       const X = px(regU(R, x));
@@ -835,7 +862,7 @@ function paintDeck() {
   const C = col.getContext('2d'), Hc = hgt.getContext('2d');
   let seed = 4242;
   const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
-  C.fillStyle = '#8f8066';
+  C.fillStyle = '#7a6c56';
   C.fillRect(0, 0, W, H);
   Hc.fillStyle = 'rgb(140,140,140)';
   Hc.fillRect(0, 0, W, H);
@@ -846,8 +873,8 @@ function paintDeck() {
     const cuts = [];
     while (x < W) {
       const len = 250 + rnd() * 300;
-      const t = 118 + Math.round(rnd() * 26);
-      const fill = `rgb(${t + 18},${t + 6},${t - 18})`;
+      const t = 100 + Math.round(rnd() * 24);
+      const fill = `rgb(${t + 14},${t + 4},${t - 14})`;
       for (const off of [0, W, -W]) {
         C.fillStyle = fill;
         C.fillRect(x + off, y0, len, ph);
@@ -1010,7 +1037,7 @@ export function createRevenge() {
     teak: std('Deck_Teak', 0xffffff, 0.85, 0.0, { map: deckTex.map, normalMap: deckTex.normalMap }),
     grey: std('Paint_Grey', 0x7b8287, 0.7, 0.2),
     dark: std('Paint_Dark', 0x2b2f32, 0.6, 0.35),
-    light: std('Paint_Light_Grey', 0xa9b0b3, 0.75, 0.1),
+    light: std('Paint_Light_Grey', 0x9aa1a4, 0.75, 0.1),
     red: std('Antifouling_Red', 0x6a2c26, 0.8, 0.1),
     bronze: std('Propeller_Bronze', 0xa07a45, 0.35, 0.9),
   };
