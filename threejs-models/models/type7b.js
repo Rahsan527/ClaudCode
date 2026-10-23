@@ -120,7 +120,7 @@ function halfWidth(s, y) {
   const n = y < bc ? s.nl : s.n;
   let w = t < 1 ? s.a * (1 - t ** n) ** (1 / n) : 0;
   // надстройка: внизу плавно сходит на нет (скос), с корпусом — мягкое объединение
-  const fade = smooth((y - (s.cb - 0.45)) / 0.45);
+  const fade = smooth((y - (s.cb - 0.5)) / 0.95);
   if (fade > 0) {
     const c = (s.dh + 0.04 * (s.deck - y)) * fade;
     const k = 0.22;
