@@ -23,9 +23,9 @@ const BOAT = 19.8; // шлюпочная палуба (крыша надстро
 const XU = 96; // полудлина развёртки UV
 const ZU = 16; // полуширина развёртки UV палубы
 const CAMBER = 0.25;
-const NS = 34; // сегментов по обводу (киль → палуба)
+const NS = 38; // сегментов по обводу (киль → палуба)
 const ND = 16; // сегментов палубы поперёк
-const NST = 170; // шпангоутов
+const NST = 186; // шпангоутов
 const QL = 0.6;
 const ATLAS = 2048;
 
@@ -1139,6 +1139,47 @@ export function createRevenge() {
     mesh(one('red', parts), 'Hull_Appendages', hullG);
   }
 
+  // кормовой балкон (stern walk) на уровне верхней палубы
+  {
+    const y = 12.6, th = 0.22, off = 1.15;
+    let xt = -86;
+    while (sideAt(xt - 0.05, y + th)) xt -= 0.05;
+    const half = [];
+    for (let k = 0; k <= 18; k++) {
+      const x = -86 + (xt + 0.02 + 86) * Math.sin(((k / 18) * Math.PI) / 2);
+      const r = sideAt(x, y + th);
+      half.push([x, r ? Math.max(0.02, r.z - 0.04) : 0.02]);
+    }
+    const inner = [...half, ...[...half].reverse().map(([x, z]) => [x, -z])];
+    const n = inner.length;
+    const outer = inner.map((p, i) => {
+      const a = inner[Math.max(0, i - 1)], b = inner[Math.min(n - 1, i + 1)];
+      const tx = b[0] - a[0], tz = b[1] - a[1], l = Math.hypot(tx, tz) || 1;
+      return [p[0] + (off * tz) / l, p[1] - (off * tx) / l];
+    });
+    const m = new Mesher();
+    const contour = [...outer, ...[...inner].reverse()];
+    flatFace(m, contour, [], y + th, true);
+    flatFace(m, contour, [], y, false);
+    const ob = outer.map(([x, z]) => m.v(V3(x, y, z))), ot = outer.map(([x, z]) => m.v(V3(x, y + th, z)));
+    m.strip(ob, ot);
+    [0, n - 1].forEach((i) => {
+      const a = m.v(V3(inner[i][0], y, inner[i][1])), b = m.v(V3(inner[i][0], y + th, inner[i][1]));
+      m.quad(a, b, ot[i], ob[i]);
+    });
+    const walk = solid(m);
+    const parts = [walk];
+    const rail = outer.map(([x, z], i) => {
+      const [ix, iz] = inner[i];
+      return [lerp(x, ix, 0.08), lerp(z, iz, 0.08)];
+    });
+    rail.forEach(([x, z], i) => {
+      if (i % 2 === 0 || i === n - 1) parts.push(rod([x, y + th - 0.02, z], [x, y + th + 1.0, z], 0.035, 4, true));
+      if (i > 0) [0.5, 1.0].forEach((h) => parts.push(rod([rail[i - 1][0], y + th + h, rail[i - 1][1]], [x, y + th + h, z], 0.03, 4, true)));
+    });
+    mesh(one('grey', parts), 'Sternwalk', hullG);
+  }
+
   // ======================= БАШНИ ГК, БАРБЕТЫ
   const armG = group('Armament', ship);
   const TUR = [
@@ -1312,6 +1353,7 @@ export function createRevenge() {
     // прожекторы на крыльях мостика и на кормовом посту
     [1, -1].forEach((sd) => light(30.0, 25.88, sd * 8.6));
     [1, -1].forEach((sd) => light(-24.5, 22.98, sd * 1.1));
+    [1, -1].forEach((sd) => light(23.9, 36.08, sd * 1.2));
     mesh(m, 'Searchlights', supG);
   }
 
@@ -1321,7 +1363,10 @@ export function createRevenge() {
     const m = new Mesher();
     m.use('grey');
     // треногая фок-мачта
-    m.add(rod([22.5, BOAT - 0.02, 0], [22.5, 43.6, 0], 0.55, 14, true));
+    m.add(rod([22.5, BOAT - 0.02, 0], [22.5, 35.8, 0], 0.55, 14, true));
+    m.add(rod([22.5, 36.1, 0], [22.5, 43.6, 0], 0.55, 14, true));
+    slab(m, rrect(20.9, 24.6, 2.1, 0.6), null, 35.8, 36.1, 'grey');
+    m.use('grey');
     [1, -1].forEach((sd) => m.add(rod([16.5, BOAT - 0.02, sd * 4.6], [22.1, 43.6, sd * 0.4], 0.42, 12, true)));
     // марс (пост управления огнём)
     slab(m, rrect(19.5, 26.5, 3.6, 1.0), null, 43.6, 44.0, 'grey');
@@ -1472,6 +1517,53 @@ export function createRevenge() {
       m.add(sd > 0 ? g : mirrorZ(g));
     });
     mesh(m, 'Deck_Fittings', deckG);
+  }
+
+  // леерные ограждения
+  {
+    const parts = [];
+    const railLine = (pts, h = 1.0) => {
+      pts.forEach((p) => parts.push(rod([p[0], p[1] - 0.04, p[2]], [p[0], p[1] + h, p[2]], 0.035, 4, true)));
+      for (let i = 1; i < pts.length; i++)
+        [0.5, h].forEach((f) => parts.push(rod([pts[i - 1][0], pts[i - 1][1] + f, pts[i - 1][2]], [pts[i][0], pts[i][1] + f, pts[i][2]], 0.03, 4, true)));
+    };
+    const edge = (x0, x1, sd) => {
+      const pts = [];
+      const n = Math.max(1, Math.round((x1 - x0) / 2.4));
+      for (let i = 0; i <= n; i++) {
+        const x = lerp(x0, x1, i / n);
+        const c = sec(x);
+        const z = sd * (c.wd - 0.22);
+        pts.push([x, deckSurf(x, z), z]);
+      }
+      return pts;
+    };
+    [1, -1].forEach((sd) => {
+      railLine(edge(XBRK + 0.3, 80, sd));
+      railLine(edge(-90.5, XBRK - 0.4, sd));
+      // шлюпочная палуба
+      const pts = [];
+      for (let x = -25.5; x <= 22.6; x += 2.4) pts.push([x, BOAT, sd * 8.32]);
+      railLine(pts);
+    });
+    // поперёк среза полубака
+    const c = sec(XBRK + 0.3), pts = [];
+    for (let i = 0; i <= 10; i++) {
+      const z = (c.wd - 0.22) * (1 - (2 * i) / 10);
+      pts.push([XBRK + 0.3, deckSurf(XBRK + 0.3, z), z]);
+    }
+    railLine(pts);
+    // раструбные вентиляторы
+    const cowl = (h, yaw) => {
+      const p = new Mesher();
+      p.add(lathe([[0.32, -0.08], [0.32, h]], 12, { top: false }));
+      p.add(new THREE.TubeGeometry(new THREE.QuadraticBezierCurve3(V3(0, h, 0), V3(0, h + 0.55, 0), V3(0.55, h + 0.55, 0)), 6, 0.32, 12, false));
+      p.add(latheX([[0.32, 0.5], [0.5, 0.72], [0.56, 0.86], [0.46, 0.86], [0.3, 0.62], [0, 0.6]], 12).translate(0, h + 0.55, 0));
+      return p.build().rotateY(yaw);
+    };
+    [[14.0, 2.6, BOAT, 0], [14.0, -2.6, BOAT, 0], [-1.2, 1.7, BOAT, Math.PI], [-1.2, -1.7, BOAT, Math.PI]].forEach(([x, z, y, yaw]) => parts.push(cowl(1.3, yaw).translate(x, y, z)));
+    [[53.5, 9.3], [53.5, -9.3], [-63.5, 9.0], [-63.5, -9.0]].forEach(([x, z]) => parts.push(cowl(1.0, x > 0 ? 0 : Math.PI).translate(x, deckSurf(x, z), z)));
+    mesh(one('grey', parts), 'Rails_And_Vents', deckG);
   }
 
   // ======================= ВИНТЫ И РУЛЬ
