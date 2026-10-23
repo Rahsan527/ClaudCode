@@ -690,7 +690,7 @@ function paintHullAtlas() {
           const xx = x + dx;
           const c = sec(Math.min(XF, Math.max(XS, xx)));
           if (yr + 0.6 > c.yd || c.s > 0.94 || noPort(xx, yr)) continue;
-          if (xx < -96) continue;
+          if (xx < -94) continue;
           const rx = 0.2 * pxmX, ry = 0.2 * pxmY;
           C.fillStyle = '#1a2024';
           C.beginPath();
