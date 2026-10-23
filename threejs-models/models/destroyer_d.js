@@ -55,9 +55,9 @@ function sec(xn) {
     s = clamp01((MID_A - xn) / (MID_A - XS));
     W = BEAM * Math.max(0, 1 - s ** 4.5) ** 0.45;
     wd = BEAM * Math.max(0, 1 - s ** 6.5) ** 0.36;
-    yk = 3.4 * s ** 1.05;
+    yk = 3.5 * s ** 0.85;
     yw = 3.5 + 0.95 * s * s;
-    nb = 2.7 + 0.9 * s;
+    nb = 2.7 - 0.6 * s;
     rake = 0.55 * s ** 2;
   }
   W = Math.max(W, 0.05);
@@ -1183,7 +1183,7 @@ export function createDestroyerD() {
   mesh(merge([hull, bulkhead]), M.paint, 'Hull_Shell', hullG);
 
   // Подводные выступы: брусковый киль-скег, валы, кронштейны, скуловые кили
-  const PROP = { x: -40.0, z: 2.45, r: 1.3 };
+  const PROP = { x: -39.6, z: 2.5, r: 1.25 };
   {
     let yb = Infinity;
     for (let dx = -0.6; dx <= 0.6; dx += 0.2)
@@ -1568,6 +1568,8 @@ export function createDestroyerD() {
       parts.push(lathe([[0.2, -0.05], [0.15, 0.95], [0.24, 1.05], [0, 1.22]], 14).translate(24.6, yPlat, 0));
       [1, -1].forEach((sd) => parts.push(lathe([[0.12, -0.05], [0.1, 1.0], [0.16, 1.05], [0, 1.1]], 10).translate(23.6, yPlat, sd * 2.6)));
       [1, -1].forEach((sd) => parts.push(box(0.4, 0.45, 0.25, 24.2, yPlat + 0.75, sd * 4.32))); // отличительные огни
+      // стойки под крыльями мостика
+      [1, -1].forEach((sd) => [20.2, 25.0].forEach((x) => parts.push(rod([x, dY(x, sd * 3.9) - 0.05, sd * 3.9], [x, yPlat - 0.17, sd * 3.9], 0.07, 8, 'none'))));
     }
     // 3-дюймовое зенитное орудие (неподвижное в модели)
     {
@@ -1843,6 +1845,6 @@ export function createDestroyerD() {
     find('Torpedo_Tubes_2').rotation.y = -k * 1.4;
   };
   ship.userData.waterline = WL;
-  ship.userData.info = { propY: PROP.y };
+  ship.userData.info = { propY: PROP.y, propLow: PROP.y - PROP.r };
   return ship;
 }

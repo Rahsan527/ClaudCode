@@ -11,8 +11,8 @@ import { mergeGeometries, mergeVertices } from 'three/addons/utils/BufferGeometr
 // начало — на оси движения.
 
 export const WL = 2.1; // ватерлиния над килем (осадка)
-const XS = -36.95; // корма (сечение на уровне палубы)
-const XF = 37.0; // форштевень на уровне палубы полубака
+const XS = -37.0; // корма (сечение на уровне палубы)
+const XF = 37.2; // форштевень на уровне палубы полубака
 const XB = 5.5; // срез полубака
 const BEAM = 3.875; // полуширина
 const MID_A = -8.0;
@@ -53,7 +53,7 @@ function sec(xn) {
     s = clamp01((MID_A - xn) / (MID_A - XS));
     W = BEAM * Math.max(0, 1 - s ** 2.8) ** 0.5;
     wd = BEAM * Math.max(0, 1 - s ** 3.4) ** 0.42;
-    yk = 2.05 * s ** 1.35;
+    yk = 2.3 * s ** 1.1;
     yw = 2.65 + 0.75 * s * s;
     nb = 2.5 + 1.6 * s;
     rake = 0.55 * s * s;
@@ -147,7 +147,7 @@ const V_DECK = (z) => 0.255 + (0.24 * (z + ZD)) / (2 * ZD);
 const WALL_H = 3.0;
 const V_WALL = (band, h) => (band === 0 ? 0.006 : 0.127) + (0.115 * clamp01(h / WALL_H));
 const KU_WALL = 0.735 / 40; // u на метр периметра
-const FUN = { u0: 0.757, u1: 0.993, h: 6.2 };
+const FUN = { u0: 0.757, u1: 0.993, h: 7.0 };
 const V_FUN = (h) => 0.006 + 0.236 * clamp01(h / FUN.h);
 
 // Точка борта на высоте y в абсциссе x (с учётом наклона форштевня/кормы)
@@ -698,7 +698,7 @@ function paintAtlas() {
     ctx.lineTo(x1, y1);
     ctx.stroke();
   };
-  const GREY = '#8a9196';
+  const GREY = '#7d8489';
 
   // ---- БОРТ (v 0.5…1)
   const hullBot = py(0.5);
@@ -790,7 +790,7 @@ function paintAtlas() {
 
   // ---- ПАЛУБЫ (v 0.25…0.5)
   const d0 = py(0.5), d1 = py(0.25);
-  C.fillStyle = '#4f5458';
+  C.fillStyle = '#4a4f53';
   C.fillRect(0, d0, S, d1 - d0);
   for (let i = 0; i < 900; i++) {
     C.fillStyle = rnd() < 0.5 ? 'rgba(255,255,255,0.012)' : 'rgba(0,0,0,0.02)';
@@ -815,7 +815,7 @@ function paintAtlas() {
   // ---- СТЕНЫ НАДСТРОЕК (v 0…0.25, u 0…0.745): полоса 0 — иллюминаторы, полоса 1 — окна рубки
   const w0 = 0, w1 = px(0.75);
   const bandY = (band, h) => py(V_WALL(band, h));
-  C.fillStyle = '#9ba1a5';
+  C.fillStyle = '#8e9498';
   C.fillRect(w0, py(0.25), w1, S - py(0.25));
   for (let i = 0; i < 400; i++) {
     C.fillStyle = rnd() < 0.5 ? 'rgba(255,255,255,0.016)' : 'rgba(0,0,0,0.02)';
@@ -887,7 +887,7 @@ function paintAtlas() {
 
   // ---- ТРУБА (u 0.755…0.995)
   const f0 = px(FUN.u0 - 0.002), f1 = px(FUN.u1 + 0.002);
-  C.fillStyle = '#9ba1a5';
+  C.fillStyle = '#8e9498';
   C.fillRect(f0, py(0.25), f1 - f0, S - py(0.25));
   // сажа к верху
   {
@@ -1092,13 +1092,13 @@ export function createLoewe() {
   };
   const M = {
     paint: std('Hull_Paint_Atlas', 0xffffff, 0.7, 0.12, { map, normalMap }),
-    grey: std('Steel_Light_Grey', 0x9ba1a5, 0.62, 0.25),
+    grey: std('Steel_Light_Grey', 0x8e9498, 0.62, 0.25),
     dark: std('Steel_Dark', 0x2c2f32, 0.6, 0.35),
     bottom: std('Antifouling_Dark', 0x3d2c28, 0.75, 0.1),
     bronze: std('Propeller_Bronze', 0xa07a45, 0.32, 0.9),
     wire: std('Rigging_Wire', 0x26282a, 0.55, 0.6),
     canvas: std('Canvas_Cover', 0x75736a, 0.9, 0.0),
-    boat: std('Boat_Paint', 0x8f969a, 0.55, 0.05),
+    boat: std('Boat_Paint', 0x8a9095, 0.55, 0.05),
   };
   const group = (name, parent, x = 0, y = 0, z = 0) => {
     const g = new THREE.Group();
@@ -1125,7 +1125,7 @@ export function createLoewe() {
   mesh(merge([hull, bulkhead, buildBulwark(31.0, 0.8)]), M.paint, 'Hull_Shell', hullG);
 
   // Подводные выступы: валы, кронштейны, мортиры, скуловые кили, дейдвуд
-  const PROP = { x: -30.6, y: 0.78, z: 1.55, r: 0.8 };
+  const PROP = { x: -30.6, y: 0.75, z: 1.55, r: 0.76 };
   const RUD = { x: -35.0, y0: 0.42 };
   RUD.y1 = bottomY(RUD.x, 0) + 0.02;
   {
@@ -1195,8 +1195,8 @@ export function createLoewe() {
   const BR = { x0: 12.7, x1: 18.6, hw: 2.45, h1: 2.2, wx0: 14.95, wx1: 18.0, whw: 1.6, h2: 2.15 };
   const yBr = fcY(15.5) + 0.0;
   const yPlat = yBr + BR.h1 + BR.h2; // открытый ходовой мостик
-  const PLAT = [12.75, 18.45, 3.55];
-  const FUNNEL = { x: 1.0, a: 1.55, b: 1.05, rake: Math.tan((7 * Math.PI) / 180) };
+  const PLAT = [12.75, 18.45, 3.3];
+  const FUNNEL = { x: 1.0, a: 1.45, b: 1.0, rake: Math.tan((7 * Math.PI) / 180) };
   const CAS = { x0: -1.5, x1: 3.7, hw: 1.55, h: 0.9 };
   const yCas = mainDeckY(1) + 0.12;
   const yFun0 = yCas + CAS.h;
@@ -1243,7 +1243,7 @@ export function createLoewe() {
     // фальшборт ходового мостика
     const bl = roundRect(PLAT[0] + 0.05, PLAT[1] - 0.05, -PLAT[2] + 0.05, PLAT[2] - 0.05, 0.45, 4);
     parts.push(
-      sweepPath(bl, [[0, yPlat - 0.01], [-0.03, yPlat + 1.05], [0.06, yPlat + 1.05], [0.06, yPlat - 0.01]], (per, pr) => [
+      sweepPath(bl, [[0, yPlat - 0.01], [-0.03, yPlat + 0.95], [0.06, yPlat + 0.95], [0.06, yPlat - 0.01]], (per, pr) => [
         FUN.u0 + ((per * KU_WALL) % (FUN.u1 - FUN.u0)),
         V_FUN(0.15 + Math.max(0, pr[1] - yPlat)),
       ]),
@@ -1294,8 +1294,8 @@ export function createLoewe() {
   const TT = [{ x: -9.0 }, { x: -16.3 }];
   TT.forEach((t) => (t.y = deckY(t.x, 0) + 0.3));
   const FL = [
-    { x: 13.75, z: 2.55, y: yPlat },
-    { x: 13.75, z: -2.55, y: yPlat },
+    { x: 13.75, z: 2.35, y: yPlat },
+    { x: 13.75, z: -2.35, y: yPlat },
     { x: -27.4, z: 1.95 },
     { x: -27.4, z: -1.95 },
   ];
@@ -1507,7 +1507,7 @@ export function createLoewe() {
     parts.push(latheZ([[0.1, -0.75], [0.1, 0.75]], 10).translate(15.2, yPlat + 1.02, 0));
     [-0.75, 0.75].forEach((z) => parts.push(latheZ([[0.14, -0.1], [0.14, 0.1]], 10).translate(15.2, yPlat + 1.02, z)));
     // ходовые огни
-    [1, -1].forEach((sd) => parts.push(box(0.35, 0.4, 0.22, 17.6, yPlat + 0.6, sd * 3.62)));
+    [1, -1].forEach((sd) => parts.push(box(0.35, 0.4, 0.22, 17.6, yPlat + 0.6, sd * 3.37)));
     // тумба прожектора
     parts.push(lathe([[0.3, -0.05], [0.2, 0.25], [0.17, 0.53], [0.25, 0.58], [0, 0.6]], 14).translate(SL.x, yST, 0));
     // гюйсшток и флагшток
