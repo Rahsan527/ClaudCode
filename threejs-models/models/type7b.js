@@ -105,10 +105,12 @@ const TANK = { zc: 1.72, h: 1.38, yc: -1.3, v: 2.0, x0: -19.5, x1: -10, x2: 8, x
 const tankF = (x) => smooth((x - TANK.x0) / (TANK.x1 - TANK.x0)) * (1 - smooth((x - TANK.x2) / (TANK.x3 - TANK.x2)));
 
 function section(x) {
-  return {
+  const s = {
     keel: yKeel(x), deck: yDeck(x), dh: deckHalf(x), cb: casBot(x), bb: bodyBot(x), bt: bodyTop(x), a: bodyA(x),
     n: bodyN(x), nl: bodyNL(x), kh: keelHalf(x), f: tankF(x),
   };
+  s.edge = halfWidth(s, s.deck); // фактическая полуширина по кромке палубы
+  return s;
 }
 
 // Полуширина корпуса на высоте y
@@ -122,8 +124,7 @@ function halfWidth(s, y) {
   if (fade > 0) {
     const c = (s.dh + 0.04 * (s.deck - y)) * fade;
     const k = 0.22;
-    w = (w + c + Math.sqrt((w - c) ** 2 + k * k * fade)) / 2 - (k * Math.sqrt(fade)) / 2 + 0.0;
-    w = Math.max(w, c);
+    w = (w + c + Math.sqrt((w - c) ** 2 + k * k * fade)) / 2;
   }
   // були: выдвигаются из корпуса по длине (сдвиг, а не масштаб — плавные оконечности)
   if (s.f > 0) {
@@ -135,10 +136,10 @@ function halfWidth(s, y) {
 export const hullHalfWidth = (x, y) => halfWidth(section(x), y);
 
 // Погибь палубы
-const camber = (s, z) => 0.06 * Math.min(1, s.dh / 1.2) * (1 - (z / s.dh) ** 2);
+const camber = (s, z) => 0.06 * Math.min(1, s.edge / 1.2) * (1 - Math.min(1, (z / s.edge) ** 2));
 export const deckY = (x, z = 0) => {
   const s = section(x);
-  return s.deck + camber(s, Math.min(Math.abs(z), s.dh));
+  return s.deck + camber(s, Math.min(Math.abs(z), s.edge));
 };
 
 // Ряды вершин по высоте: KB рядов от киля до ватерлинии, KA — от ватерлинии до палубы
@@ -632,7 +633,7 @@ export function createType7B() {
       }
       const DS = [], DP = [];
       for (let j = 0; j <= DK; j++) {
-        const z = s.dh * (1 - j / DK);
+        const z = s.edge * (1 - j / DK);
         const y = s.deck + camber(s, z);
         DS.push(m.v(x, y, z, u, 0.5 + z / 3.6));
         DP.push(j === DK ? DS[DK] : m.v(x, y, -z, u, 0.5 - z / 3.6));

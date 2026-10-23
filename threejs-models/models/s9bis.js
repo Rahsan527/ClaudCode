@@ -24,13 +24,13 @@ const V = (x, y, z) => new THREE.Vector3(x, y, z);
 
 function keelY(x) {
   if (x > 22) return 6.25 * ((x - 22) / (X_BOW - 22)) ** 2; // наклонный форштевень со скруглённым подрезом
-  if (x < -14) return 2.6 * ((-14 - x) / (-14 - X_TAIL)) ** 1.8; // подъём киля к корме
+  if (x < -14) return 2.9 * ((-14 - x) / (-14 - X_TAIL)) ** 1.8; // подъём киля к корме
   return 0;
 }
 function deckY(x) {
   let y = DECK;
   if (x > 24) y += 0.65 * ((x - 24) / (X_BOW - 24)) ** 2; // седловатость к носу
-  if (x < -22) y -= 1.1 * ((-22 - x) / (-22 - X_TAIL)) ** 1.6;
+  if (x < -22) y -= 1.3 * ((-22 - x) / (-22 - X_TAIL)) ** 1.6;
   return y;
 }
 function maxHalfBeam(x) {
@@ -40,7 +40,7 @@ function maxHalfBeam(x) {
   }
   if (x < -6) {
     const u = clamp01((-6 - x) / (-6 - X_TAIL));
-    return 0.5 + 2.7 * Math.max(0, 1 - u ** 1.8) ** 0.9;
+    return 0.45 + 2.75 * Math.max(0, 1 - u ** 1.8) ** 0.9;
   }
   return 3.2;
 }
@@ -770,7 +770,16 @@ export function createS9bis() {
     const poly = [...inner, ...outer.reverse()];
     hullParts.push(prism(poly, -0.035, 0.035, 'z', { uvFn: uvTwo }));
   }
-  // Горизонтальный киль-брус у кормы (опора руля снизу не нужна — руль подвесной)
+  // Кормовой дейдвуд (скег) с ахтерштевнем — на него навешен руль
+  {
+    const poly = [];
+    for (let k = 0; k <= 12; k++) {
+      const x = lerp(-27.0, -36.5, k / 12);
+      poly.push([x, keelY(x) + 0.3]);
+    }
+    poly.push([-36.95, 3.1], [-36.95, 1.95], [-27.0, keelY(-27.0) - 0.02]);
+    hullParts.push(prism(poly.reverse(), -0.08, 0.08, 'z', { uvFn: uvTwo }));
+  }
   const hullGeo = merged(hullParts, { uv: true, crease: 35 });
 
   const hullGroup = group('Hull');
@@ -867,7 +876,7 @@ export function createS9bis() {
       ];
       parts.push(tube(path, 0.065, 48, 8));
       // крышки кормовых ТА на торце кормы
-      parts.push(revolveX([[X_TAIL + 0.04, 0.2], [X_TAIL - 0.06, 0.2], [X_TAIL - 0.08, 0.17]], 18, { capStart: false }).translate(0, 3.65, s * 0.22));
+      parts.push(revolveX([[X_TAIL + 0.04, 0.2], [X_TAIL - 0.06, 0.2], [X_TAIL - 0.08, 0.17]], 18, { capStart: false }).translate(0, 3.8, s * 0.22));
       // якоря в клюзах
       {
         const ax = 33.3, ay = 5.05;
@@ -926,8 +935,8 @@ export function createS9bis() {
   // РУЛИ: вертикальный руль (подвесной, балансирный), носовые (заваливающиеся) и кормовые горизонтальные
   const controls = group('Control_Surfaces');
   {
-    const stock = V(-37.6, 2.8, 0);
-    const g = foil({ root: [-37.1, X_RUD_TE], tip: [-37.05, -38.55], span: 3.0, tc: 0.13, nSpan: 5 }).translate(0, 1.3, 0);
+    const stock = V(-37.65, 3.2, 0);
+    const g = foil({ root: [-37.2, X_RUD_TE], tip: [-37.15, -38.6], span: 2.5, tc: 0.13, nSpan: 5 }).translate(0, 1.95, 0);
     setUV(g, uvTwo);
     movable('Rudder', controls, stock, merged([g], { uv: true }), M.hull);
   }

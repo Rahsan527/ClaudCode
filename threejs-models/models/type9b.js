@@ -55,11 +55,11 @@ function sec(xn) {
     s = clamp01((H.xa0 - xn) / (H.xa0 - H.xEnd));
     W = H.W * Math.max(0, 1 - s ** 1.25) ** 1.25;
     wd = H.wd * Math.max(0, 1 - s ** 2.0) ** 0.75;
-    yk = 1.6 * s ** 1.5;
-    yw = H.yw - 0.1 * s;
+    yk = 2.05 * s ** 1.45;
+    yw = H.yw + 0.2 * s;
     yd = H.yd - 0.25 * s * s;
     nb = 2.5 - 0.8 * s;
-    rake = 0.18 * s * s; // нижние точки уходят в нос — подрез кормы над винтами
+    rake = 0.32 * s ** 2.5; // нижние точки уходят в нос — подрез кормы над винтами
   }
   W = Math.max(W, 0.06);
   wd = Math.min(Math.max(wd, 0.05), W * 0.92);
@@ -116,7 +116,7 @@ const xOfU = (u) => XA + ((u - 0.005) / 0.99) * (XB - XA);
 const V_SIDE = (arc) => 0.505 + (0.49 * arc) / GIRTH;
 const ZD = 2.3;
 const V_DECK = (z) => 0.255 + (0.24 * (z + ZD)) / (2 * ZD);
-const TW = { y0: 5.6, yF: 7.75, yTop: 9.02, xw: -0.4, M: 72 };
+const TW = { y0: 5.6, yF: 7.6, yTop: 8.86, xw: -0.4, M: 72 };
 const V_TOWER = (y) => 0.005 + (0.2 * (y - TW.y0)) / (TW.yTop - TW.y0);
 const V_INNER = (y) => 0.215 + (0.028 * (y - TW.yF)) / (TW.yTop - TW.yF);
 
@@ -497,10 +497,10 @@ function paintAtlas() {
 
   // ---- КОРПУС (v 0.5…1 → py 0…1024)
   const hullTop = 0, hullBot = S / 2;
-  C.fillStyle = '#8f9599';
+  C.fillStyle = '#7b8185';
   C.fillRect(0, hullTop, S, hullBot);
   // подводная часть
-  C.fillStyle = '#383c40';
+  C.fillStyle = '#33373a';
   for (let i = 0; i < S; i++) {
     const r = sideAt(xOfU((i + 0.5) / S), WL);
     if (!r) continue;
@@ -596,12 +596,10 @@ function paintAtlas() {
     hullShape(x, y, 1.05, 0.95, null, null, 0.45, ['rgba(12,14,15,0.95)', 3]);
     hullShape(x, y, 0.8, 0.7, null, null, 0.45, ['rgba(12,14,15,0.6)', 2]);
   });
-  // клюз якоря
-  hullShape(34.2, 5.55, 0.95, 0.85, 'rgba(25,28,30,0.55)', 'rgb(100,100,100)', 0.35);
 
   // ---- ПАЛУБА (v 0.25…0.5 → py 1024…1536)
   const d0 = py(0.5), d1 = py(0.25);
-  C.fillStyle = '#6b665c';
+  C.fillStyle = '#5c584f';
   C.fillRect(0, d0, S, d1 - d0);
   const plank = 0.135;
   for (let z = -ZD; z < ZD; z += plank) {
@@ -609,7 +607,7 @@ function paintAtlas() {
     let x = XA - rnd() * 5;
     while (x < XB) {
       const len = 3.5 + rnd() * 3.5;
-      const t = 92 + Math.round(rnd() * 22);
+      const t = 78 + Math.round(rnd() * 20);
       C.fillStyle = `rgb(${t + 6},${t + 2},${t - 8})`;
       C.fillRect(px(U(x)), ya, px(U(x + len)) - px(U(x)), yb - ya);
       line(C, px(U(x)), ya, px(U(x)), yb, 2, 'rgba(25,22,18,0.7)');
@@ -626,9 +624,9 @@ function paintAtlas() {
 
   // ---- РУБКА (v 0…0.25 → py 1536…2048)
   const t0 = py(0.25);
-  C.fillStyle = '#9ca1a4';
+  C.fillStyle = '#82888b';
   C.fillRect(0, t0, S, S - t0);
-  C.fillStyle = '#8b9093';
+  C.fillStyle = '#74797c';
   C.fillRect(0, py(0.246), S, py(0.212) - py(0.246));
   for (let i = 0; i < 300; i++) {
     C.fillStyle = rnd() < 0.5 ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.035)';
@@ -645,22 +643,13 @@ function paintAtlas() {
     line(C, X, py(0.205), X, py(0.005), 2, 'rgba(20,24,26,0.18)');
     line(Hc, X, py(0.205), X, py(0.005), 2, 'rgb(100,100,100)');
   }
-  // шпигаты в основании рубки и скобы-ступени
-  for (let p = 0.9; p < TOWER_PER - 0.6; p += 0.95) {
-    const X = px(0.005 + (0.99 * p) / TOWER_PER);
-    const Y = py(V_TOWER(5.98));
-    C.fillStyle = '#0d0f10';
-    Hc.fillStyle = 'rgb(10,10,10)';
-    const w = (0.3 / TOWER_PER) * 0.99 * S, h = (0.2 * 0.12 / (TW.yTop - TW.y0)) * S;
-    C.fillRect(X - w / 2, Y - h / 2, w, h);
-    Hc.fillRect(X - w / 2, Y - h / 2, w, h);
-    if (rnd() < 0.25) {
-      const g = C.createLinearGradient(0, Y, 0, Y + 40);
-      g.addColorStop(0, 'rgba(92,62,40,0.2)');
-      g.addColorStop(1, 'rgba(92,62,40,0)');
-      C.fillStyle = g;
-      C.fillRect(X - 3, Y, 6, 40);
-    }
+  // тёмная полоса у основания рубки (сток воды)
+  {
+    const g = C.createLinearGradient(0, py(V_TOWER(5.6)), 0, py(V_TOWER(6.3)));
+    g.addColorStop(0, 'rgba(40,36,30,0.35)');
+    g.addColorStop(1, 'rgba(40,36,30,0)');
+    C.fillStyle = g;
+    C.fillRect(0, py(V_TOWER(6.3)), S, py(V_TOWER(5.6)) - py(V_TOWER(6.3)));
   }
 
   // карта нормалей из высот (соглашение glTF: +Y — вверх по картинке glTF, т.е. вниз по холсту до переворота)
@@ -748,7 +737,7 @@ function buildHull() {
 // Рубка: тело до пола мостика (с полом-настилом), фальшборт мостика с козырьком
 function buildTower() {
   const m = new Mesher();
-  const ys = [TW.y0, 5.95, 6.2, 6.5, 6.9, 7.3, TW.yF];
+  const ys = [TW.y0, 5.95, 6.2, 6.5, 6.85, 7.2, TW.yF];
   const rings = ys.map((y) => {
     const pts = towerOutline(y);
     pts.push(pts[0]);
@@ -792,8 +781,8 @@ function buildTower() {
   const bl = [...loop, ...wall];
   const prof = [
     [0, TW.yF],
-    [0.03, 8.62],
-    [0.2, 8.96],
+    [0.03, TW.yTop - 0.38],
+    [0.2, TW.yTop - 0.06],
     [0.2, TW.yTop],
     [-0.07, TW.yTop],
     [-0.07, TW.yF],
@@ -820,9 +809,9 @@ export function createType9B() {
   };
   const M = {
     hull: std('Hull_Painted_Steel', 0xffffff, 0.72, 0.15, { map, normalMap }),
-    light: std('Steel_Light_Grey', 0x8d9396, 0.6, 0.35),
+    light: std('Steel_Light_Grey', 0x6e7478, 0.6, 0.3),
     dark: std('Steel_Dark_Grey', 0x3b3f43, 0.65, 0.3),
-    gun: std('Gun_Steel', 0x7c8286, 0.45, 0.55),
+    gun: std('Gun_Steel', 0x62686c, 0.5, 0.5),
     bronze: std('Propeller_Bronze', 0x9a7442, 0.35, 0.9),
     wire: std('Wire_Rope', 0x2a2b2c, 0.5, 0.6),
   };
@@ -965,22 +954,22 @@ export function createType9B() {
 
   // ======================= МОСТИК: тумбы перископов, УЗО, рамка радиопеленгатора, леера площадки
   const bridgeG = group('Bridge', boat);
-  const PER = { attack: [3.35, 0.0], sky: [1.55, 0.0], top: 9.38, base: TW.yF };
+  const PER = { attack: [3.35, 0.0], sky: [1.55, 0.0], top: 9.4, base: TW.yF, tube: 6.15 };
   {
     const parts = [];
-    const standard = (rb, rt, rh) => lathe([[rb, PER.base - 0.02], [rb * 0.98, 8.6], [rt, PER.top], [rh, PER.top], [rh, PER.base + 0.4]], 22);
+    const standard = (rb, rt, rh) => lathe([[rb, PER.base - 0.02], [rb * 0.98, 8.5], [rt, PER.top], [rh, PER.top], [rh, PER.base + 0.4]], 22);
     parts.push(standard(0.27, 0.19, 0.1).translate(PER.attack[0], 0, PER.attack[1]));
     parts.push(standard(0.3, 0.22, 0.13).translate(PER.sky[0], 0, PER.sky[1]));
     // УЗО (прицельная колонка)
-    parts.push(lathe([[0.12, TW.yF - 0.02], [0.08, 8.7], [0.12, 8.78], [0.12, 8.86], [0, 8.88]], 12).translate(6.05, 0, 0));
-    parts.push(box(0.12, 0.12, 0.36, 6.05, 8.95, 0));
+    parts.push(lathe([[0.12, TW.yF - 0.02], [0.08, 8.55], [0.12, 8.62], [0.12, 8.7], [0, 8.72]], 12).translate(6.05, 0, 0));
+    parts.push(box(0.12, 0.12, 0.36, 6.05, 8.79, 0));
     // рубочный люк
     parts.push(lathe([[0.42, TW.yF - 0.02], [0.42, TW.yF + 0.1], [0.36, TW.yF + 0.13], [0, TW.yF + 0.2]], 20).translate(4.75, 0, 0.5));
     // компас / нактоуз
-    parts.push(lathe([[0.16, TW.yF - 0.02], [0.12, 8.6], [0.18, 8.68], [0, 8.82]], 14).translate(5.35, 0, -0.75));
+    parts.push(lathe([[0.16, TW.yF - 0.02], [0.12, 8.45], [0.18, 8.53], [0, 8.66]], 14).translate(5.35, 0, -0.75));
     // рамка радиопеленгатора на стойке (левый борт мостика)
-    parts.push(rod([0.85, TW.yF - 0.02, -1.05], [0.85, 9.08, -1.05], 0.035, 8));
-    parts.push(new THREE.TorusGeometry(0.27, 0.025, 6, 20).translate(0.85, 9.33, -1.05));
+    parts.push(rod([0.85, TW.yF - 0.02, -1.0], [0.85, 9.0, -1.0], 0.035, 8));
+    parts.push(new THREE.TorusGeometry(0.27, 0.025, 6, 20).translate(0.85, 9.27, -1.0));
     // тумба 20-мм автомата
     parts.push(lathe([[0.2, -0.02], [0.16, 0.25], [0.12, 0.6], [0.15, 0.65], [0.15, 0.71], [0, 0.73]], 16).translate(-1.55, TW.yF, 0));
     // леера площадки (Wintergarten)
@@ -1009,7 +998,7 @@ export function createType9B() {
       ring.forEach((p) => {
         if (Math.abs(p[0] - 4.6) < Math.abs(best[0] - 4.6) && Math.sign(p[1]) === sd) best = p;
       });
-      parts.push(box(0.22, 0.2, 0.12, best[0], 8.45, best[1] + sd * 0.06));
+      parts.push(box(0.22, 0.2, 0.12, best[0], TW.yF + 0.6, best[1] + sd * 0.06));
     });
     mesh(merge(parts), M.light, 'Bridge_Fittings', bridgeG);
   }
@@ -1017,7 +1006,7 @@ export function createType9B() {
   // ======================= ПЕРИСКОПЫ (выдвижные по Y, начало — у основания трубы)
   const periG = group('Periscopes', boat);
   {
-    const base = 6.15;
+    const base = PER.tube;
     const att = group('Periscope_Attack', periG, PER.attack[0], base, PER.attack[1]);
     mesh(
       lathe([[0.085, 0], [0.085, 2.95], [0.065, 3.2], [0.045, 3.35], [0.035, 3.45], [0, 3.47]], 14),
@@ -1223,8 +1212,8 @@ export function createType9B() {
     find('Deck_Gun').rotation.y = k * 0.9;
     find('Flak_37mm').rotation.y = -k * 1.2;
     find('Flak_20mm').rotation.y = k * 1.4;
-    find('Periscope_Attack').position.y = 6.15 + k * 2.5;
-    find('Periscope_Sky').position.y = 6.15 + k * 2.0;
+    find('Periscope_Attack').position.y = PER.tube + k * 2.5;
+    find('Periscope_Sky').position.y = PER.tube + k * 2.0;
   };
   return boat;
 }
