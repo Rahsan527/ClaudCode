@@ -624,12 +624,12 @@ export function createGrimsby() {
   };
   const M = {
     atlas: std('Ship_Paint_Atlas', 0xffffff, 0.72, 0.12),
-    grey: std('Paint_Grey', 0x8a9196, 0.62, 0.2),
+    grey: std('Paint_Grey', 0x6f777d, 0.62, 0.2),
     dark: std('Steel_Dark', 0x2c2f32, 0.6, 0.45),
     anti: std('Antifouling_Red', 0x5a2b24, 0.75, 0.1),
     bronze: std('Propeller_Bronze', 0xa47a45, 0.35, 0.9),
     wire: std('Rigging_Wire', 0x26282a, 0.55, 0.5),
-    canvas: std('Canvas_Covers', 0x9a9682, 0.9, 0.0),
+    canvas: std('Canvas_Covers', 0x6f705f, 0.9, 0.0),
   };
   const group = (name, parent, x = 0, y = 0, z = 0) => {
     const g = new THREE.Group();
@@ -972,7 +972,7 @@ export function createGrimsby() {
       const inner = latheX([[r * 0.93, r * 0.79], [r * 0.5, r * 0.4], [0, r * 0.3]], 14, { top: false }).translate(0, h, 0);
       return merge([stem, bell, elbow, inner]);
     };
-    [[6.5, 2.0, 1.4, 0.45], [6.5, -2.0, 1.4, 0.45], [-7.2, 1.6, 1.1, 0.38], [-7.2, -1.6, 1.1, 0.38], [-19.5, 1.5, 1.0, 0.35], [-19.5, -1.5, 1.0, 0.35]].forEach(([x, z, h, r]) => {
+    [[6.5, 2.0, 1.4, 0.45], [6.5, -2.0, 1.4, 0.45], [-10.3, 2.9, 1.1, 0.38], [-10.3, -2.9, 1.1, 0.38], [-19.5, 1.5, 1.0, 0.35], [-19.5, -1.5, 1.0, 0.35]].forEach(([x, z, h, r]) => {
       const g = cowl(h, r);
       if (x < 0) g.rotateY(Math.PI);
       parts.push(dk(g, x, z));
@@ -1422,7 +1422,7 @@ function paintAtlas(houses, SL, BH) {
     ctx.lineTo(x1, y1);
     ctx.stroke();
   };
-  const GREY = '#7e868c';
+  const GREY = '#6c747a';
 
   // ---- БОРТ (v 0.5…1 → py 0…1024)
   const hullBot = S / 2;
@@ -1513,12 +1513,12 @@ function paintAtlas(houses, SL, BH) {
       if (rnd() < 0.3) streak(x, y - 0.25, 0.8 + rnd(), 0.16);
     }
   };
-  for (let x = 30.5; x > HL.XBRK + 0.8; x -= 2.1) {
-    if (x > 21 && x < 23) continue;
+  for (let x = 30.5; x > HL.XBRK + 0.8; x -= 2.7) {
+    if (x > 21 && x < 23.5) continue;
     scut(x, yFc(x) - 1.05);
   }
-  for (let x = HL.XBRK + 2.0; x < 22; x += 2.1) scut(x, yMain(x) - 1.0 + (x > 5 ? 0 : 0));
-  for (let x = HL.XBRK - 1.5; x > -33; x -= 2.4) scut(x, yMain(x) - 1.0);
+  for (let x = -6.5; x < 17; x += 3.4) scut(x, yMain(x) - 0.9);
+  for (let x = HL.XBRK - 1.8; x > -31; x -= 3.1) scut(x, yMain(x) - 1.0);
   // клюзы
   [36.6].forEach((x) => {
     const y = yFc(x) - 0.42;
@@ -1576,7 +1576,7 @@ function paintAtlas(houses, SL, BH) {
 
   // ---- НАДСТРОЙКИ (v 0…0.25)
   const t0 = py(0.25);
-  C.fillStyle = '#868e94';
+  C.fillStyle = '#737b81';
   C.fillRect(0, t0, S, S - t0);
   // слот крыш: стальная палуба цвета корпуса с линолеумом
   const fillSlot = (sl, color) => {
@@ -1635,11 +1635,11 @@ function paintAtlas(houses, SL, BH) {
     const { X, Y, sl } = wallFrame(h);
     if (h.funnel) {
       // труба: тёмный верхний пояс (копоть), обручи
-      C.fillStyle = '#868e94';
+      C.fillStyle = '#737b81';
       C.fillRect(sl.px, sl.py, sl.pw, sl.ph);
       const g = C.createLinearGradient(0, Y(h.y1), 0, Y(h.y1 - 1.6));
-      g.addColorStop(0, 'rgba(30,30,30,0.95)');
-      g.addColorStop(0.3, 'rgba(30,30,30,0.85)');
+      g.addColorStop(0, 'rgba(30,30,30,0.9)');
+      g.addColorStop(0.18, 'rgba(30,30,30,0.6)');
       g.addColorStop(1, 'rgba(30,30,30,0)');
       C.fillStyle = g;
       C.fillRect(sl.px, Y(h.y1), sl.pw, Y(h.y1 - 1.6) - Y(h.y1));
@@ -1704,7 +1704,7 @@ function paintAtlas(houses, SL, BH) {
       const yt = Y(h.y0 + 1.95), yb = Y(h.y0 + 0.2);
       if (yt < sl.py) return;
       rect(C, x0 - 2, yt - 2, x1 - x0 + 4, yb - yt + 4, '#4c5357');
-      rect(C, x0, yt, x1 - x0, yb - yt, '#737b80');
+      rect(C, x0, yt, x1 - x0, yb - yt, '#646c71');
       rect(C, x1 - 6, (yt + yb) / 2 - 2, 3, 5, '#2a2d30');
       Hc.strokeStyle = 'rgb(160,160,160)';
       Hc.lineWidth = 3;
@@ -1717,11 +1717,11 @@ function paintAtlas(houses, SL, BH) {
     const y0 = yMain(HL.XBRK), y1 = yFc(HL.XBRK) + 0.2;
     const X = (z) => sl.px + ((z + HL.B) / (2 * HL.B)) * sl.pw;
     const Y = (y) => sl.py + sl.ph * (1 - (y - y0) / (y1 - y0));
-    rect(C, sl.px - 2, sl.py - 2, sl.pw + 4, sl.ph + 4, '#80888e');
+    rect(C, sl.px - 2, sl.py - 2, sl.pw + 4, sl.ph + 4, '#737b81');
     [-1.4, 1.4].forEach((z) => {
       const x0 = X(z - 0.4), x1 = X(z + 0.4);
       rect(C, x0 - 2, Y(y0 + 2.0) - 2, x1 - x0 + 4, Y(y0 + 0.15) - Y(y0 + 2.0) + 4, '#4c5357');
-      rect(C, x0, Y(y0 + 2.0), x1 - x0, Y(y0 + 0.15) - Y(y0 + 2.0), '#737b80');
+      rect(C, x0, Y(y0 + 2.0), x1 - x0, Y(y0 + 0.15) - Y(y0 + 2.0), '#646c71');
       Hc.strokeStyle = 'rgb(160,160,160)';
       Hc.lineWidth = 3;
       Hc.strokeRect(x0, Y(y0 + 2.0), x1 - x0, Y(y0 + 0.15) - Y(y0 + 2.0));

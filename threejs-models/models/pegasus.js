@@ -42,10 +42,10 @@ function xSternEnd(y) {
 }
 // Доля полуширины в точке (x, y): заострение носа и кормы, полнота растёт кверху
 function fullness(x, y) {
-  const xf0 = 12, xa0 = -10;
+  const xf0 = 16, xa0 = -12;
   if (x > xf0) {
     const s = clamp01((x - xf0) / (xStem(y) - xf0));
-    const p = 1.45 + 0.1 * Math.min(y, 11);
+    const p = 1.6 + 0.12 * Math.min(y, 11);
     const e = lerp(0.95, 0.72, smooth(y / 12));
     return Math.max(0, 1 - s ** p) ** e;
   }
@@ -199,7 +199,7 @@ function lathe(profile, seg = 20, { bottom = false, top = true, uv = null } = {}
   };
   if (top) capAt(n - 1, true);
   if (bottom) capAt(0, false);
-  return m.build({ orient: top && (bottom || profile[0][0] === 0) });
+  return m.build();
 }
 const latheX = (profile, seg, opt = { bottom: true }) => lathe(profile, seg, opt).rotateZ(-Math.PI / 2);
 
@@ -396,7 +396,7 @@ function paintAtlas() {
 
   // ---- БОРТ (v 0.5…1)
   const top = 0, bot = S / 2;
-  C.fillStyle = '#7b8287';
+  C.fillStyle = '#717a80';
   C.fillRect(0, top, S, bot);
   C.fillStyle = '#4c2b25'; // подводная часть
   C.fillRect(0, HY(5.32), S, bot - HY(5.32));
@@ -413,12 +413,12 @@ function paintAtlas() {
   // пояса обшивки и стыки листов
   const strakes = [0, 1.55, 3.15, 4.75, 6.35, 7.95, 9.55, 11.15, 12.75, YMAX];
   strakes.slice(1, -1).forEach((y) => {
-    line(C, 0, HY(y), S, HY(y), 2, 'rgba(15,18,20,0.22)');
+    line(C, 0, HY(y), S, HY(y), 2, 'rgba(15,18,20,0.13)');
     line(Hc, 0, HY(y), S, HY(y), 3, 'rgb(150,150,150)');
   });
   for (let k = 0; k < strakes.length - 1; k++) {
     for (let x = XS + 1 + (k % 2) * 3.4; x < XB; x += 6.8) {
-      line(C, HX(x), HY(strakes[k + 1]), HX(x), HY(strakes[k]), 2, 'rgba(15,18,20,0.18)');
+      line(C, HX(x), HY(strakes[k + 1]), HX(x), HY(strakes[k]), 1.5, 'rgba(15,18,20,0.09)');
       line(Hc, HX(x), HY(strakes[k + 1]), HX(x), HY(strakes[k]), 2, 'rgb(110,110,110)');
     }
   }
@@ -486,7 +486,7 @@ function paintAtlas() {
 
   // ---- НАДСТРОЙКИ (v 0…0.25)
   const t0 = py(0.25);
-  C.fillStyle = '#868d92';
+  C.fillStyle = '#7d858a';
   C.fillRect(0, t0, S, S - t0);
   const BY = (band, h) => py(V_BAND(band, h));
   const kP = (0.99 * S) / PERMAX;
@@ -803,7 +803,7 @@ export function createPegasus() {
   };
   const M = {
     paint: std('Hull_Paint_Atlas', 0xffffff, 0.78, 0.12, { map, normalMap }),
-    steel: std('Steel_Grey', 0x7f868b, 0.62, 0.25),
+    steel: std('Steel_Grey', 0x7a8287, 0.62, 0.25),
     dark: std('Steel_Dark', 0x2c2f32, 0.6, 0.35),
     gun: std('Gun_Steel', 0x5c6266, 0.45, 0.55),
     bronze: std('Propeller_Bronze', 0x9b7745, 0.32, 0.9),
@@ -1091,7 +1091,7 @@ export function createPegasus() {
           const rings = [];
           for (let k = 0; k <= 12; k++) {
             const s = -1 + (2 * k) / 12;
-            const w = Math.sqrt(Math.max(0.0004, 1 - s ** 2.6 * (s < 0 ? 1 : 1))) * 0.95;
+            const w = Math.sqrt(Math.max(0.0004, 1 - Math.abs(s) ** (s > 0 ? 2.2 : 3.2))) * 0.95;
             const ring = [];
             for (let j = 0; j < 8; j++) {
               const ang = Math.PI - (j / 7) * Math.PI;

@@ -32,10 +32,10 @@ const V3 = (x, y, z) => new THREE.Vector3(x, y, z);
 // ОБВОДЫ КОРПУСА
 
 export function mainDeckY(x) {
-  return 5.3 + 0.42 * smooth((MID_A - 4 - x) / (MID_A - 4 - XS)) ** 1.2 + 0.35 * smooth((x - MID_F) / (XF - MID_F));
+  return 5.0 + 0.42 * smooth((MID_A - 4 - x) / (MID_A - 4 - XS)) ** 1.2 + 0.35 * smooth((x - MID_F) / (XF - MID_F));
 }
 export function fcDeckY(x) {
-  return 7.7 + 1.0 * Math.max(0, (x - XB) / (XF - XB)) ** 2.3;
+  return 7.35 + 1.05 * Math.max(0, (x - XB) / (XF - XB)) ** 2.2;
 }
 const yTopV = (x) => fcDeckY(x); // «виртуальный» верх борта: борт везде растёт до этой высоты
 
@@ -43,12 +43,12 @@ function sec(xn) {
   let W = BEAM, wd = BEAM, yk = 0, yw = 3.3, nb = 3.6, rake = 0, s = 0, flare = 1.6;
   if (xn > MID_F) {
     s = clamp01((xn - MID_F) / (XF - MID_F));
-    W = BEAM * Math.max(0, 1 - s ** 2.1) ** 0.8;
-    wd = BEAM * Math.max(0, 1 - s ** 2.7) ** 0.62;
-    yk = 3.4 * s ** 4.2;
-    yw = 3.3 + 1.5 * s * s;
+    W = BEAM * Math.max(0, 1 - s ** 1.55) ** 1.0;
+    wd = BEAM * Math.max(0, 1 - s ** 1.7) ** 0.8;
+    yk = 3.1 * s ** 3.2;
+    yw = 3.3 + 1.2 * s * s;
     nb = 3.6 - 1.9 * s;
-    rake = -0.5 * s * s;
+    rake = -0.62 * s ** 1.6;
     flare = 1.6 + 0.6 * s;
   } else if (xn < MID_A) {
     s = clamp01((MID_A - xn) / (MID_A - XS));
@@ -664,7 +664,7 @@ function paintAtlas() {
     ctx.lineTo(x1, y1);
     ctx.stroke();
   };
-  const GREY = '#7d848a';
+  const GREY = '#6e767c';
 
   // ---- БОРТ (v 0.5…1)
   const hullBot = py(0.5);
@@ -687,7 +687,7 @@ function paintAtlas() {
   for (let i = 0; i < 1400; i++) {
     const x = rnd() * S, y = rnd() * hullBot;
     const r = 6 + rnd() * 30;
-    C.fillStyle = rnd() < 0.5 ? 'rgba(255,255,255,0.014)' : 'rgba(0,0,0,0.02)';
+    C.fillStyle = rnd() < 0.5 ? 'rgba(255,255,255,0.007)' : 'rgba(0,0,0,0.012)';
     C.beginPath();
     C.ellipse(x, y, r * 2.2, r, 0, 0, Math.PI * 2);
     C.fill();
@@ -781,7 +781,7 @@ function paintAtlas() {
   // ---- СТЕНЫ НАДСТРОЕК (v 0…0.25, u 0…0.745): полоса 0 — иллюминаторы, полоса 1 — окна рубки
   const w0 = 0, w1 = px(0.75);
   const bandY = (band, h) => py(V_WALL(band, h));
-  C.fillStyle = '#80878d';
+  C.fillStyle = '#737a80';
   C.fillRect(w0, py(0.25), w1, S - py(0.25));
   for (let i = 0; i < 400; i++) {
     C.fillStyle = rnd() < 0.5 ? 'rgba(255,255,255,0.016)' : 'rgba(0,0,0,0.02)';
@@ -813,7 +813,7 @@ function paintAtlas() {
     const X = px(0.004 + m * KU_WALL), Y = bandY(0, 1.6);
     if (Math.round(m / 1.45) % 7 === 3) {
       // дверь
-      C.fillStyle = '#6f767b';
+      C.fillStyle = '#656c71';
       C.fillRect(X - 0.35 * mpx, bandY(0, 1.85), 0.7 * mpx, 1.65 * mpy);
       C.strokeStyle = 'rgba(25,28,30,0.7)';
       C.lineWidth = 2;
@@ -853,7 +853,7 @@ function paintAtlas() {
 
   // ---- ТРУБА (u 0.755…0.995)
   const f0 = px(FUN.u0 - 0.002), f1 = px(FUN.u1 + 0.002);
-  C.fillStyle = '#7f868c';
+  C.fillStyle = '#72797f';
   C.fillRect(f0, py(0.25), f1 - f0, S - py(0.25));
   // сажа к верху
   {
@@ -1045,8 +1045,8 @@ export function createShoreham() {
     bottom: std('Antifouling_Red', 0x4b2b25, 0.75, 0.1),
     bronze: std('Propeller_Bronze', 0xa07a45, 0.32, 0.9),
     wire: std('Rigging_Wire', 0x26282a, 0.55, 0.6),
-    canvas: std('Canvas_Cover', 0xb9b49e, 0.9, 0.0),
-    boat: std('Boat_Paint', 0x9aa1a6, 0.55, 0.05),
+    canvas: std('Canvas_Cover', 0x9c9886, 0.9, 0.0),
+    boat: std('Boat_Paint', 0x7f878c, 0.55, 0.05),
   };
   const group = (name, parent, x = 0, y = 0, z = 0) => {
     const g = new THREE.Group();
@@ -1068,7 +1068,7 @@ export function createShoreham() {
   // ======================= КОРПУС
   const hullG = group('Hull', ship);
   const { hull, bulkhead } = buildHull();
-  mesh(merge([hull, bulkhead, buildBulwark(33.0, 1.05)]), M.paint, 'Hull_Shell', hullG);
+  mesh(merge([hull, bulkhead, buildBulwark(34.5, 0.95)]), M.paint, 'Hull_Shell', hullG);
 
   // Подводные выступы: валы, кронштейны, мортиры, скуловые кили, брусковый киль (необрастающая краска)
   const PROP = { x: -35.5, y: 0.92, z: 2.5, r: 0.85 };
@@ -1136,7 +1136,7 @@ export function createShoreham() {
   const BR = { x0: 11.6, x1: 18.6, hw: 3.3, h1: 2.4, wx0: 12.9, wx1: 17.6, whw: 2.5, h2: 2.3 };
   const yBr = fcY(15) - 0.0; // основание мостика
   const yPlat = yBr + BR.h1 + BR.h2; // палуба ходового мостика
-  const FUNNEL = { x: 3.2, a: 1.55, b: 1.05, rake: Math.tan((9 * Math.PI) / 180) };
+  const FUNNEL = { x: 3.2, a: 1.8, b: 1.22, rake: Math.tan((9 * Math.PI) / 180) };
   const yFun0 = fcY(3) + 0.9 - 0.03;
   const SL = { x: 12.85, y: yPlat + 0.62 }; // прожектор на кормовой части ходового мостика
   {
@@ -1179,7 +1179,7 @@ export function createShoreham() {
     // кормовая рубка под платформой орудия
     addHouse(roundRect(-26.5, -18.0, -2.3, 2.3, 0.6), mainDeckY(-22) + 0.12, 2.1, { band: 0, onDeck: true });
     // рубка у трубы (вентиляционная шахта / котельный кожух)
-    addHouse(roundRect(-0.6, 7.2, -1.9, 1.9, 0.5), fcY(3), 0.9, { band: 0, onDeck: true });
+    addHouse(roundRect(-0.9, 7.3, -2.0, 2.0, 0.5), fcY(3), 0.9, { band: 0, onDeck: true });
 
     // труба: наклонные кольца-овалы; кромка, внутренняя стенка, тёмное дно
     {
@@ -1382,7 +1382,7 @@ export function createShoreham() {
     // полубак: от среза до фальшборта
     [1, -1].forEach((sd) => {
       const pts = [];
-      for (let x = XB + 0.15; x <= 33.0; x += 0.75) pts.push([x, sd * (edgeZ(x, fcDeckY(x)) - inset)]);
+      for (let x = XB + 0.15; x <= 34.5; x += 0.75) pts.push([x, sd * (edgeZ(x, fcDeckY(x)) - inset)]);
       rail(pts, (x, z) => deckY(x, z));
     });
     // поперёк среза полубака (между трапами)
@@ -1461,12 +1461,10 @@ export function createShoreham() {
     [1, -1].forEach((sd) => parts.push(box(0.4, 0.45, 0.25, 16.8, yPlat + 0.7, sd * 4.18)));
     // тумба прожектора
     parts.push(lathe([[0.32, -0.05], [0.22, 0.25], [0.18, 0.55], [0.26, 0.6], [0, 0.62]], 14).translate(SL.x, SL.y - 0.62, 0));
-    // площадка-кольцо на трубе (свисток)
-    parts.push(rod([FUNNEL.x - 5 * FUNNEL.rake + 1.4, yFun0 + 5, 0], [FUNNEL.x - 5.6 * FUNNEL.rake + 1.4, yFun0 + 5.6, 0], 0.07, 8));
     // паропровод сирены по передней кромке трубы
     parts.push(
       tubePath(
-        [V3(FUNNEL.x + FUNNEL.a * 0.92 + 0.05, yFun0 + 0.2, 0.35), V3(FUNNEL.x + FUNNEL.a * 0.92 + 0.05 - 6.4 * FUNNEL.rake, yFun0 + 6.6, 0.35), V3(FUNNEL.x + FUNNEL.a * 0.92 - 6.6 * FUNNEL.rake, yFun0 + 7.1, 0.35)],
+        [V3(FUNNEL.x + FUNNEL.a * 0.9 - 0.02, yFun0 - 0.05, 0.45), V3(FUNNEL.x + FUNNEL.a * 0.9 - 0.02 - 5.8 * FUNNEL.rake, yFun0 + 5.8, 0.45), V3(FUNNEL.x + FUNNEL.a * 0.9 - 6.5 * FUNNEL.rake + 0.25, yFun0 + 6.5, 0.45)],
         0.06,
         6,
       ),
@@ -1523,7 +1521,7 @@ export function createShoreham() {
         const w = (BOAT.B / 2) * Math.max(0.02, Math.sin(Math.PI * t) ** 0.5);
         const d = BOAT.D * (0.7 + 0.3 * Math.sin(Math.PI * t));
         const gw = 0.1 * (2 * Math.abs(t - 0.5)) ** 2; // седловатость планширя
-        const hc = 0.3 * Math.sin(Math.PI * t) ** 0.7;
+        const hc = 0.42 * Math.sin(Math.PI * t) ** 0.6;
         const hr = [], cr = [];
         for (let j = 0; j <= MH; j++) {
           const a = (j / MH) * Math.PI;
@@ -1705,7 +1703,7 @@ export function createShoreham() {
     // руль: балансирный, баллер по Y
     const rg = group('Rudder', propG, RUD.x, RUD.y0, 0);
     const h = RUD.y1 - RUD.y0;
-    const f = foil({ root: [0.55, -1.45], tip: [0.45, -1.35], span: h, tc: 0.15, y0: 0, nSpan: 3 });
+    const f = foil({ root: [0.4, -1.25], tip: [0.32, -1.1], span: h, tc: 0.15, y0: 0, nSpan: 3 });
     const stock = lathe([[0.09, h - 0.05], [0.09, h + 0.85], [0, h + 0.86]], 10);
     mesh(merge([f, stock]), M.bottom, 'Rudder_Blade', rg);
   }
