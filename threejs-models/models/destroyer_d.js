@@ -1399,8 +1399,8 @@ export function createDestroyerD() {
     [
       [14.2, 1.7, 1.5, 0.26, 0],
       [14.2, -1.7, 1.5, 0.26, 0],
-      [7.0, 2.6, 1.3, 0.24, Math.PI],
-      [7.0, -2.6, 1.3, 0.24, Math.PI],
+      [7.2, 1.6, 1.3, 0.24, Math.PI],
+      [7.2, -1.6, 1.3, 0.24, Math.PI],
       [-3.0, 2.2, 1.2, 0.22, 0],
       [-3.0, -2.2, 1.2, 0.22, 0],
       [-22.2, 1.9, 1.1, 0.2, Math.PI],
@@ -1548,11 +1548,8 @@ export function createDestroyerD() {
             pts.push(V3(x, y0 + 2.6 + 0.8 * Math.sin(ang), sd * (ze - 0.85 * (1 - Math.cos(ang)))));
           }
         }
-        // шлюпбалка выведена за борт: разворот вокруг собственной оси
-        const P0 = pts[0];
-        const flip = pts.map((q) => V3(q.x, q.y, P0.z + (P0.z - q.z)));
-        parts.push(tubePath(flip, 0.085, 8));
-        const tip = flip[flip.length - 1];
+        parts.push(tubePath(pts, 0.085, 8));
+        const tip = pts[pts.length - 1];
         parts.push(rod([tip.x, tip.y - 0.05, tip.z], [tip.x, BOAT.y + 0.1, tip.z], 0.03, 5));
       });
     });
@@ -1681,7 +1678,7 @@ export function createDestroyerD() {
     [1, -1].forEach((sd) => {
       const tag = sd > 0 ? 'R' : 'L';
       const [hg, cg] = boatParts();
-      const z = sd * (edgeZ(BOAT.x, mainDeckY(BOAT.x)) + 0.35);
+      const z = sd * (edgeZ(BOAT.x, mainDeckY(BOAT.x)) - 1.12);
       mesh(hg.translate(BOAT.x, BOAT.y, z), M.boat, `Boat_Hull_${tag}`, boatsG);
       mesh(cg.translate(BOAT.x, BOAT.y, z), M.canvas, `Boat_Cover_${tag}`, boatsG);
     });

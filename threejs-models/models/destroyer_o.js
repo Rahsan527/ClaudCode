@@ -55,7 +55,7 @@ function sec(xn) {
     s = clamp01((MID_A - xn) / (MID_A - XS));
     W = BEAM * Math.max(0, 1 - s ** 3.2) ** 0.5;
     wd = BEAM * Math.max(0, 1 - s ** 5) ** 0.5;
-    yk = 3.55 * smooth(s / 0.6);
+    yk = 3.4 * smooth(s / 0.82);
     yw = Math.max(4.3 + 0.6 * s * s, yk + 0.6);
     nb = 3.0 + 0.8 * s;
     rake = 0.35 * s * s;
@@ -1188,7 +1188,7 @@ export function createDestroyerO() {
   const GX = { x: -29.6 };
   const GY = { x: -39.6 };
   const MMAST = { x: -24.2 };
-  const PROP = { x: -40.8, y: 1.85, z: 2.55, r: 1.45 };
+  const PROP = { x: -40.8, y: 1.5, z: 2.55, r: 1.35 };
   const RUD = { x: -46.35, y0: 1.15, y1: 3.45 };
   const BOAT = { x: -0.6, L: 7.6, B: 2.05, D: 0.85, z: 4.55 };
   BOAT.y = fcY(BOAT.x) + 2.05;
@@ -1196,15 +1196,15 @@ export function createDestroyerO() {
   // ======================= КОРПУС
   const hullG = group('Hull', ship);
   const { hull, bulkhead } = buildHull();
-  mesh(merge([hull, bulkhead, buildBulwark(44.5, 0.9)]), M.paint, 'Hull_Shell', hullG);
+  mesh(merge([hull, bulkhead, buildBulwark(46.5, 0.6)]), M.paint, 'Hull_Shell', hullG);
 
   // Подводные выступы: валы, кронштейны, мортиры, скуловые кили, дейдвуд
   {
     const parts = [];
     [1, -1].forEach((sd) => {
       const z = sd * PROP.z;
-      parts.push(rod([-17.5, 0.95, sd * 1.75], [PROP.x + 0.3, PROP.y, z], 0.15, 10));
-      parts.push(rod([-17.0, 0.93, sd * 1.73], [-23.5, 1.2, sd * 1.97], 0.3, 10));
+      parts.push(rod([-17.5, 0.75, sd * 1.75], [PROP.x + 0.3, PROP.y, z], 0.15, 10));
+      parts.push(rod([-17.0, 0.73, sd * 1.73], [-24.5, 1.0, sd * 1.99], 0.3, 10));
       const xb = PROP.x + 1.3;
       parts.push(latheX([[0.0, -0.4], [0.24, -0.28], [0.24, 0.3], [0.0, 0.45]], 12).translate(xb, PROP.y, z));
       const leg = (zz, yy) => {
@@ -1242,9 +1242,9 @@ export function createDestroyerO() {
     {
       const lo = [], hi = [];
       for (let i = 0; i <= 14; i++) {
-        const x = lerp(-15, -45.75, i / 14);
+        const x = lerp(-15, -44.2, i / 14);
         const yk = sec(x).yk;
-        const yb = Math.min(yk - 0.02, 0.02 + 1.2 * ((i / 14) ** 2.2));
+        const yb = Math.min(yk - 0.02, 0.02 + 1.5 * ((i / 14) ** 2.5));
         lo.push([x, yb]);
         hi.push([x, Math.max(yk + 0.45, yb + 0.5)]);
       }

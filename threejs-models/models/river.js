@@ -774,11 +774,11 @@ export function createRiver() {
     const parts = [];
     const bottom = [[-15, 0.18], [-17, 0.0], [-31.0, 0.0], [-34.0, 0.4], [-36.3, 1.15], [-37.7, keelY(-37.7) + 0.3]];
     const upper = [];
-    for (let x = -37.2; x <= -15.5; x += 0.9) upper.push([x, keelY(x) + 0.2]);
+    for (let x = -37.2; x <= -15.5; x += 0.9) upper.push([x, keelY(x) + 0.07]);
     parts.push(prism([...bottom, ...upper], 0.3));
     [1, -1].forEach((sd) => {
       const z = sd * PROP.z;
-      parts.push(latheX([[0.13, -38.7], [0.13, -28.0]], 10, { top: false, bottom: false }).translate(0, PROP.y, z)); // вал
+      parts.push(latheX([[0.13, -38.7], [0.13, -30.6]], 10, { top: false, bottom: false }).translate(0, PROP.y, z)); // вал
       parts.push(latheX([[0.0, -38.95], [0.21, -38.8], [0.23, -38.1], [0.14, -37.8]], 12, { top: false }).translate(0, PROP.y, z));
       const xb = -38.4;
       const r1 = sideAt(xb, keelY(xb) + 0.25);
@@ -833,7 +833,7 @@ export function createRiver() {
     // рулевая рубка: скошенный фасад, окна
     {
       const pts = [[BR.wh0, -BR.whw], [BR.wh1 - 1.0, -BR.whw], [BR.wh1, -1.2], [BR.wh1, 1.2], [BR.wh1 - 1.0, BR.whw], [BR.wh0, BR.whw]];
-      parts.push(house('Wheelhouse', pts, BR.y1 - 0.05, BR.y2 + 0.05, { roof: false, windows: { y0: 12.3, y1: 13.05, step: 0.9, w: 0.62, filter: (n) => n[0] > 0.2 || Math.abs(n[1]) > 0.9 }, doors: [[BR.wh0, 1.0]] }));
+      parts.push(house('Wheelhouse', pts, BR.y1, BR.y2, { roof: false, windows: { y0: 12.3, y1: 13.05, step: 0.9, w: 0.62, filter: (n) => n[0] > 0.2 || Math.abs(n[1]) > 0.9 }, doors: [[BR.wh0, 1.0]] }));
       // крыша-палуба между рубкой и задней кромкой нижнего яруса (открытая площадка)
     }
     // палуба компасного мостика с крыльями (настил сверху)
@@ -852,18 +852,18 @@ export function createRiver() {
       const wall = wallPoly(path, 0.07);
       const P = perimeter(wall);
       const slb = pack(P, 1.15);
-      houses.push({ name: 'Bridge_Bulwark', outline: wall, P, y0: BR.plat - 0.02, y1: BR.plat + 1.12, slot: slb, plain: true });
-      parts.push(extrudeY(wall, BR.plat - 0.02, BR.plat + 1.12, {
-        uvSide: (per, y) => [lerp(slb.u0, slb.u1, per / P), lerp(slb.v0, slb.v1, (y - BR.plat + 0.02) / 1.14)],
+      houses.push({ name: 'Bridge_Bulwark', outline: wall, P, y0: BR.plat, y1: BR.plat + 1.12, slot: slb, plain: true });
+      parts.push(extrudeY(wall, BR.plat, BR.plat + 1.12, {
+        uvSide: (per, y) => [lerp(slb.u0, slb.u1, per / P), lerp(slb.v0, slb.v1, (y - BR.plat) / 1.12)],
         uvTop: roofUV,
       }));
       // рубка радара 271 на кормовой части мостика
-      parts.push(house('Radar_Office', rrect(RO.x0, RO.x1, RO.hw, 0.25, 0.25), BR.plat - 0.02, RO.y1, { doors: [[RO.x1, 0.0]] }));
+      parts.push(house('Radar_Office', rrect(RO.x0, RO.x1, RO.hw, 0.25, 0.25), BR.plat, RO.y1, { doors: [[RO.x1, 0.0]] }));
       // обвесы «Эрликонов» на крыльях
       OE.slice(0, 2).forEach((o) => {
         const outer = circle(o.x, o.z, 1.0, 20);
         const inner = circle(o.x, o.z, 0.94, 20).reverse();
-        parts.push(extrudeY(outer, o.y - 0.02, o.y + 1.05, { holes: [inner], uvSide: () => roofUV(0, 0), uvTop: roofUV }));
+        parts.push(extrudeY(outer, o.y, o.y + 1.05, { holes: [inner], uvSide: () => roofUV(0, 0), uvTop: roofUV }));
       });
     }
     // кожух трубы и рубка на шкафуте
@@ -877,7 +877,7 @@ export function createRiver() {
   {
     const m = new Mesher();
     const NS = 28;
-    const y0 = CAS.y1 - 0.08;
+    const y0 = CAS.y1;
     const P = 2 * Math.PI * Math.sqrt((FUN.rx ** 2 + FUN.rz ** 2) / 2);
     const slot = pack(P, FUN.top - y0);
     houses.push({ name: 'Funnel', funnel: true, P, y0, y1: FUN.top, slot });
@@ -1153,7 +1153,7 @@ export function createRiver() {
         const y = deckTop(x, z);
         dc.push(lathe([[0.3, y - 0.05], [0.3, y + 0.25], [0, y + 0.27]], 14).translate(x, 0, z));
         dc.push(rod([x, y + 0.2, z], [x, y + 1.05, z + sd * 0.5], 0.16, 12, 'b'));
-        dc.push(charge().rotateZ(Math.PI / 2).rotateX(sd * -0.53).translate(x, y + 1.25, z + sd * 0.62));
+        dc.push(charge().rotateZ(Math.PI / 2).rotateX(sd * 0.53).translate(x, y + 1.25, z + sd * 0.62));
         // стеллаж с тремя бомбами рядом
         const xr = x - 1.45;
         const zr = sd * (deckHalf(xr) - 1.3);
@@ -1230,7 +1230,7 @@ export function createRiver() {
     const y0 = deckTop(HH.x) - 0.05;
     p.push(box(1.5, 0.5, 2.0, 0, y0 + 0.25, 0, { noBottom: true }));
     p.push(box(2.0, 0.14, 2.9, 0.05, y0 + 0.62, 0));
-    [1, -1].forEach((sd) => p.push(prism([[-0.9, 0], [0.9, 0], [0.6, 0.35], [-0.6, 0.35]], 0.08).translate(0.05, y0 + 0.69, sd * 1.36)));
+    [1, -1].forEach((sd) => p.push(prism([[-0.9, 0], [0.9, 0], [0.6, 0.35], [-0.6, 0.35]], 0.08).translate(0.05, y0 + 0.66, sd * 1.36)));
     const bomb = latheX([[0, -0.32], [0.1, -0.28], [0.1, 0.25], [0.07, 0.42], [0, 0.48]], 8);
     const fin = box(0.18, 0.22, 0.03, -0.38, 0, 0);
     const unit = merge([bomb, fin, rod([-0.75, 0, 0], [-0.3, 0, 0], 0.03, 5, 'a')]);
