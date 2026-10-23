@@ -722,7 +722,7 @@ export function createType7B() {
   // Валы, кронштейны, ограждения винтов, неподвижные стабилизаторы кормовых рулей
   for (const side of [1, -1]) {
     const z = side * SHAFT.z;
-    darkParts.push(cylX(SHAFT.r, SHAFT.r, SHAFT.xIn, SHAFT.xProp + 0.2, 10, SHAFT.y, z));
+    darkParts.push(cylX(SHAFT.r, SHAFT.r, SHAFT.xIn, SHAFT.xProp + 0.2, 10, SHAFT.y, z, true));
     // кронштейн вала (А-образный, две стойки)
     const xb = SHAFT.xProp + 0.75;
     for (const [dy, dz] of [[1, -0.35], [0.2, -1]]) {
@@ -768,7 +768,7 @@ export function createType7B() {
     // Сетепрорезатель на форштевне: зубчатый нож, на него же крепится леер (антенна) к рубке
     const sh = new THREE.Shape();
     const xa = 30.2, xb = X1 - 0.05;
-    const tip = [33.72, 3.32];
+    const tip = [33.56, 3.3];
     sh.moveTo(xa, deckY(xa) - 0.12);
     sh.lineTo(xb, deckY(xb) - 0.16);
     sh.lineTo(tip[0], tip[1]);
@@ -788,7 +788,7 @@ export function createType7B() {
   // Кормовая стойка леера
   {
     const xs = -31.0, y0 = deckY(xs) - 0.05;
-    lightParts.push(cylY(0.06, 0.035, 1.55, 8, xs, y0, 0));
+    lightParts.push(cylY(0.06, 0.035, 1.55, 8, xs, y0, 0, true));
     STERN_POST_TOP.set(xs, y0 + 1.5, 0);
   }
   // Шпили (носовой и кормовой)
@@ -917,10 +917,10 @@ export function createType7B() {
     towerLight.push(g);
   }
   // Тумба перископов (обтекатель) — лофт сечений
-  const PERI = { xc: TW.x0 - 1.0, top: 4.85, sky: TW.x0 - 0.73, att: TW.x0 - 1.27 };
+  const PERI = { xc: TW.x0 - 1.0, top: 4.66, sky: TW.x0 - 0.73, att: TW.x0 - 1.27 };
   {
     const m = new Mesher();
-    const lv = [TW.floor - 0.02, 3.8, 4.4, PERI.top];
+    const lv = [TW.floor - 0.02, 3.8, 4.35, PERI.top];
     const plan = (y) => {
       const h = (y - TW.floor) / (PERI.top - TW.floor);
       return { f: lerp(0.75, 0.48, h), a: lerp(-0.8, -0.52, h), w: lerp(0.42, 0.3, h), xs: lerp(0.1, 0, h) };
@@ -948,11 +948,12 @@ export function createType7B() {
     towerLight.push(g);
   }
   // Пелорус/UZO на носу мостика, рамочная антенна пеленгатора, рубочный люк
-  towerLight.push(cylY(0.09, 0.07, 0.95, 10, TW.x0 + 2.45, TW.floor, 0));
+  towerLight.push(cylY(0.09, 0.07, 0.97, 10, TW.x0 + 2.45, TW.floor - 0.02, 0, true));
   towerLight.push(box(0.22, 0.16, 0.42, TW.x0 + 2.45, TW.floor + 1.02, 0));
-  towerLight.push(cylY(0.04, 0.03, 1.15, 6, TW.x0 + 0.2, TW.floor, -0.8));
-  towerLight.push(new THREE.TorusGeometry(0.22, 0.025, 6, 20).translate(TW.x0 + 0.2, TW.floor + 1.38, -0.8));
-  towerLight.push(cylY(0.36, 0.34, 0.1, 20, TW.x0 + 0.55, TW.floor - 0.03, 0));
+  towerLight.push(cylY(0.04, 0.03, 1.0, 6, TW.x0 + 0.2, TW.floor - 0.02, -0.8, true));
+  towerLight.push(new THREE.TorusGeometry(0.2, 0.024, 6, 20).translate(TW.x0 + 0.2, TW.floor + 1.2, -0.8));
+  towerLight.push(cylY(0.36, 0.34, 0.1, 20, TW.x0 + 0.55, TW.floor - 0.03, 0, true));
+  towerLight.push(new THREE.CircleGeometry(0.34, 20).rotateX(-Math.PI / 2).translate(TW.x0 + 0.55, TW.floor + 0.07, 0));
   // Ограждение зимнего сада: стойки и два поручня
   {
     const pts = [];
@@ -988,13 +989,13 @@ export function createType7B() {
     mesh(mergePlain(`${name}_Tube`, parts), M.gun, `${name}_Tube`, g);
     movable[name] = g;
   };
-  periscope('Periscope_Sky', PERI.sky, 0.1, 0.12, 0.22, PERI.top + 0.27);
-  periscope('Periscope_Attack', PERI.att, 0.085, 0.04, 0.32, PERI.top + 0.33);
+  periscope('Periscope_Sky', PERI.sky, 0.1, 0.12, 0.2, PERI.top + 0.16);
+  periscope('Periscope_Attack', PERI.att, 0.085, 0.04, 0.26, PERI.top + 0.2);
 
   // 20-мм автомат на зимнем саду: тумба неподвижна, автомат поворачивается
   {
     const fx = TW.x0 - 4.35, fy = TW.floor;
-    const ped = mergePlain('Flak_Mount', [cylY(0.2, 0.2, 0.06, 14, fx, fy - 0.02, 0), cylY(0.08, 0.07, 0.62, 10, fx, fy, 0)]);
+    const ped = mergePlain('Flak_Mount', [cylY(0.2, 0.2, 0.06, 14, fx, fy - 0.02, 0, true), new THREE.CircleGeometry(0.2, 14).rotateX(-Math.PI / 2).translate(fx, fy + 0.04, 0), cylY(0.08, 0.07, 0.6, 10, fx, fy + 0.02, 0)]);
     mesh(ped, M.gun, 'Flak_Mount', towerG);
     const pivotY = fy + 0.62;
     const g = group('Flak_20mm', towerG, fx, pivotY, 0);
