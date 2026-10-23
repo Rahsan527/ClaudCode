@@ -1288,18 +1288,20 @@ export function createCatalina() {
   const ctl = group('Control_Surfaces', root);
   {
     const ail = buildAileron();
-    const hR = [WING.xh, WY, 0];
+    const za = (WING.ail0 + WING.ail1) / 2;
+    const hR = [WING.xh, WY, za], hL = [WING.xh, WY, -za];
     const gR = group('Aileron_R', ctl, ...hR);
     mesh(local(ail.clone(), hR), M.paint, 'Aileron_R_Surface', gR);
-    const gL = group('Aileron_L', ctl, ...hR);
-    mesh(local(mirrorZ(ail), hR), M.paint, 'Aileron_L_Surface', gL);
+    const gL = group('Aileron_L', ctl, ...hL);
+    mesh(local(mirrorZ(ail), hL), M.paint, 'Aileron_L_Surface', gL);
     const el = buildElevator();
-    const hE = [TAIL.xh, TAIL.y, 0];
+    const ze = (0.24 + 3.72) / 2;
+    const hE = [TAIL.xh, TAIL.y, ze], hEL = [TAIL.xh, TAIL.y, -ze];
     const eR = group('Elevator_R', ctl, ...hE);
     mesh(local(el.clone(), hE), M.paint, 'Elevator_R_Surface', eR);
-    const eL = group('Elevator_L', ctl, ...hE);
-    mesh(local(mirrorZ(el), hE), M.paint, 'Elevator_L_Surface', eL);
-    const hRud = [FIN.xh, 0, 0];
+    const eL = group('Elevator_L', ctl, ...hEL);
+    mesh(local(mirrorZ(el), hEL), M.paint, 'Elevator_L_Surface', eL);
+    const hRud = [FIN.xh, 4.33, 0];
     const rud = group('Rudder', ctl, ...hRud);
     mesh(local(buildRudder(), hRud), M.paint, 'Rudder_Surface', rud);
   }

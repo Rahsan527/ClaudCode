@@ -1665,7 +1665,6 @@ export function createLoewe() {
     const w = [];
     const r = 0.016;
     const fs = (x, z) => [x, fcY(x, z) + 0.05, z];
-    const ms = (x, z) => [x, mainDeckY(x) + 0.05 + CAMBER * 0.2, z];
     w.push(rod([FM.x, 16.4, 0], fs(30.8, 0), r, 4));
     [1, -1].forEach((sd) => {
       w.push(rod([FM.x, 16.2, sd * 0.12], fs(FM.x - 2.2, sd * (edgeZ(FM.x - 2.2, fcDeckY(FM.x - 2.2)) - 0.2)), r, 4));
